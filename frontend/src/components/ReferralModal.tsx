@@ -39,10 +39,6 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
     } catch {}
   };
 
-  const telegramShareUrl = link
-    ? `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Подключай MTProxy по моей ссылке — выгодные тарифы!')}`
-    : '#';
-
   if (!isOpen) return null;
 
   return (
