@@ -4,7 +4,6 @@ import { proxyApi } from '../api/client';
 import type { Proxy } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import CreateProxyModal from '../components/CreateProxyModal';
-import Sticker from '../components/Sticker';
 
 export default function Proxies() {
   const { user } = useAuth();
