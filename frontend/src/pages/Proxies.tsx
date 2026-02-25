@@ -4,8 +4,9 @@ import { proxyApi } from '../api/client';
 import type { Proxy } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import CreateProxyModal from '../components/CreateProxyModal';
+import Sticker from '../components/Sticker';
 
-export default function Dashboard() {
+export default function Proxies() {
   const { user } = useAuth();
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,13 +132,7 @@ export default function Dashboard() {
 
       {proxies.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-12 text-center">
-          <p className="text-gray-400 mb-4">No proxies yet</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded px-4 py-2 transition-colors"
-          >
-            Create Your First Proxy
-          </button>
+          <p className="text-gray-400 mb-4">Прокси не найдены</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -194,12 +189,19 @@ export default function Dashboard() {
               {proxy.link && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-xs text-gray-500">Link:</span>
+                    <span className="text-xs text-gray-500">
+                      Link
+                      {!isAdmin && sub?.active && sub?.expires_at && (
+                        <span className="text-gray-400 ml-1.5">
+                          (До {new Date(sub.expires_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })})
+                        </span>
+                      )}
+                    </span>
                     <button
                       onClick={() => copyToClipboard(proxy.link!, `link-${proxy.id}`)}
                       className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors"
                     >
-                      {copied === `link-${proxy.id}` ? 'Copied!' : 'Copy'}
+                      {copied === `link-${proxy.id}` ? 'Скопировано!' : 'Копировать'}
                     </button>
                   </div>
                   <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto whitespace-nowrap">

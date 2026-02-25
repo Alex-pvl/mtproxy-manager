@@ -66,11 +66,21 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  register: (username: string, password: string) =>
-    api.post<AuthResponse>('/auth/register', { username, password }),
+  register: (username: string, password: string, ref?: string) =>
+    api.post<AuthResponse>('/auth/register', { username, password, ref: ref || undefined }),
   login: (username: string, password: string) =>
     api.post<AuthResponse>('/auth/login', { username, password }),
   me: () => api.get<User>('/auth/me'),
+};
+
+export interface ReferralInfo {
+  referral_link: string;
+  invited_count: number;
+  bonus_days_received: number;
+}
+
+export const referralApi = {
+  get: () => api.get<ReferralInfo>('/referral'),
 };
 
 export const proxyApi = {
@@ -97,6 +107,8 @@ export interface Plan {
   duration_days: number;
   price: number;
   price_label: string;
+  original_price_label?: string;
+  discount_percent?: number;
   per_month: string;
   max_proxies: number;
 }
@@ -105,6 +117,8 @@ export const paymentApi = {
   listPlans: () => api.get<Plan[]>('/plans'),
   createPayment: (planId: string) =>
     api.post<{ payment_url: string }>('/payments/create', { plan_id: planId }),
+  checkPendingPayments: () =>
+    api.post<{ updated: boolean }>('/payments/check-pending'),
   getSubscription: () => api.get<Subscription>('/subscription'),
 };
 

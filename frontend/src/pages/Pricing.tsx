@@ -3,8 +3,9 @@ import { paymentApi } from '../api/client';
 import type { Plan } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import Sticker from '../components/Sticker';
 
-const POPULAR_PLAN = 'month_3';
+const POPULAR_PLAN = 'year_1';
 
 export default function Pricing() {
   const { user, refreshUser } = useAuth();
@@ -25,8 +26,11 @@ export default function Pricing() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('payment')) {
-      refreshUser();
-      window.history.replaceState({}, '', '/pricing');
+      paymentApi
+        .checkPendingPayments()
+        .then(() => refreshUser())
+        .catch(() => refreshUser())
+        .finally(() => window.history.replaceState({}, '', '/pricing'));
     }
   }, [refreshUser]);
 
@@ -51,6 +55,33 @@ export default function Pricing() {
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-white mb-2">Тарифы</h1>
         <p className="text-gray-400">Выберите подходящий план для использования MTProxy</p>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-lg font-bold text-white mb-3">Причины пользоваться MTProxy</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+            <Sticker name="no_logs" className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="text-indigo-400 font-semibold text-sm mb-0.5">Без логов</h3>
+              <p className="text-gray-400 text-xs">Защищает вас от слежки провайдеров.</p>
+            </div>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+            <Sticker name="cipher" className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="text-indigo-400 font-semibold text-sm mb-0.5">Шифрование</h3>
+              <p className="text-gray-400 text-xs">Данные защищены от перехвата и взлома.</p>
+            </div>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+            <Sticker name="speed" className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="text-indigo-400 font-semibold text-sm mb-0.5">Быстрая сеть</h3>
+              <p className="text-gray-400 text-xs">Серверы имеют скорость соединения до 1 Гбит/с.</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {sub?.active && (
@@ -93,8 +124,16 @@ export default function Pricing() {
 
               <h3 className="text-lg font-semibold text-white mb-1">{plan.name}</h3>
 
-              <div className="mb-4">
+              <div className="mb-4 flex items-baseline gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-white">{plan.price_label}</span>
+                {plan.original_price_label && (
+                  <>
+                    <span className="text-base text-gray-500 line-through">{plan.original_price_label}</span>
+                    {plan.discount_percent != null && plan.discount_percent > 0 && (
+                      <span className="text-sm font-medium text-blue-400">−{plan.discount_percent}%</span>
+                    )}
+                  </>
+                )}
               </div>
 
               <p className="text-sm text-gray-400 mb-4">
@@ -104,19 +143,7 @@ export default function Pricing() {
               <ul className="text-sm text-gray-300 space-y-2 mb-6 flex-1">
                 <li className="flex items-center gap-2">
                   <span className="text-emerald-400">&#10003;</span>
-                  До {plan.max_proxies} прокси
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">&#10003;</span>
-                  MTProto протокол
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">&#10003;</span>
-                  Маскировка трафика
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">&#10003;</span>
-                  Панель управления
+                  {plan.max_proxies === 1 ? '1 прокси' : `До ${plan.max_proxies} прокси`}
                 </li>
               </ul>
 
@@ -141,7 +168,7 @@ export default function Pricing() {
       </div>
 
       <div className="mt-8 text-center">
-        <Link to="/" className="text-sm text-gray-400 hover:text-white transition-colors">
+        <Link to="/proxies" className="text-sm text-gray-400 hover:text-white transition-colors">
           &larr; Вернуться к панели
         </Link>
       </div>

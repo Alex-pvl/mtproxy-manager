@@ -8,7 +8,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, ref?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me.data);
   };
 
-  const register = async (username: string, password: string) => {
-    const res = await authApi.register(username, password);
+  const register = async (username: string, password: string, ref?: string) => {
+    const res = await authApi.register(username, password, ref);
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
     const me = await authApi.me();
