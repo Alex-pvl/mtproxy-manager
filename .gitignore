@@ -1,0 +1,18 @@
+data/
+frontend/node_modules/
+frontend/dist/
+backend/mtproxy-manager
+.cursor/
+
+# Local config with secrets (copy .env.example to .env)
+.env
+.env.local
+.env.*.local
+
+# Deployment-specific nginx config (use nginx/nginx.conf.example as template)
+nginx/staytg.org.conf
+backend/go.sum
+backend/server
+frontend/dist
+frontend/node_modules
+frontend/package-lock.json
