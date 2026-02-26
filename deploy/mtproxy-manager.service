@@ -1,0 +1,19 @@
+[Unit]
+Description=MTProxy Manager
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/mtproxy-manager
+ExecStart=/opt/mtproxy-manager/mtproxy-manager
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/mtproxy-manager/.env
+
+# Доступ к Docker для управления прокси-контейнерами
+Environment=DOCKER_HOST=unix:///var/run/docker.sock
+
+[Install]
+WantedBy=multi-user.target

@@ -207,6 +207,26 @@ func (h *PaymentHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to create subscription: %v", err)
 	} else {
 		log.Printf("Subscription created for user %d, plan %s, expires %s", userID, planID, expiresAt.Format(time.RFC3339))
+		// Update user's max_proxies to match the plan
+		if user, err := h.db.GetUserByID(userID); err == nil {
+			_ = h.db.UpdateUser(userID, user.Role, plan.MaxProxies)
+		}
+		// Referral bonus: 15% of subscription days to referrer (once per payment)
+		if referrerID, err := h.db.GetReferrerByReferred(userID); err == nil && referrerID > 0 {
+			exists, _ := h.db.ReferralBonusExistsForPayment(paymentID)
+			if !exists {
+				bonusDays := int(float64(plan.DurationDays) * 0.15)
+				if bonusDays > 0 {
+					if err := h.db.CreateReferralBonus(referrerID, userID, paymentID, bonusDays); err != nil {
+						log.Printf("Failed to create referral bonus: %v", err)
+					} else if err := h.db.ExtendSubscription(referrerID, bonusDays); err != nil {
+						log.Printf("Failed to extend referrer subscription: %v", err)
+					} else {
+						log.Printf("Referral bonus: %d days added to user %d for referred user %d", bonusDays, referrerID, userID)
+					}
+				}
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -1,7 +1,9 @@
 package database
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,6 +85,29 @@ func (db *DB) migrate() error {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		)`,
+		`CREATE TABLE IF NOT EXISTS referral_codes (
+			user_id INTEGER PRIMARY KEY,
+			code TEXT NOT NULL UNIQUE,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+		`CREATE TABLE IF NOT EXISTS referrals (
+			referrer_id INTEGER NOT NULL,
+			referred_id INTEGER NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (referrer_id, referred_id),
+			FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+		`CREATE TABLE IF NOT EXISTS referral_bonuses (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			referrer_id INTEGER NOT NULL,
+			referred_user_id INTEGER NOT NULL,
+			payment_id INTEGER NOT NULL,
+			bonus_days INTEGER NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (referred_user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
 	}
 
 	for _, m := range migrations {
@@ -127,7 +152,7 @@ func (db *DB) ensureAdmin() error {
 
 // --- User queries ---
 
-func (db *DB) CreateUser(username, password string) (*models.User, error) {
+func (db *DB) CreateUser(username, password string, referrerID *int64) (*models.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -142,13 +167,19 @@ func (db *DB) CreateUser(username, password string) (*models.User, error) {
 	}
 
 	id, _ := res.LastInsertId()
-	return &models.User{
+	user := &models.User{
 		ID:         id,
 		Username:   username,
 		Role:       models.RoleUser,
 		MaxProxies: db.cfg.DefaultMaxProxies,
 		CreatedAt:  time.Now(),
-	}, nil
+	}
+
+	if referrerID != nil && *referrerID > 0 && *referrerID != id {
+		_ = db.CreateReferral(*referrerID, id)
+	}
+
+	return user, nil
 }
 
 func (db *DB) GetUserByUsername(username string) (*models.User, error) {
@@ -371,4 +402,104 @@ func (db *DB) GetActiveSubscription(userID int64) (*models.Subscription, error) 
 		return nil, err
 	}
 	return s, nil
+}
+
+// --- Referral queries ---
+
+func generateReferralCode() (string, error) {
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b)[:8], nil
+}
+
+func (db *DB) GetOrCreateReferralCode(userID int64) (string, error) {
+	var code string
+	err := db.conn.QueryRow("SELECT code FROM referral_codes WHERE user_id = ?", userID).Scan(&code)
+	if err == nil {
+		return code, nil
+	}
+	code, err = generateReferralCode()
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < 5; i++ {
+		_, err = db.conn.Exec("INSERT INTO referral_codes (user_id, code) VALUES (?, ?)", userID, code)
+		if err == nil {
+			return code, nil
+		}
+		code, _ = generateReferralCode()
+	}
+	return "", fmt.Errorf("failed to generate unique referral code")
+}
+
+func (db *DB) GetUserIDByReferralCode(code string) (int64, error) {
+	var userID int64
+	err := db.conn.QueryRow("SELECT user_id FROM referral_codes WHERE code = ?", code).Scan(&userID)
+	return userID, err
+}
+
+func (db *DB) CreateReferral(referrerID, referredID int64) error {
+	_, err := db.conn.Exec(
+		"INSERT OR IGNORE INTO referrals (referrer_id, referred_id, created_at) VALUES (?, ?, datetime('now'))",
+		referrerID, referredID,
+	)
+	return err
+}
+
+func (db *DB) CountReferredBy(referrerID int64) (int, error) {
+	var count int
+	err := db.conn.QueryRow("SELECT COUNT(*) FROM referrals WHERE referrer_id = ?", referrerID).Scan(&count)
+	return count, err
+}
+
+func (db *DB) SumBonusDaysReceived(referrerID int64) (int, error) {
+	var sum sql.NullInt64
+	err := db.conn.QueryRow("SELECT COALESCE(SUM(bonus_days), 0) FROM referral_bonuses WHERE referrer_id = ?", referrerID).Scan(&sum)
+	if err != nil || !sum.Valid {
+		return 0, err
+	}
+	return int(sum.Int64), nil
+}
+
+func (db *DB) GetReferrerByReferred(referredID int64) (int64, error) {
+	var referrerID int64
+	err := db.conn.QueryRow("SELECT referrer_id FROM referrals WHERE referred_id = ?", referredID).Scan(&referrerID)
+	return referrerID, err
+}
+
+func (db *DB) ReferralBonusExistsForPayment(paymentID int64) (bool, error) {
+	var count int
+	err := db.conn.QueryRow("SELECT COUNT(*) FROM referral_bonuses WHERE payment_id = ?", paymentID).Scan(&count)
+	return count > 0, err
+}
+
+func (db *DB) CreateReferralBonus(referrerID, referredUserID int64, paymentID int64, bonusDays int) error {
+	_, err := db.conn.Exec(
+		`INSERT INTO referral_bonuses (referrer_id, referred_user_id, payment_id, bonus_days, created_at)
+		 VALUES (?, ?, ?, ?, datetime('now'))`,
+		referrerID, referredUserID, paymentID, bonusDays,
+	)
+	return err
+}
+
+func (db *DB) ExtendSubscription(userID int64, days int) error {
+	sub, err := db.GetActiveSubscription(userID)
+	if err != nil || sub == nil {
+		// No active subscription - create a new one starting now
+		now := time.Now()
+		expiresAt := now.AddDate(0, 0, days)
+		_, err = db.conn.Exec(
+			`INSERT INTO subscriptions (user_id, plan_id, payment_id, starts_at, expires_at) VALUES (?, ?, ?, ?, ?)`,
+			userID, "referral_bonus", 0, now, expiresAt,
+		)
+		return err
+	}
+	modifier := fmt.Sprintf("+%d days", days)
+	_, err = db.conn.Exec(
+		"UPDATE subscriptions SET expires_at = datetime(expires_at, ?) WHERE id = ?",
+		modifier, sub.ID,
+	)
+	return err
 }

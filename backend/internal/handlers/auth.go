@@ -23,6 +23,7 @@ func NewAuthHandler(db *database.DB, jwtSvc *auth.JWTService) *AuthHandler {
 type authRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Ref      string `json:"ref"`
 }
 
 type authResponse struct {
@@ -46,7 +47,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.db.CreateUser(req.Username, req.Password)
+	var referrerID *int64
+	if req.Ref != "" {
+		if id, err := h.db.GetUserIDByReferralCode(req.Ref); err == nil {
+			referrerID = &id
+		}
+	}
+
+	user, err := h.db.CreateUser(req.Username, req.Password, referrerID)
 	if err != nil {
 		writeError(w, http.StatusConflict, "username already taken")
 		return

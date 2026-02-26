@@ -42,20 +42,22 @@ type Proxy struct {
 // --- Plans & Subscriptions ---
 
 type Plan struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	DurationDays int    `json:"duration_days"`
-	Price        string `json:"price"`
-	PriceLabel   string `json:"price_label"`
-	PerMonth     string `json:"per_month"`
-	MaxProxies   int    `json:"max_proxies"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	DurationDays       int    `json:"duration_days"`
+	Price              string `json:"price"`
+	PriceLabel         string `json:"price_label"`
+	OriginalPriceLabel string `json:"original_price_label,omitempty"`
+	DiscountPercent    int    `json:"discount_percent,omitempty"`
+	PerMonth           string `json:"per_month"`
+	MaxProxies         int    `json:"max_proxies"`
 }
 
 var Plans = []Plan{
-	{ID: "month_1", Name: "1 месяц", DurationDays: 30, Price: "190.00", PriceLabel: "190 ₽", PerMonth: "190 ₽", MaxProxies: 5},
-	{ID: "month_3", Name: "3 месяца", DurationDays: 90, Price: "490.00", PriceLabel: "490 ₽", PerMonth: "163 ₽", MaxProxies: 5},
-	{ID: "month_6", Name: "6 месяцев", DurationDays: 180, Price: "990.00", PriceLabel: "990 ₽", PerMonth: "165 ₽", MaxProxies: 5},
-	{ID: "year_1", Name: "1 год", DurationDays: 365, Price: "1990.00", PriceLabel: "1 990 ₽", PerMonth: "166 ₽", MaxProxies: 5},
+	{ID: "month_1", Name: "1 месяц", DurationDays: 30, Price: "200.00", PriceLabel: "200 ₽", PerMonth: "200 ₽", MaxProxies: 1},
+	{ID: "month_3", Name: "3 месяца", DurationDays: 90, Price: "540.00", PriceLabel: "540 ₽", OriginalPriceLabel: "600 ₽", DiscountPercent: 10, PerMonth: "180 ₽", MaxProxies: 3},
+	{ID: "month_6", Name: "6 месяцев", DurationDays: 180, Price: "960.00", PriceLabel: "960 ₽", OriginalPriceLabel: "1 200 ₽", DiscountPercent: 20, PerMonth: "160 ₽", MaxProxies: 5},
+	{ID: "year_1", Name: "1 год", DurationDays: 365, Price: "1680.00", PriceLabel: "1 680 ₽", OriginalPriceLabel: "2 400 ₽", DiscountPercent: 30, PerMonth: "140 ₽", MaxProxies: 10},
 }
 
 func GetPlan(id string) *Plan {

@@ -41,6 +41,7 @@ func main() {
 	proxyHandler := handlers.NewProxyHandler(db, dockerMgr)
 	adminHandler := handlers.NewAdminHandler(db, dockerMgr)
 	paymentHandler := handlers.NewPaymentHandler(db, cfg)
+	referralHandler := handlers.NewReferralHandler(db, cfg)
 
 	r := chi.NewRouter()
 
@@ -91,6 +92,7 @@ func main() {
 		})
 
 		r.With(middleware.AuthRequired(jwtSvc)).Get("/subscription", paymentHandler.GetSubscription)
+		r.With(middleware.AuthRequired(jwtSvc)).Get("/referral", referralHandler.Get)
 	})
 
 	// Serve frontend static files (embedded or from disk)
