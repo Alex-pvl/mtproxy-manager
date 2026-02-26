@@ -44,7 +44,7 @@ export default function Login() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-white text-base sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
               required
             />
           </div>
@@ -55,7 +55,7 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-white text-base sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
               required
             />
           </div>
@@ -63,7 +63,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded px-4 py-2 transition-colors"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded px-4 py-2.5 transition-colors touch-manipulation"
           >
             {loading ? 'Вход...' : 'Войти'}
           </button>

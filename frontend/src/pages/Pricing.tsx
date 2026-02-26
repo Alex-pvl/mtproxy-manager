@@ -52,9 +52,9 @@ export default function Pricing() {
 
   return (
     <div>
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Тарифы</h1>
-        <p className="text-gray-400">Выберите подходящий план для использования MTProxy</p>
+      <div className="text-center mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">Тарифы</h1>
+        <p className="text-gray-400 text-sm sm:text-base px-2">Выберите подходящий план для использования MTProxy</p>
       </div>
 
       <div className="mb-8">
@@ -104,7 +104,7 @@ export default function Pricing() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {plans.map((plan) => {
           const isPopular = plan.id === POPULAR_PLAN;
           return (
@@ -150,7 +150,7 @@ export default function Pricing() {
               <button
                 onClick={() => handleBuy(plan.id)}
                 disabled={buyingPlan !== null}
-                className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 ${
+                className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation ${
                   isPopular
                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
                     : 'bg-gray-800 hover:bg-gray-700 text-gray-200'

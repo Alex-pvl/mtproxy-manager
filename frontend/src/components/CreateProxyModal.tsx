@@ -28,8 +28,8 @@ export default function CreateProxyModal({ onClose, onCreated }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md my-auto">
         <h2 className="text-lg font-semibold text-white mb-4">Create Proxy</h2>
 
         {error && (
@@ -72,14 +72,14 @@ export default function CreateProxyModal({ onClose, onCreated }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="text-sm text-gray-400 hover:text-white px-4 py-2 transition-colors"
+              className="text-sm text-gray-400 hover:text-white px-4 py-2.5 transition-colors touch-manipulation"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded px-4 py-2 transition-colors"
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded px-4 py-2.5 transition-colors touch-manipulation"
             >
               {loading ? 'Creating...' : 'Create'}
             </button>

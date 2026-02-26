@@ -48,7 +48,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          className="absolute top-4 right-4 p-2 -m-2 text-gray-400 hover:text-white transition-colors touch-manipulation"
           aria-label="Закрыть"
         >
           <span className="text-xl leading-none">&times;</span>
@@ -73,7 +73,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
           </div>
         </div>
 
-        <div className="flex gap-4 text-sm text-gray-400 mb-6">
+        <div className="flex flex-col sm:flex-row sm:gap-4 gap-1 text-sm text-gray-400 mb-6">
           <span>Приглашено: <span className="text-white font-medium">{invitedCount}</span></span>
           <span>Получено бонусных дней: <span className="text-white font-medium">{bonusDays}</span></span>
         </div>
@@ -83,7 +83,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
             type="button"
             onClick={handleCopy}
             disabled={loading || !link}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-3 transition-colors"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-3 transition-colors touch-manipulation"
           >
             {copied ? 'Скопировано!' : 'Скопировать ссылку'}
           </button>

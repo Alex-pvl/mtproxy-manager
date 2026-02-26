@@ -7,39 +7,52 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [referralOpen, setReferralOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+    setMenuOpen(false);
   };
+
+  const navLinks = (
+    <>
+      <Link to="/" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+        Главная
+      </Link>
+      <Link to="/proxies" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+        Мои прокси
+      </Link>
+      <Link to="/pricing" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+        Тарифы
+      </Link>
+      <button
+        type="button"
+        onClick={() => { setReferralOpen(true); setMenuOpen(false); }}
+        className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap text-left"
+      >
+        Рефералы
+      </button>
+      {user?.role === 'admin' && (
+        <Link to="/admin" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+          Admin
+        </Link>
+      )}
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
       <ReferralModal isOpen={referralOpen} onClose={() => setReferralOpen(false)} />
-      <nav className="border-b border-gray-800 bg-gray-900">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-2">
+      <nav className="border-b border-gray-800 bg-gray-900 sticky top-0 z-40">
+        <div className="mx-auto max-w-6xl px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 sm:gap-6 min-w-0">
             <Link to="/" className="text-base sm:text-lg font-bold text-white tracking-tight whitespace-nowrap">
               TelegramProxy
             </Link>
-            <Link to="/proxies" className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
-              Мои прокси
-            </Link>
-            <Link to="/pricing" className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
-              Тарифы
-            </Link>
-            <button
-              type="button"
-              onClick={() => setReferralOpen(true)}
-              className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap"
-            >
-              Рефералы
-            </button>
-            {user?.role === 'admin' && (
-              <Link to="/admin" className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
-                Admin
-              </Link>
-            )}
+            <div className="hidden md:flex items-center gap-3 sm:gap-6">
+              {navLinks}
+            </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <span className="text-sm text-gray-400 hidden sm:inline">
@@ -52,12 +65,37 @@ export default function Layout() {
             </span>
             <button
               onClick={handleLogout}
-              className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap"
+              className="hidden md:block text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap"
             >
               Выйти
             </button>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              className="md:hidden p-2 -mr-2 text-gray-400 hover:text-white transition-colors touch-manipulation"
+              aria-label="Меню"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {menuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
+        {menuOpen && (
+          <div className="md:hidden border-t border-gray-800 bg-gray-900 px-4 py-3 flex flex-col gap-3">
+            {navLinks}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+              <span className="text-sm text-gray-400">{user?.username}</span>
+              <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors py-2 touch-manipulation">
+                Выйти
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
       <main className="mx-auto max-w-6xl w-full px-3 sm:px-4 py-4 sm:py-8 flex-1">
         <Outlet />

@@ -106,7 +106,7 @@ export default function Proxies() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-bold text-white">Мои прокси</h1>
           <p className="text-sm text-gray-400 mt-1">
@@ -116,7 +116,7 @@ export default function Proxies() {
         <button
           onClick={() => setShowCreate(true)}
           disabled={!canCreate}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2 transition-colors"
+          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors touch-manipulation"
         >
           + Создать прокси
         </button>
@@ -138,13 +138,13 @@ export default function Proxies() {
           {proxies.map((proxy) => (
             <div
               key={proxy.id}
-              className="bg-gray-900 border border-gray-800 rounded-lg p-4 overflow-hidden"
+              className="bg-gray-900 border border-gray-800 rounded-lg p-4 overflow-hidden min-w-0"
             >
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-white text-sm">:{proxy.port}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <span className="font-mono text-white text-sm shrink-0">:{proxy.port}</span>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded font-medium ${
+                    className={`text-xs px-2 py-0.5 rounded font-medium shrink-0 ${
                       proxy.status === 'running'
                         ? 'bg-emerald-500/15 text-emerald-400'
                         : proxy.status === 'stopped'
@@ -154,15 +154,15 @@ export default function Proxies() {
                   >
                     {proxy.status}
                   </span>
-                  <span className="text-sm text-gray-500">{proxy.domain}</span>
+                  <span className="text-sm text-gray-500 truncate">{proxy.domain}</span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {proxy.status === 'running' ? (
                     <button
                       onClick={() => handleStop(proxy.id)}
                       disabled={actionLoading === proxy.id}
-                      className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition-colors disabled:opacity-50"
+                      className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
                     >
                       Stop
                     </button>
@@ -170,7 +170,7 @@ export default function Proxies() {
                     <button
                       onClick={() => handleStart(proxy.id)}
                       disabled={actionLoading === proxy.id}
-                      className="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded px-3 py-1.5 transition-colors disabled:opacity-50"
+                      className="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
                     >
                       Start
                     </button>
@@ -178,7 +178,7 @@ export default function Proxies() {
                   <button
                     onClick={() => handleDelete(proxy.id)}
                     disabled={actionLoading === proxy.id}
-                    className="text-xs bg-red-600/10 hover:bg-red-600/20 text-red-400 rounded px-3 py-1.5 transition-colors disabled:opacity-50"
+                    className="text-xs bg-red-600/10 hover:bg-red-600/20 text-red-400 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
                   >
                     Delete
                   </button>
@@ -198,12 +198,12 @@ export default function Proxies() {
                     </span>
                     <button
                       onClick={() => copyToClipboard(proxy.link!, `link-${proxy.id}`)}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors"
+                      className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors py-1 touch-manipulation"
                     >
                       {copied === `link-${proxy.id}` ? 'Скопировано!' : 'Копировать'}
                     </button>
                   </div>
-                  <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto whitespace-nowrap">
+                  <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
                     {proxy.link}
                   </code>
                 </div>
@@ -214,12 +214,12 @@ export default function Proxies() {
                   <span className="text-xs text-gray-500">Secret:</span>
                   <button
                     onClick={() => copyToClipboard(proxy.secret, `secret-${proxy.id}`)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors py-1 touch-manipulation"
                   >
                     {copied === `secret-${proxy.id}` ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
-                <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto whitespace-nowrap">
+                <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
                   {proxy.secret}
                 </code>
               </div>
