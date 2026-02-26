@@ -107,6 +107,7 @@ export interface Plan {
   duration_days: number;
   price: number;
   price_label: string;
+  price_usd_label?: string;
   original_price_label?: string;
   discount_percent?: number;
   per_month: string;

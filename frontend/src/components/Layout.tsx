@@ -1,7 +1,21 @@
 import { useState } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ReferralModal from './ReferralModal';
+
+function NavLink({ to, children, className = '', onClick }: { to: string; children: React.ReactNode; className?: string; onClick?: () => void }) {
+  const location = useLocation();
+  const isActive = location.pathname === to;
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={`text-sm transition-colors whitespace-nowrap ${isActive ? 'text-white font-medium' : 'text-gray-400 hover:text-white'} ${className}`}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -17,12 +31,12 @@ export default function Layout() {
 
   const navLinks = (
     <>
-      <Link to="/proxies" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+      <NavLink to="/proxies" onClick={() => setMenuOpen(false)}>
         My
-      </Link>
-      <Link to="/pricing" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+      </NavLink>
+      <NavLink to="/pricing" onClick={() => setMenuOpen(false)}>
         Tariffs
-      </Link>
+      </NavLink>
       <button
         type="button"
         onClick={() => { setReferralOpen(true); setMenuOpen(false); }}
@@ -31,9 +45,9 @@ export default function Layout() {
         Refs
       </button>
       {user?.role === 'admin' && (
-        <Link to="/admin" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+        <NavLink to="/admin" onClick={() => setMenuOpen(false)}>
           Admin
-        </Link>
+        </NavLink>
       )}
     </>
   );

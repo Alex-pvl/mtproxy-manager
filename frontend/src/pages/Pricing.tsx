@@ -126,6 +126,9 @@ export default function Pricing() {
 
               <div className="mb-4 flex items-baseline gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-white">{plan.price_label}</span>
+                {plan.price_usd_label && (
+                  <span className="text-base text-gray-500">({plan.price_usd_label})</span>
+                )}
                 {plan.original_price_label && (
                   <>
                     <span className="text-base text-gray-500 line-through">{plan.original_price_label}</span>

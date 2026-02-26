@@ -47,17 +47,19 @@ type Plan struct {
 	DurationDays       int    `json:"duration_days"`
 	Price              string `json:"price"`
 	PriceLabel         string `json:"price_label"`
+	PriceUSDLabel      string `json:"price_usd_label,omitempty"`
 	OriginalPriceLabel string `json:"original_price_label,omitempty"`
 	DiscountPercent    int    `json:"discount_percent,omitempty"`
 	PerMonth           string `json:"per_month"`
 	MaxProxies         int    `json:"max_proxies"`
 }
 
+// Цены в USD по курсу ЦБ РФ ~77 ₽/$ (февраль 2026)
 var Plans = []Plan{
-	{ID: "month_1", Name: "1 месяц", DurationDays: 30, Price: "200.00", PriceLabel: "200 ₽", PerMonth: "200 ₽", MaxProxies: 1},
-	{ID: "month_3", Name: "3 месяца", DurationDays: 90, Price: "540.00", PriceLabel: "540 ₽", OriginalPriceLabel: "600 ₽", DiscountPercent: 10, PerMonth: "180 ₽", MaxProxies: 3},
-	{ID: "month_6", Name: "6 месяцев", DurationDays: 180, Price: "960.00", PriceLabel: "960 ₽", OriginalPriceLabel: "1 200 ₽", DiscountPercent: 20, PerMonth: "160 ₽", MaxProxies: 5},
-	{ID: "year_1", Name: "1 год", DurationDays: 365, Price: "1680.00", PriceLabel: "1 680 ₽", OriginalPriceLabel: "2 400 ₽", DiscountPercent: 30, PerMonth: "140 ₽", MaxProxies: 10},
+	{ID: "month_1", Name: "1 месяц", DurationDays: 30, Price: "200.00", PriceLabel: "200 ₽", PriceUSDLabel: "~$2.60", PerMonth: "200 ₽", MaxProxies: 1},
+	{ID: "month_3", Name: "3 месяца", DurationDays: 90, Price: "540.00", PriceLabel: "540 ₽", PriceUSDLabel: "~$7", OriginalPriceLabel: "600 ₽", DiscountPercent: 10, PerMonth: "180 ₽", MaxProxies: 3},
+	{ID: "month_6", Name: "6 месяцев", DurationDays: 180, Price: "960.00", PriceLabel: "960 ₽", PriceUSDLabel: "~$12.50", OriginalPriceLabel: "1 200 ₽", DiscountPercent: 20, PerMonth: "160 ₽", MaxProxies: 5},
+	{ID: "year_1", Name: "1 год", DurationDays: 365, Price: "1680.00", PriceLabel: "1 680 ₽", PriceUSDLabel: "~$21.80", OriginalPriceLabel: "2 400 ₽", DiscountPercent: 30, PerMonth: "140 ₽", MaxProxies: 10},
 }
 
 func GetPlan(id string) *Plan {
