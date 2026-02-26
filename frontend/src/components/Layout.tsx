@@ -17,21 +17,18 @@ export default function Layout() {
 
   const navLinks = (
     <>
-      <Link to="/" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
-        Главная
-      </Link>
       <Link to="/proxies" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
-        Мои прокси
+        My
       </Link>
       <Link to="/pricing" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
-        Тарифы
+        Tariffs
       </Link>
       <button
         type="button"
         onClick={() => { setReferralOpen(true); setMenuOpen(false); }}
         className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap text-left"
       >
-        Рефералы
+        Refs
       </button>
       {user?.role === 'admin' && (
         <Link to="/admin" onClick={() => setMenuOpen(false)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
@@ -67,7 +64,7 @@ export default function Layout() {
               onClick={handleLogout}
               className="hidden md:block text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap"
             >
-              Выйти
+              Logout
             </button>
             <button
               type="button"
@@ -91,7 +88,7 @@ export default function Layout() {
             <div className="flex items-center justify-between pt-2 border-t border-gray-800">
               <span className="text-sm text-gray-400">{user?.username}</span>
               <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors py-2 touch-manipulation">
-                Выйти
+                Logout
               </button>
             </div>
           </div>
