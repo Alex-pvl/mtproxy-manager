@@ -54,6 +54,10 @@ export interface Proxy {
   status: 'running' | 'stopped' | 'error';
   created_at: string;
   link?: string;
+  link_socks5?: string;
+  socks5_port?: number;
+  socks5_user?: string;
+  socks5_pass?: string;
 }
 
 export interface AuthResponse {
