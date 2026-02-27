@@ -19,6 +19,9 @@ services:
       - SERVER_PORT=${SERVER_PORT:-8080}
       - PORT_MIN=${PORT_MIN:-8000}
       - PORT_MAX=${PORT_MAX:-9999}
+      - SOCKS5_PORT_MIN=${SOCKS5_PORT_MIN:-10000}
+      - SOCKS5_PORT_MAX=${SOCKS5_PORT_MAX:-10999}
+      - GOST_IMAGE=${GOST_IMAGE:-ginuerzh/gost:2.12}
       - DEFAULT_MAX_PROXIES=${DEFAULT_MAX_PROXIES:-5}
       - DB_PATH=${DB_PATH:-/app/data/mtproxy.db}
       - MTG_IMAGE=${MTG_IMAGE:-nineseconds/mtg:2}

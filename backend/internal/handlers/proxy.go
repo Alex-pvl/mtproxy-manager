@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -88,11 +91,23 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	socks5Port, err := h.docker.AllocateSOCKS5Port()
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "no free SOCKS5 ports available")
+		return
+	}
+
 	ctx := r.Context()
 
 	secret, err := h.docker.GenerateSecret(ctx, req.Domain)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to generate secret: "+err.Error())
+		return
+	}
+
+	socks5User, socks5Pass, err := generateSocks5Credentials()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to generate SOCKS5 credentials")
 		return
 	}
 
@@ -103,18 +118,32 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	socks5ContainerName := fmt.Sprintf("socks5-%d", socks5Port)
+	socks5ContainerID, err := h.docker.CreateAndStartSOCKS5Proxy(ctx, socks5Port, socks5User, socks5Pass, socks5ContainerName)
+	if err != nil {
+		h.docker.RemoveProxy(ctx, containerID)
+		writeError(w, http.StatusInternalServerError, "failed to start SOCKS5 proxy: "+err.Error())
+		return
+	}
+
 	proxy := &models.Proxy{
-		UserID:        claims.UserID,
-		Port:          port,
-		Domain:        req.Domain,
-		Secret:        secret,
-		ContainerID:   containerID,
-		ContainerName: containerName,
-		Status:        models.StatusRunning,
+		UserID:             claims.UserID,
+		Port:               port,
+		Domain:             req.Domain,
+		Secret:             secret,
+		ContainerID:        containerID,
+		ContainerName:      containerName,
+		Status:             models.StatusRunning,
+		Socks5Port:         socks5Port,
+		Socks5User:         socks5User,
+		Socks5Pass:         socks5Pass,
+		Socks5ContainerID:  socks5ContainerID,
+		Socks5ContainerName: socks5ContainerName,
 	}
 
 	if err := h.db.CreateProxy(proxy); err != nil {
 		h.docker.RemoveProxy(ctx, containerID)
+		h.docker.RemoveProxy(ctx, socks5ContainerID)
 		writeError(w, http.StatusInternalServerError, "failed to save proxy")
 		return
 	}
@@ -122,6 +151,8 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	serverIP := h.docker.GetServerIP()
 	if serverIP != "" {
 		proxy.Link = fmt.Sprintf("tg://proxy?server=%s&port=%d&secret=%s", serverIP, port, secret)
+		proxy.LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
+			serverIP, socks5Port, url.QueryEscape(socks5User), url.QueryEscape(socks5Pass))
 	}
 
 	writeJSON(w, http.StatusCreated, proxy)
@@ -144,6 +175,10 @@ func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 	for i := range proxies {
 		if serverIP != "" {
 			proxies[i].Link = fmt.Sprintf("tg://proxy?server=%s&port=%d&secret=%s", serverIP, proxies[i].Port, proxies[i].Secret)
+			if proxies[i].Socks5Port > 0 && proxies[i].Socks5User != "" {
+				proxies[i].LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
+					serverIP, proxies[i].Socks5Port, url.QueryEscape(proxies[i].Socks5User), url.QueryEscape(proxies[i].Socks5Pass))
+			}
 		}
 	}
 
@@ -170,6 +205,10 @@ func (h *ProxyHandler) Stop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if proxy.Socks5ContainerID != "" {
+		_ = h.docker.StopProxy(r.Context(), proxy.Socks5ContainerID)
+	}
+
 	h.db.UpdateProxyStatus(proxy.ID, models.StatusStopped, proxy.ContainerID)
 	proxy.Status = models.StatusStopped
 	writeJSON(w, http.StatusOK, proxy)
@@ -191,6 +230,10 @@ func (h *ProxyHandler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if proxy.Socks5ContainerID != "" {
+		_ = h.docker.StartProxy(r.Context(), proxy.Socks5ContainerID)
+	}
+
 	h.db.UpdateProxyStatus(proxy.ID, models.StatusRunning, proxy.ContainerID)
 	proxy.Status = models.StatusRunning
 	writeJSON(w, http.StatusOK, proxy)
@@ -204,6 +247,9 @@ func (h *ProxyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if proxy.ContainerID != "" {
 		h.docker.RemoveProxy(r.Context(), proxy.ContainerID)
+	}
+	if proxy.Socks5ContainerID != "" {
+		h.docker.RemoveProxy(r.Context(), proxy.Socks5ContainerID)
 	}
 
 	if err := h.db.DeleteProxy(proxy.ID); err != nil {
@@ -240,5 +286,15 @@ func (h *ProxyHandler) getOwnedProxy(w http.ResponseWriter, r *http.Request) (*m
 	}
 
 	return proxy, true
+}
+
+func generateSocks5Credentials() (user, pass string, err error) {
+	b := make([]byte, 12)
+	if _, err := rand.Read(b); err != nil {
+		return "", "", err
+	}
+	user = "s" + hex.EncodeToString(b[:6])
+	pass = hex.EncodeToString(b[6:])
+	return user, pass, nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -112,6 +113,19 @@ func (db *DB) migrate() error {
 
 	for _, m := range migrations {
 		if _, err := db.conn.Exec(m); err != nil {
+			return err
+		}
+	}
+
+	// SOCKS5 columns migration (idempotent)
+	for _, alter := range []string{
+		"ALTER TABLE proxies ADD COLUMN socks5_port INTEGER DEFAULT 0",
+		"ALTER TABLE proxies ADD COLUMN socks5_user TEXT DEFAULT ''",
+		"ALTER TABLE proxies ADD COLUMN socks5_pass TEXT DEFAULT ''",
+		"ALTER TABLE proxies ADD COLUMN socks5_container_id TEXT DEFAULT ''",
+		"ALTER TABLE proxies ADD COLUMN socks5_container_name TEXT DEFAULT ''",
+	} {
+		if _, err := db.conn.Exec(alter); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
 		}
 	}
@@ -238,9 +252,11 @@ func (db *DB) DeleteUser(id int64) error {
 
 func (db *DB) CreateProxy(p *models.Proxy) error {
 	res, err := db.conn.Exec(
-		`INSERT INTO proxies (user_id, port, domain, secret, container_id, container_name, status)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO proxies (user_id, port, domain, secret, container_id, container_name, status,
+			socks5_port, socks5_user, socks5_pass, socks5_container_id, socks5_container_name)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.UserID, p.Port, p.Domain, p.Secret, p.ContainerID, p.ContainerName, p.Status,
+		p.Socks5Port, p.Socks5User, p.Socks5Pass, p.Socks5ContainerID, p.Socks5ContainerName,
 	)
 	if err != nil {
 		return err
@@ -253,9 +269,12 @@ func (db *DB) CreateProxy(p *models.Proxy) error {
 func (db *DB) GetProxy(id int64) (*models.Proxy, error) {
 	p := &models.Proxy{}
 	err := db.conn.QueryRow(
-		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at
+		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
+			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
+			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, '')
 		 FROM proxies WHERE id = ?`, id,
-	).Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt)
+	).Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
+		&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +283,9 @@ func (db *DB) GetProxy(id int64) (*models.Proxy, error) {
 
 func (db *DB) ListProxiesByUser(userID int64) ([]models.Proxy, error) {
 	rows, err := db.conn.Query(
-		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at
+		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
+			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
+			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, '')
 		 FROM proxies WHERE user_id = ? ORDER BY id`, userID,
 	)
 	if err != nil {
@@ -275,7 +296,8 @@ func (db *DB) ListProxiesByUser(userID int64) ([]models.Proxy, error) {
 	var proxies []models.Proxy
 	for rows.Next() {
 		var p models.Proxy
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
+			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName); err != nil {
 			return nil, err
 		}
 		proxies = append(proxies, p)
@@ -285,7 +307,9 @@ func (db *DB) ListProxiesByUser(userID int64) ([]models.Proxy, error) {
 
 func (db *DB) ListAllProxies() ([]models.Proxy, error) {
 	rows, err := db.conn.Query(
-		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at
+		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
+			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
+			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, '')
 		 FROM proxies ORDER BY id`,
 	)
 	if err != nil {
@@ -296,7 +320,8 @@ func (db *DB) ListAllProxies() ([]models.Proxy, error) {
 	var proxies []models.Proxy
 	for rows.Next() {
 		var p models.Proxy
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
+			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName); err != nil {
 			return nil, err
 		}
 		proxies = append(proxies, p)
@@ -322,12 +347,12 @@ func (db *DB) CountProxiesByUser(userID int64) (int, error) {
 
 func (db *DB) IsPortUsed(port int) (bool, error) {
 	var count int
-	err := db.conn.QueryRow("SELECT COUNT(*) FROM proxies WHERE port = ?", port).Scan(&count)
+	err := db.conn.QueryRow("SELECT COUNT(*) FROM proxies WHERE port = ? OR socks5_port = ?", port, port).Scan(&count)
 	return count > 0, err
 }
 
 func (db *DB) GetUsedPorts() (map[int]bool, error) {
-	rows, err := db.conn.Query("SELECT port FROM proxies")
+	rows, err := db.conn.Query("SELECT port FROM proxies UNION SELECT socks5_port FROM proxies WHERE socks5_port > 0")
 	if err != nil {
 		return nil, err
 	}

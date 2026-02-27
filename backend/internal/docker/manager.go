@@ -106,18 +106,26 @@ func stripDockerLogHeaders(data []byte) string {
 }
 
 func (m *Manager) AllocatePort() (int, error) {
+	return m.allocatePortInRange(m.cfg.PortMin, m.cfg.PortMax)
+}
+
+func (m *Manager) AllocateSOCKS5Port() (int, error) {
+	return m.allocatePortInRange(m.cfg.Socks5PortMin, m.cfg.Socks5PortMax)
+}
+
+func (m *Manager) allocatePortInRange(min, max int) (int, error) {
 	usedPorts, err := m.db.GetUsedPorts()
 	if err != nil {
 		return 0, err
 	}
 
-	for port := m.cfg.PortMin; port <= m.cfg.PortMax; port++ {
+	for port := min; port <= max; port++ {
 		if !usedPorts[port] {
 			return port, nil
 		}
 	}
 
-	return 0, fmt.Errorf("no free ports available in range %d-%d", m.cfg.PortMin, m.cfg.PortMax)
+	return 0, fmt.Errorf("no free ports available in range %d-%d", min, max)
 }
 
 func (m *Manager) CreateAndStartProxy(ctx context.Context, port int, secret, containerName string) (string, error) {
@@ -164,6 +172,41 @@ func (m *Manager) StartProxy(ctx context.Context, containerID string) error {
 
 func (m *Manager) RemoveProxy(ctx context.Context, containerID string) error {
 	return m.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+}
+
+func (m *Manager) CreateAndStartSOCKS5Proxy(ctx context.Context, port int, user, pass, containerName string) (string, error) {
+	hostPort := fmt.Sprintf("%d", port)
+	containerPort := nat.Port("1080/tcp")
+	// GOST: gost -L socks5://user:pass@:1080
+	listenAddr := fmt.Sprintf("socks5://%s:%s@:1080", user, pass)
+
+	resp, err := m.cli.ContainerCreate(ctx, &container.Config{
+		Image: m.cfg.GostImage,
+		Cmd:   []string{"-L", listenAddr},
+		ExposedPorts: nat.PortSet{
+			containerPort: struct{}{},
+		},
+		Labels: map[string]string{
+			"managed-by": "mtproxy-manager",
+		},
+	}, &container.HostConfig{
+		PortBindings: nat.PortMap{
+			containerPort: []nat.PortBinding{
+				{HostIP: "0.0.0.0", HostPort: hostPort},
+			},
+		},
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+	}, nil, nil, containerName)
+	if err != nil {
+		return "", fmt.Errorf("create socks5 container: %w", err)
+	}
+
+	if err := m.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		m.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+		return "", fmt.Errorf("start socks5 container: %w", err)
+	}
+
+	return resp.ID, nil
 }
 
 func (m *Manager) GetContainerStatus(ctx context.Context, containerID string) (string, error) {

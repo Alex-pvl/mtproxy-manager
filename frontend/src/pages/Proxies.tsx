@@ -4,6 +4,7 @@ import { proxyApi } from '../api/client';
 import type { Proxy } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import CreateProxyModal from '../components/CreateProxyModal';
+import { BlurredLink } from '../components/BlurredLink';
 
 export default function Proxies() {
   const { user } = useAuth();
@@ -142,7 +143,12 @@ export default function Proxies() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <span className="font-mono text-white text-sm shrink-0">:{proxy.port}</span>
+                  <span className="font-mono text-white text-sm shrink-0">
+                    :{proxy.port}
+                    {proxy.socks5_port ? (
+                      <span className="text-gray-500 font-normal"> / :{proxy.socks5_port}</span>
+                    ) : null}
+                  </span>
                   <span
                     className={`text-xs px-2 py-0.5 rounded font-medium shrink-0 ${
                       proxy.status === 'running'
@@ -189,7 +195,7 @@ export default function Proxies() {
                 <div className="mt-2">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="text-xs text-gray-500">
-                      Link
+                      MTProxy (tg://)
                       {!isAdmin && sub?.active && sub?.expires_at && (
                         <span className="text-gray-400 ml-1.5">
                           (До {new Date(sub.expires_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })})
@@ -204,25 +210,26 @@ export default function Proxies() {
                     </button>
                   </div>
                   <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
-                    {proxy.link}
+                    <BlurredLink text={proxy.link!} type="mtproxy" />
                   </code>
                 </div>
               )}
-
-              <div className="mt-2">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-xs text-gray-500">Secret:</span>
-                  <button
-                    onClick={() => copyToClipboard(proxy.secret, `secret-${proxy.id}`)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors py-1 touch-manipulation"
-                  >
-                    {copied === `secret-${proxy.id}` ? 'Copied!' : 'Copy'}
-                  </button>
+              {proxy.link_socks5 && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-xs text-gray-500">SOCKS5 (t.me/socks)</span>
+                    <button
+                      onClick={() => copyToClipboard(proxy.link_socks5!, `link-socks5-${proxy.id}`)}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 whitespace-nowrap transition-colors py-1 touch-manipulation"
+                    >
+                      {copied === `link-socks5-${proxy.id}` ? 'Скопировано!' : 'Копировать'}
+                    </button>
+                  </div>
+                  <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
+                    <BlurredLink text={proxy.link_socks5!} type="socks5" />
+                  </code>
                 </div>
-                <code className="text-xs text-gray-400 bg-gray-800 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
-                  {proxy.secret}
-                </code>
-              </div>
+              )}
             </div>
           ))}
         </div>
