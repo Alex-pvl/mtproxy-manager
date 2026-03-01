@@ -1,7 +1,33 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import ReferralModal from './ReferralModal';
+
+function SunIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
 
 function NavLink({ to, children, className = '', onClick }: { to: string; children: React.ReactNode; className?: string; onClick?: () => void }) {
   const location = useLocation();
@@ -10,7 +36,7 @@ function NavLink({ to, children, className = '', onClick }: { to: string; childr
     <Link
       to={to}
       onClick={onClick}
-      className={`text-sm transition-colors whitespace-nowrap ${isActive ? 'text-white font-medium' : 'text-gray-400 hover:text-white'} ${className}`}
+      className={`text-sm transition-colors whitespace-nowrap ${isActive ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} ${className}`}
     >
       {children}
     </Link>
@@ -20,6 +46,8 @@ function NavLink({ to, children, className = '', onClick }: { to: string; childr
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const [referralOpen, setReferralOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -32,59 +60,95 @@ export default function Layout() {
   const navLinks = (
     <>
       <NavLink to="/proxies" onClick={() => setMenuOpen(false)}>
-        My
+        {t.nav.myServices}
       </NavLink>
       <NavLink to="/pricing" onClick={() => setMenuOpen(false)}>
-        Tariffs
+        {t.nav.pricing}
       </NavLink>
-      <button
-        type="button"
-        onClick={() => { setReferralOpen(true); setMenuOpen(false); }}
-        className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap text-left"
-      >
-        Refs
-      </button>
+      {user && (
+        <button
+          type="button"
+          onClick={() => { setReferralOpen(true); setMenuOpen(false); }}
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap text-left"
+        >
+          {t.nav.referrals}
+        </button>
+      )}
       {user?.role === 'admin' && (
         <NavLink to="/admin" onClick={() => setMenuOpen(false)}>
-          Admin
+          {t.nav.admin}
         </NavLink>
       )}
     </>
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
       <ReferralModal isOpen={referralOpen} onClose={() => setReferralOpen(false)} />
-      <nav className="border-b border-gray-800 bg-gray-900 sticky top-0 z-40">
+      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-40">
         <div className="mx-auto max-w-6xl px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-            <Link to="/" className="text-base sm:text-lg font-bold text-white tracking-tight whitespace-nowrap">
-              TelegramProxy
+            <Link to="/" className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight whitespace-nowrap">
+              {t.common.appName}
             </Link>
             <div className="hidden md:flex items-center gap-3 sm:gap-6">
               {navLinks}
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-            <span className="text-sm text-gray-400 hidden sm:inline">
-              {user?.username}
-              {user?.role === 'admin' && (
-                <span className="ml-1.5 text-xs bg-indigo-600/30 text-indigo-300 px-1.5 py-0.5 rounded">
-                  admin
-                </span>
-              )}
-            </span>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Theme toggle */}
             <button
-              onClick={handleLogout}
-              className="hidden md:block text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap"
+              type="button"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Toggle theme"
             >
-              Logout
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
             </button>
+
+            {/* Language toggle */}
+            <button
+              type="button"
+              onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
+              className="text-xs font-semibold px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Toggle language"
+            >
+              {language === 'ru' ? 'EN' : 'RU'}
+            </button>
+
+            {user ? (
+              <>
+                <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">
+                  {user.username}
+                  {user.role === 'admin' && (
+                    <span className="ml-1.5 text-xs bg-indigo-600/30 text-indigo-400 dark:text-indigo-300 px-1.5 py-0.5 rounded">
+                      admin
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="hidden md:block text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap"
+                >
+                  {t.nav.logout}
+                </button>
+              </>
+            ) : (
+              <div className="hidden md:flex items-center gap-3">
+                <NavLink to="/login">{t.nav.login}</NavLink>
+                <Link
+                  to="/register"
+                  className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-md px-3 py-1.5 transition-colors whitespace-nowrap"
+                >
+                  {t.nav.register}
+                </Link>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
-              className="md:hidden p-2 -mr-2 text-gray-400 hover:text-white transition-colors touch-manipulation"
-              aria-label="Меню"
+              className="md:hidden p-2 -mr-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors touch-manipulation"
+              aria-label="Menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {menuOpen ? (
@@ -97,13 +161,26 @@ export default function Layout() {
           </div>
         </div>
         {menuOpen && (
-          <div className="md:hidden border-t border-gray-800 bg-gray-900 px-4 py-3 flex flex-col gap-3">
+          <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 flex flex-col gap-3">
             {navLinks}
-            <div className="flex items-center justify-between pt-2 border-t border-gray-800">
-              <span className="text-sm text-gray-400">{user?.username}</span>
-              <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors py-2 touch-manipulation">
-                Logout
-              </button>
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
+              {user ? (
+                <>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{user.username}</span>
+                  <button onClick={handleLogout} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors py-2 touch-manipulation">
+                    {t.nav.logout}
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-3 w-full">
+                  <Link to="/login" onClick={() => setMenuOpen(false)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                    {t.nav.login}
+                  </Link>
+                  <Link to="/register" onClick={() => setMenuOpen(false)} className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-md px-3 py-1.5 transition-colors">
+                    {t.nav.register}
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -111,14 +188,14 @@ export default function Layout() {
       <main className="mx-auto max-w-6xl w-full px-3 sm:px-4 py-4 sm:py-8 flex-1">
         <Outlet />
       </main>
-      <footer className="border-t border-gray-800 bg-gray-900 py-4">
-        <div className="mx-auto max-w-6xl px-4 text-center text-xs text-gray-500">
-          Обратная связь и вопросы:{' '}
+      <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4">
+        <div className="mx-auto max-w-6xl px-4 text-center text-xs text-gray-400 dark:text-gray-500">
+          {t.footer.feedback}{' '}
           <a
             href="https://t.me/oddwallet"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
           >
             @oddwallet
           </a>

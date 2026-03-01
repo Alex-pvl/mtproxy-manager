@@ -16,9 +16,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const wasLoggedIn = !!localStorage.getItem('token');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (wasLoggedIn) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -55,6 +58,7 @@ export interface Proxy {
   created_at: string;
   link?: string;
   link_socks5?: string;
+  link_vless?: string;
   socks5_port?: number;
   socks5_user?: string;
   socks5_pass?: string;
