@@ -96,24 +96,32 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Theme toggle */}
+            {/* Theme toggle slider */}
             <button
               type="button"
               onClick={toggleTheme}
-              className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle theme"
+              className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation shrink-0"
             >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+              <span className={`absolute inset-0 flex items-center transition-all duration-200 ${theme === 'dark' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+                <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-gray-600 dark:text-gray-700">
+                  {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+                </span>
+              </span>
             </button>
 
-            {/* Language toggle */}
+            {/* Language toggle slider */}
             <button
               type="button"
               onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
-              className="text-xs font-semibold px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle language"
+              className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation shrink-0"
             >
-              {language === 'ru' ? 'EN' : 'RU'}
+              <span className={`absolute inset-0 flex items-center transition-all duration-200 ${language === 'en' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+                <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-[10px] font-bold text-gray-700">
+                  {language === 'ru' ? 'RU' : 'EN'}
+                </span>
+              </span>
             </button>
 
             {user ? (

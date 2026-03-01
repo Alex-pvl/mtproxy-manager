@@ -23,7 +23,7 @@ export default function Sticker({ name, className = '', children }: StickerProps
 
   return (
     <span
-      className={`inline-flex items-center justify-center shrink-0 overflow-hidden rounded-xl bg-gray-800/50 ${className}`}
+      className={`inline-flex items-center justify-center shrink-0 overflow-hidden ${className}`}
       data-sticker={name}
     >
       {children}

@@ -92,7 +92,7 @@ export default function Pricing() {
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
           <p className="text-emerald-600 dark:text-emerald-400 text-sm">
             {t.pricing.activeSubscription}{' '}
-            <span className="font-semibold">{sub.plan_name}</span>
+            <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
             {sub.expires_at && (
               <span className="text-emerald-500 ml-2">
                 {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString('ru-RU')}
@@ -127,7 +127,7 @@ export default function Pricing() {
                 </span>
               )}
 
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{plan.name}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
 
               <div className="mb-4 flex items-baseline gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">{plan.price_label}</span>

@@ -5,19 +5,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"mtproxy-manager/internal/database"
 	"mtproxy-manager/internal/docker"
 	"mtproxy-manager/internal/models"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type ProxyHandler struct {
-	db      *database.DB
-	docker  *docker.Manager
+	db     *database.DB
+	docker *docker.Manager
 }
 
 func NewProxyHandler(db *database.DB, docker *docker.Manager) *ProxyHandler {
@@ -76,24 +78,27 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if port == 0 {
 		port, err = h.docker.AllocatePort()
 		if err != nil {
-			writeError(w, http.StatusServiceUnavailable, "no free ports available")
+			log.Printf("allocate port: %v", err)
+			writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable, please try again later")
 			return
 		}
 	} else {
 		used, err := h.db.IsPortUsed(port)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to check port")
+			log.Printf("check port %d: %v", port, err)
+			writeError(w, http.StatusInternalServerError, "failed to create proxy")
 			return
 		}
 		if used {
-			writeError(w, http.StatusConflict, "port already in use")
+			writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable, please try again later")
 			return
 		}
 	}
 
 	socks5Port, err := h.docker.AllocateSOCKS5Port()
 	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, "no free SOCKS5 ports available")
+		log.Printf("allocate socks5 port: %v", err)
+		writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable, please try again later")
 		return
 	}
 
@@ -101,20 +106,23 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	secret, err := h.docker.GenerateSecret(ctx, req.Domain)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to generate secret: "+err.Error())
+		log.Printf("generate secret: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to create proxy")
 		return
 	}
 
 	socks5User, socks5Pass, err := generateSocks5Credentials()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to generate SOCKS5 credentials")
+		log.Printf("generate socks5 credentials: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to create proxy")
 		return
 	}
 
 	containerName := fmt.Sprintf("mtg-%d", port)
 	containerID, err := h.docker.CreateAndStartProxy(ctx, port, secret, containerName)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start proxy: "+err.Error())
+		log.Printf("create proxy container: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to create proxy")
 		return
 	}
 
@@ -122,22 +130,23 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	socks5ContainerID, err := h.docker.CreateAndStartSOCKS5Proxy(ctx, socks5Port, socks5User, socks5Pass, socks5ContainerName)
 	if err != nil {
 		h.docker.RemoveProxy(ctx, containerID)
-		writeError(w, http.StatusInternalServerError, "failed to start SOCKS5 proxy: "+err.Error())
+		log.Printf("create socks5 container: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to create proxy")
 		return
 	}
 
 	proxy := &models.Proxy{
-		UserID:             claims.UserID,
-		Port:               port,
-		Domain:             req.Domain,
-		Secret:             secret,
-		ContainerID:        containerID,
-		ContainerName:      containerName,
-		Status:             models.StatusRunning,
-		Socks5Port:         socks5Port,
-		Socks5User:         socks5User,
-		Socks5Pass:         socks5Pass,
-		Socks5ContainerID:  socks5ContainerID,
+		UserID:              claims.UserID,
+		Port:                port,
+		Domain:              req.Domain,
+		Secret:              secret,
+		ContainerID:         containerID,
+		ContainerName:       containerName,
+		Status:              models.StatusRunning,
+		Socks5Port:          socks5Port,
+		Socks5User:          socks5User,
+		Socks5Pass:          socks5Pass,
+		Socks5ContainerID:   socks5ContainerID,
 		Socks5ContainerName: socks5ContainerName,
 	}
 
@@ -201,7 +210,8 @@ func (h *ProxyHandler) Stop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.docker.StopProxy(r.Context(), proxy.ContainerID); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to stop proxy: "+err.Error())
+		log.Printf("stop proxy %d: %v", proxy.ID, err)
+		writeError(w, http.StatusInternalServerError, "failed to stop proxy")
 		return
 	}
 
@@ -226,7 +236,8 @@ func (h *ProxyHandler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.docker.StartProxy(r.Context(), proxy.ContainerID); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start proxy: "+err.Error())
+		log.Printf("start proxy %d: %v", proxy.ID, err)
+		writeError(w, http.StatusInternalServerError, "failed to start proxy")
 		return
 	}
 
@@ -297,4 +308,3 @@ func generateSocks5Credentials() (user, pass string, err error) {
 	pass = hex.EncodeToString(b[6:])
 	return user, pass, nil
 }
-

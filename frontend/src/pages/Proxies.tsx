@@ -157,7 +157,7 @@ export default function Proxies() {
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6">
           <p className="text-emerald-600 dark:text-emerald-400 text-sm text-center">
             {t.proxies.subscription}{' '}
-            <span className="font-semibold">{sub.plan_name}</span>
+            <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
             {sub.expires_at && (
               <span className="text-emerald-500 ml-2">
                 {t.proxies.subscriptionUntil}{' '}

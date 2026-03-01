@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 	"mtproxy-manager/internal/auth"
@@ -42,8 +44,23 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Username = strings.TrimSpace(req.Username)
+	req.Password = strings.TrimSpace(req.Password)
+
 	if len(req.Username) < 3 || len(req.Password) < 6 {
 		writeError(w, http.StatusBadRequest, "username must be at least 3 chars, password at least 6")
+		return
+	}
+
+	for _, r := range req.Username {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
+			writeError(w, http.StatusBadRequest, "username may only contain letters, digits, underscores and hyphens")
+			return
+		}
+	}
+
+	if strings.ContainsAny(req.Password, " \t\n\r") {
+		writeError(w, http.StatusBadRequest, "password must not contain spaces")
 		return
 	}
 
@@ -108,6 +125,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 type subscriptionInfo struct {
 	Active    bool       `json:"active"`
+	PlanID    string     `json:"plan_id,omitempty"`
 	PlanName  string     `json:"plan_name,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
@@ -141,6 +159,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		}
 		resp.Subscription = &subscriptionInfo{
 			Active:    true,
+			PlanID:    sub.PlanID,
 			PlanName:  planName,
 			ExpiresAt: &sub.ExpiresAt,
 		}

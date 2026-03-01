@@ -29,6 +29,7 @@ api.interceptors.response.use(
 
 export interface Subscription {
   active: boolean;
+  plan_id?: string;
   plan_name?: string;
   expires_at?: string;
 }
