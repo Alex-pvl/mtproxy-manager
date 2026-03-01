@@ -1,40 +1,29 @@
 #!/bin/bash
-# MTProxy Manager — деплой на хост (без Docker)
+# MTProxy Manager — деплой бэкенда на хост
 # Запуск: ./deploy/deploy.sh [путь к репо]
 
 set -e
 
 REPO_DIR="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 INSTALL_DIR="/opt/mtproxy-manager"
-DATA_DIR="/var/lib/mtproxy-manager"
 
-echo "==> MTProxy Manager: деплой на хост"
+echo "==> MTProxy Manager: деплой бэкенда"
 echo "    Репо: $REPO_DIR"
 echo "    Установка: $INSTALL_DIR"
-echo "    Данные: $DATA_DIR"
 echo ""
 
-# 1. Сборка фронтенда
-echo "==> Сборка фронтенда..."
-cd "$REPO_DIR/frontend"
-npm ci
-npm run build
-
-# 2. Сборка бэкенда (нужен Go и gcc для sqlite)
+# 1. Сборка бэкенда (CGO не нужен — используется lib/pq)
 echo "==> Сборка бэкенда..."
 cd "$REPO_DIR/backend"
-CGO_ENABLED=1 go build -o mtproxy-manager ./cmd/server
+CGO_ENABLED=0 go build -o mtproxy-manager ./cmd/server
 
-# 3. Создание директорий
+# 2. Создание директории
 echo "==> Создание директорий..."
 sudo mkdir -p "$INSTALL_DIR"
-sudo mkdir -p "$DATA_DIR"
 
-# 4. Копирование файлов
+# 3. Копирование бинарника и .env
 echo "==> Копирование файлов..."
 sudo cp "$REPO_DIR/backend/mtproxy-manager" "$INSTALL_DIR/"
-sudo mkdir -p "$INSTALL_DIR/frontend"
-sudo cp -r "$REPO_DIR/frontend/dist" "$INSTALL_DIR/frontend/"
 if [ -f "$REPO_DIR/.env" ]; then
   sudo cp "$REPO_DIR/.env" "$INSTALL_DIR/.env"
 else
@@ -42,22 +31,12 @@ else
   echo "    Внимание: скопирован .env.example — отредактируйте $INSTALL_DIR/.env"
 fi
 
-# 5. Обновление DB_PATH в .env для хоста
-if [ -f "$INSTALL_DIR/.env" ]; then
-  if grep -q "DB_PATH=" "$INSTALL_DIR/.env"; then
-    sudo sed -i "s|DB_PATH=.*|DB_PATH=$DATA_DIR/mtproxy.db|" "$INSTALL_DIR/.env"
-  else
-    echo "DB_PATH=$DATA_DIR/mtproxy.db" | sudo tee -a "$INSTALL_DIR/.env"
-  fi
-fi
-
-# 6. Права
+# 4. Права
 echo "==> Настройка прав..."
 sudo chown -R root:root "$INSTALL_DIR"
 sudo chmod 755 "$INSTALL_DIR/mtproxy-manager"
-sudo chmod 755 "$DATA_DIR"
 
-# 7. Systemd
+# 5. Systemd
 echo "==> Установка systemd сервиса..."
 sudo cp "$REPO_DIR/deploy/mtproxy-manager.service" /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -66,9 +45,13 @@ echo ""
 echo "==> Готово!"
 echo ""
 echo "Дальнейшие шаги:"
-echo "  1. Проверьте .env в $INSTALL_DIR/.env"
-echo "  2. Убедитесь что DB_PATH=$DATA_DIR/mtproxy.db"
-echo "  3. Запуск: sudo systemctl start mtproxy-manager"
-echo "  4. Автозапуск: sudo systemctl enable mtproxy-manager"
-echo "  5. Nginx: скопируйте deploy/nginx.conf в /etc/nginx/sites-available/"
+echo "  1. Проверьте .env: $INSTALL_DIR/.env"
+echo "     Обязательно: JWT_SECRET, ADMIN_PASSWORD, DATABASE_URL, BASE_URL"
+echo "  2. Запуск:    sudo systemctl start mtproxy-manager"
+echo "  3. Автозапуск: sudo systemctl enable mtproxy-manager"
+echo "  4. Nginx: скопируйте deploy/nginx.conf в /etc/nginx/sites-available/staytg.org"
+echo ""
+echo "Сборка фронтенда выполняется отдельно:"
+echo "  cd frontend && npm ci && npm run build"
+echo "  sudo rsync -a --delete dist/ /var/www/staytg.org/"
 echo ""

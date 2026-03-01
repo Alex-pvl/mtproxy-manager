@@ -1,7 +1,7 @@
 [Unit]
 Description=MTProxy Manager
-After=network.target docker.service
-Requires=docker.service
+After=network.target docker.service postgresql.service
+Requires=docker.service postgresql.service
 
 [Service]
 Type=simple
@@ -14,6 +14,9 @@ EnvironmentFile=/opt/mtproxy-manager/.env
 
 # Доступ к Docker для управления прокси-контейнерами
 Environment=DOCKER_HOST=unix:///var/run/docker.sock
+
+# Лимиты
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
