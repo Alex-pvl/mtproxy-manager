@@ -8,7 +8,7 @@ import (
 type Config struct {
 	ServerPort        string
 	JWTSecret         string
-	DBPath            string
+	DatabaseURL       string
 	PortMin           int
 	PortMax           int
 	Socks5PortMin     int
@@ -25,9 +25,9 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		ServerPort:        getEnv("SERVER_PORT", "8080"),
+		ServerPort:        getEnv("SERVER_PORT", "3000"),
 		JWTSecret:         getEnv("JWT_SECRET", "change-me-in-production"),
-		DBPath:            getEnv("DB_PATH", "./data/mtproxy.db"),
+		DatabaseURL:       getEnv("DATABASE_URL", "postgres://mtproxy:mtproxy@localhost:5432/mtproxy?sslmode=disable"),
 		PortMin:           getEnvInt("PORT_MIN", 8000),
 		PortMax:           getEnvInt("PORT_MAX", 9000),
 		Socks5PortMin:     getEnvInt("SOCKS5_PORT_MIN", 10000),
