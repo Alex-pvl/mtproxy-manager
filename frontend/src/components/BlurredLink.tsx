@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 type Props = {
   text: string;
@@ -7,6 +8,7 @@ type Props = {
 
 export function BlurredLink({ text, type }: Props) {
   const [revealed, setRevealed] = useState(false);
+  const { t } = useLanguage();
 
   const spoilerStyle = revealed
     ? {}
@@ -56,9 +58,9 @@ export function BlurredLink({ text, type }: Props) {
         <button
           type="button"
           onClick={() => setRevealed((v) => !v)}
-          className="ml-2 text-indigo-400 hover:text-indigo-300 text-xs"
+          className="ml-2 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 text-xs"
         >
-          {revealed ? 'Скрыть' : 'Показать'}
+          {revealed ? t.proxies.hide : t.proxies.show}
         </button>
       </span>
     );
@@ -85,9 +87,9 @@ export function BlurredLink({ text, type }: Props) {
         <button
           type="button"
           onClick={() => setRevealed((v) => !v)}
-          className="ml-2 text-indigo-400 hover:text-indigo-300 text-xs"
+          className="ml-2 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 text-xs"
         >
-          {revealed ? 'Скрыть' : 'Показать'}
+          {revealed ? t.proxies.hide : t.proxies.show}
         </button>
       </span>
     );
