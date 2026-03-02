@@ -65,8 +65,19 @@ export interface Proxy {
   socks5_pass?: string;
 }
 
+export interface AuthResponse {
+  token: string;
+  user: {
+    id: number;
+    username: string;
+    role: string;
+  };
+}
+
 export const authApi = {
   me: () => api.get<User>('/auth/me'),
+  webappLogin: (initData: string, ref?: string) =>
+    api.post<AuthResponse>('/auth/webapp', { init_data: initData, ref: ref || undefined }),
 };
 
 export interface ReferralInfo {
