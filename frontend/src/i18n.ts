@@ -89,6 +89,9 @@ const ru = {
     error: 'Неверный логин или пароль',
     noAccount: 'Нет аккаунта?',
     register: 'Регистрация',
+    or: 'или',
+    telegramLogin: 'Войти через Telegram',
+    telegramError: 'Ошибка входа через Telegram',
   },
   register: {
     title: 'Регистрация',
@@ -104,6 +107,9 @@ const ru = {
     errorDefault: 'Ошибка регистрации',
     hasAccount: 'Уже есть аккаунт?',
     login: 'Войти',
+    or: 'или',
+    telegramRegister: 'Регистрация через Telegram',
+    telegramError: 'Ошибка регистрации через Telegram',
   },
   referral: {
     title: 'Приглашайте друзей — получайте бонусные дни',
@@ -214,6 +220,9 @@ const en = {
     error: 'Invalid username or password',
     noAccount: "Don't have an account?",
     register: 'Register',
+    or: 'or',
+    telegramLogin: 'Sign in with Telegram',
+    telegramError: 'Telegram login failed',
   },
   register: {
     title: 'Register',
@@ -229,6 +238,9 @@ const en = {
     errorDefault: 'Registration failed',
     hasAccount: 'Already have an account?',
     login: 'Sign in',
+    or: 'or',
+    telegramRegister: 'Sign up with Telegram',
+    telegramError: 'Telegram registration failed',
   },
   referral: {
     title: 'Invite friends — get bonus days',

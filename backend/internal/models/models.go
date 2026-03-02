@@ -23,26 +23,27 @@ type User struct {
 	PasswordHash string    `json:"-"`
 	Role         Role      `json:"role"`
 	MaxProxies   int       `json:"max_proxies"`
+	TelegramID   int64     `json:"telegram_id,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Proxy struct {
-	ID                 int64       `json:"id"`
-	UserID             int64       `json:"user_id"`
-	Port               int         `json:"port"`
-	Domain             string      `json:"domain"`
-	Secret             string      `json:"secret"`
-	ContainerID        string      `json:"container_id"`
-	ContainerName      string      `json:"container_name"`
-	Status             ProxyStatus `json:"status"`
-	CreatedAt          time.Time   `json:"created_at"`
-	Link               string      `json:"link,omitempty"`
-	Socks5Port         int         `json:"socks5_port,omitempty"`
-	Socks5User         string      `json:"socks5_user,omitempty"`
-	Socks5Pass         string      `json:"socks5_pass,omitempty"`
-	Socks5ContainerID  string      `json:"socks5_container_id,omitempty"`
-	Socks5ContainerName string     `json:"socks5_container_name,omitempty"`
-	LinkSocks5         string      `json:"link_socks5,omitempty"`
+	ID                  int64       `json:"id"`
+	UserID              int64       `json:"user_id"`
+	Port                int         `json:"port"`
+	Domain              string      `json:"domain"`
+	Secret              string      `json:"secret"`
+	ContainerID         string      `json:"container_id"`
+	ContainerName       string      `json:"container_name"`
+	Status              ProxyStatus `json:"status"`
+	CreatedAt           time.Time   `json:"created_at"`
+	Link                string      `json:"link,omitempty"`
+	Socks5Port          int         `json:"socks5_port,omitempty"`
+	Socks5User          string      `json:"socks5_user,omitempty"`
+	Socks5Pass          string      `json:"socks5_pass,omitempty"`
+	Socks5ContainerID   string      `json:"socks5_container_id,omitempty"`
+	Socks5ContainerName string      `json:"socks5_container_name,omitempty"`
+	LinkSocks5          string      `json:"link_socks5,omitempty"`
 }
 
 // --- Plans & Subscriptions ---

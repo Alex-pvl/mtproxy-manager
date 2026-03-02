@@ -9,18 +9,21 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	chimw "github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"mtproxy-manager/internal/auth"
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/database"
 	"mtproxy-manager/internal/docker"
 	"mtproxy-manager/internal/handlers"
 	"mtproxy-manager/internal/middleware"
+
+	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load()
 	cfg := config.Load()
 
 	db, err := database.New(cfg)
@@ -38,6 +41,7 @@ func main() {
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
 
 	authHandler := handlers.NewAuthHandler(db, jwtSvc)
+	telegramHandler := handlers.NewTelegramHandler(db, jwtSvc, cfg)
 	proxyHandler := handlers.NewProxyHandler(db, dockerMgr)
 	adminHandler := handlers.NewAdminHandler(db, dockerMgr)
 	paymentHandler := handlers.NewPaymentHandler(db, cfg)
@@ -61,6 +65,7 @@ func main() {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
+			r.Post("/telegram", telegramHandler.Auth)
 			r.With(middleware.AuthRequired(jwtSvc)).Get("/me", authHandler.Me)
 		})
 

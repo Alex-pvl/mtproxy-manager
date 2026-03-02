@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import TelegramLoginButton from '../components/TelegramLoginButton';
 
 function SunIcon() {
   return (
@@ -34,7 +35,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, telegramLogin } = useAuth();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -52,6 +53,23 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const handleTelegramToken = useCallback(async (idToken: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      await telegramLogin(idToken);
+      navigate('/');
+    } catch {
+      setError(t.login.telegramError);
+    } finally {
+      setLoading(false);
+    }
+  }, [telegramLogin, navigate, t]);
+
+  const handleTelegramError = useCallback((err: string) => {
+    setError(err || t.login.telegramError);
+  }, [t]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4">
@@ -113,6 +131,19 @@ export default function Login() {
           >
             {loading ? t.login.loading : t.login.submit}
           </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            <span className="text-xs text-gray-400 dark:text-gray-500">{t.login.or}</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          </div>
+
+          <TelegramLoginButton
+            label={t.login.telegramLogin}
+            onToken={handleTelegramToken}
+            onError={handleTelegramError}
+            disabled={loading}
+          />
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
             {t.login.noAccount}{' '}
