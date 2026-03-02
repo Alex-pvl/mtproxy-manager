@@ -115,6 +115,9 @@ func (h *OIDCHandler) Init(w http.ResponseWriter, r *http.Request) {
 
 	redirectURI := h.cfg.BaseURL + "/api/auth/oidc/callback"
 
+	parsed, _ := url.Parse(h.cfg.BaseURL)
+	origin := parsed.Scheme + "://" + parsed.Host
+
 	params := url.Values{
 		"client_id":             {h.cfg.TGClientID},
 		"redirect_uri":          {redirectURI},
@@ -123,6 +126,7 @@ func (h *OIDCHandler) Init(w http.ResponseWriter, r *http.Request) {
 		"state":                 {state},
 		"code_challenge":        {codeChallenge},
 		"code_challenge_method": {"S256"},
+		"origin":                {origin},
 	}
 
 	http.Redirect(w, r, telegramAuthURL+"?"+params.Encode(), http.StatusFound)
