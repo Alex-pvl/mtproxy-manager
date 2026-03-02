@@ -1,71 +1,28 @@
-import { useCallback } from 'react';
-
-export interface TelegramUser {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date: number;
-  hash: string;
-}
-
-declare global {
-  interface Window {
-    Telegram?: {
-      Login: {
-        auth: (
-          options: { bot_id: number; request_access?: string; lang?: string },
-          callback: (result: false | TelegramUser) => void,
-        ) => void;
-      };
-    };
-  }
-}
+const TG_CLIENT_ID = import.meta.env.VITE_TG_CLIENT_ID
+  ? Number(import.meta.env.VITE_TG_CLIENT_ID)
+  : 0;
 
 interface TelegramLoginButtonProps {
   label: string;
-  onAuth: (user: TelegramUser) => void;
-  onError: (error: string) => void;
   disabled?: boolean;
   className?: string;
 }
 
-const TG_BOT_ID = import.meta.env.VITE_TG_CLIENT_ID
-  ? Number(import.meta.env.VITE_TG_CLIENT_ID)
-  : 0;
-
 export default function TelegramLoginButton({
   label,
-  onAuth,
-  onError,
   disabled,
   className,
 }: TelegramLoginButtonProps) {
-  const handleClick = useCallback(() => {
-    if (!window.Telegram?.Login) {
-      onError('Telegram Login SDK not loaded');
-      return;
-    }
+  const handleClick = () => {
+    const params = new URLSearchParams();
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (ref) params.set('ref', ref);
 
-    if (!TG_BOT_ID) {
-      onError('Telegram Bot ID not configured');
-      return;
-    }
+    const qs = params.toString();
+    window.location.href = `/api/auth/oidc/init${qs ? '?' + qs : ''}`;
+  };
 
-    window.Telegram.Login.auth(
-      { bot_id: TG_BOT_ID, request_access: 'write' },
-      (result) => {
-        if (!result) {
-          onError('Telegram login cancelled');
-          return;
-        }
-        onAuth(result);
-      },
-    );
-  }, [onAuth, onError]);
-
-  if (!TG_BOT_ID) return null;
+  if (!TG_CLIENT_ID) return null;
 
   return (
     <button

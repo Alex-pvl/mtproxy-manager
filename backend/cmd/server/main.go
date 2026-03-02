@@ -42,6 +42,7 @@ func main() {
 
 	authHandler := handlers.NewAuthHandler(db, jwtSvc)
 	telegramHandler := handlers.NewTelegramHandler(db, jwtSvc, cfg)
+	oidcHandler := handlers.NewOIDCHandler(db, jwtSvc, cfg)
 	proxyHandler := handlers.NewProxyHandler(db, dockerMgr)
 	adminHandler := handlers.NewAdminHandler(db, dockerMgr)
 	paymentHandler := handlers.NewPaymentHandler(db, cfg)
@@ -64,6 +65,8 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/telegram", telegramHandler.Auth)
+			r.Get("/oidc/init", oidcHandler.Init)
+			r.Get("/oidc/callback", oidcHandler.Callback)
 			r.With(middleware.AuthRequired(jwtSvc)).Get("/me", authHandler.Me)
 		})
 

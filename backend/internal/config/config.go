@@ -22,6 +22,8 @@ type Config struct {
 	AdminUsername     string
 	AdminTelegramID  int64
 	TelegramBotToken string
+	TGClientID       string
+	TGClientSecret   string
 }
 
 func Load() *Config {
@@ -42,6 +44,8 @@ func Load() *Config {
 		AdminUsername:     getEnv("ADMIN_USERNAME", "admin"),
 		AdminTelegramID:  int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
 		TelegramBotToken: getEnv("TG_BOT_TOKEN", ""),
+		TGClientID:       getEnv("TG_CLIENT_ID", ""),
+		TGClientSecret:   getEnv("TG_CLIENT_SECRET", ""),
 	}
 }
 

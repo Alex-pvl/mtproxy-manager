@@ -1,23 +1,47 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/client';
-import type { User, TelegramAuthData } from '../api/client';
+import type { User } from '../api/client';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  telegramLogin: (data: TelegramAuthData, ref?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
+function getInitialToken(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const urlToken = params.get('token');
+  if (urlToken) {
+    localStorage.setItem('token', urlToken);
+    return urlToken;
+  }
+  return localStorage.getItem('token');
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(getInitialToken);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Clean up token / auth_error from URL after OIDC redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('token') || params.has('auth_error')) {
+      const authError = params.get('auth_error');
+      if (authError) {
+        console.error('Telegram auth error:', authError);
+      }
+      params.delete('token');
+      params.delete('auth_error');
+      const qs = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+    }
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -32,14 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, [token]);
-
-  const telegramLogin = async (data: TelegramAuthData, ref?: string) => {
-    const res = await authApi.telegramLogin(data, ref);
-    localStorage.setItem('token', res.data.token);
-    setToken(res.data.token);
-    const me = await authApi.me();
-    setUser(me.data);
-  };
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -56,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, telegramLogin, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

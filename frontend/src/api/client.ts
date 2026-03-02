@@ -65,28 +65,7 @@ export interface Proxy {
   socks5_pass?: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: {
-    id: number;
-    username: string;
-    role: string;
-  };
-}
-
-export interface TelegramAuthData {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date: number;
-  hash: string;
-}
-
 export const authApi = {
-  telegramLogin: (data: TelegramAuthData, ref?: string) =>
-    api.post<AuthResponse>('/auth/telegram', { ...data, ref: ref || undefined }),
   me: () => api.get<User>('/auth/me'),
 };
 

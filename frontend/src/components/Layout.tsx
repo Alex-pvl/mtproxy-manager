@@ -1,11 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
-import type { TelegramUser } from './TelegramLoginButton';
 
 function SunIcon() {
   return (
@@ -46,29 +45,18 @@ function NavLink({ to, children, className = '', onClick }: { to: string; childr
 }
 
 export default function Layout() {
-  const { user, telegramLogin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [referralOpen, setReferralOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/');
     setMenuOpen(false);
   };
-
-  const handleTelegramAuth = useCallback(async (tgUser: TelegramUser) => {
-    setLoginLoading(true);
-    try {
-      await telegramLogin(tgUser);
-    } catch { /* ignore */ }
-    setLoginLoading(false);
-  }, [telegramLogin]);
-
-  const handleTelegramError = useCallback(() => {}, []);
 
   const navLinks = (
     <>
@@ -155,9 +143,6 @@ export default function Layout() {
             ) : (
               <TelegramLoginButton
                 label={t.nav.login}
-                onAuth={handleTelegramAuth}
-                onError={handleTelegramError}
-                disabled={loginLoading}
                 className="hidden md:flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
               />
             )}
@@ -191,9 +176,6 @@ export default function Layout() {
               ) : (
                 <TelegramLoginButton
                   label={t.nav.login}
-                  onAuth={handleTelegramAuth}
-                  onError={handleTelegramError}
-                  disabled={loginLoading}
                   className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation"
                 />
               )}

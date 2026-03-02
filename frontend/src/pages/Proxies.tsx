@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { BlurredLink } from '../components/BlurredLink';
 import TelegramLoginButton from '../components/TelegramLoginButton';
-import type { TelegramUser } from '../components/TelegramLoginButton';
 
 function WifiIcon({ className = '' }: { className?: string }) {
   return (
@@ -37,7 +36,7 @@ function ShieldIcon({ className = '' }: { className?: string }) {
 }
 
 export default function Proxies() {
-  const { user, telegramLogin, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { t } = useLanguage();
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,16 +124,11 @@ export default function Proxies() {
   }
 
   if (!user) {
-    const handleAuth = async (tgUser: TelegramUser) => {
-      try { await telegramLogin(tgUser); } catch { /* ignore */ }
-    };
     return (
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-12 text-center">
         <p className="text-gray-500 dark:text-gray-400 mb-4">{t.proxies.loginToView}</p>
         <TelegramLoginButton
           label={t.proxies.loginToCreate}
-          onAuth={handleAuth}
-          onError={() => {}}
           className="inline-flex items-center gap-2 bg-[#54a9eb] hover:bg-[#4a96d2] text-white text-sm font-medium rounded px-5 py-2.5 transition-colors touch-manipulation"
         />
       </div>
