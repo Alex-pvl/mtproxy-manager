@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/client';
-import type { User } from '../api/client';
+import type { User, TelegramAuthData } from '../api/client';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  telegramLogin: (idToken: string, ref?: string) => Promise<void>;
+  telegramLogin: (data: TelegramAuthData, ref?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -33,8 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  const telegramLogin = async (idToken: string, ref?: string) => {
-    const res = await authApi.telegramLogin(idToken, ref);
+  const telegramLogin = async (data: TelegramAuthData, ref?: string) => {
+    const res = await authApi.telegramLogin(data, ref);
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
     const me = await authApi.me();

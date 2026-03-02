@@ -1,30 +1,26 @@
 package handlers
 
 import (
-	"crypto/rsa"
-	"encoding/base64"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
-	"sync"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"mtproxy-manager/internal/auth"
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/database"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type TelegramHandler struct {
 	db     *database.DB
 	jwtSvc *auth.JWTService
 	cfg    *config.Config
-
-	jwksMu    sync.RWMutex
-	jwksCache map[string]*rsa.PublicKey
-	jwksExp   time.Time
 }
 
 func NewTelegramHandler(db *database.DB, jwtSvc *auth.JWTService, cfg *config.Config) *TelegramHandler {
@@ -35,91 +31,52 @@ func NewTelegramHandler(db *database.DB, jwtSvc *auth.JWTService, cfg *config.Co
 	}
 }
 
-type jwksResponse struct {
-	Keys []jwkKey `json:"keys"`
-}
-
-type jwkKey struct {
-	Kty string `json:"kty"`
-	Kid string `json:"kid"`
-	Use string `json:"use"`
-	N   string `json:"n"`
-	E   string `json:"e"`
-}
-
-func (h *TelegramHandler) getPublicKeys() (map[string]*rsa.PublicKey, error) {
-	h.jwksMu.RLock()
-	if h.jwksCache != nil && time.Now().Before(h.jwksExp) {
-		defer h.jwksMu.RUnlock()
-		return h.jwksCache, nil
-	}
-	h.jwksMu.RUnlock()
-
-	h.jwksMu.Lock()
-	defer h.jwksMu.Unlock()
-
-	if h.jwksCache != nil && time.Now().Before(h.jwksExp) {
-		return h.jwksCache, nil
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://oauth.telegram.org/.well-known/jwks.json")
-	if err != nil {
-		return nil, fmt.Errorf("fetch JWKS: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("JWKS returned status %d", resp.StatusCode)
-	}
-
-	var jwks jwksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
-		return nil, fmt.Errorf("decode JWKS: %w", err)
-	}
-
-	keys := make(map[string]*rsa.PublicKey, len(jwks.Keys))
-	for _, k := range jwks.Keys {
-		if k.Kty != "RSA" {
-			continue
-		}
-
-		nBytes, err := base64.RawURLEncoding.DecodeString(k.N)
-		if err != nil {
-			continue
-		}
-		eBytes, err := base64.RawURLEncoding.DecodeString(k.E)
-		if err != nil {
-			continue
-		}
-
-		n := new(big.Int).SetBytes(nBytes)
-		e := new(big.Int).SetBytes(eBytes)
-
-		keys[k.Kid] = &rsa.PublicKey{
-			N: n,
-			E: int(e.Int64()),
-		}
-	}
-
-	h.jwksCache = keys
-	h.jwksExp = time.Now().Add(1 * time.Hour)
-
-	return keys, nil
-}
-
-type telegramClaims struct {
-	ID                int64  `json:"id"`
-	Name              string `json:"name"`
-	PreferredUsername string `json:"preferred_username"`
-	Picture           string `json:"picture"`
-	PhoneNumber       string `json:"phone_number"`
-	jwt.RegisteredClaims
-}
-
 type telegramAuthRequest struct {
-	IDToken string `json:"id_token"`
-	Ref     string `json:"ref"`
+	ID        int64  `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Username  string `json:"username"`
+	PhotoURL  string `json:"photo_url"`
+	AuthDate  int64  `json:"auth_date"`
+	Hash      string `json:"hash"`
+	Ref       string `json:"ref"`
+}
+
+const maxAuthAge = 24 * time.Hour
+
+// verifyTelegramHash checks the data integrity using HMAC-SHA-256
+// as described at https://core.telegram.org/widgets/login#checking-authorization
+func (h *TelegramHandler) verifyTelegramHash(req *telegramAuthRequest) bool {
+	fields := make([]string, 0, 6)
+
+	if req.AuthDate != 0 {
+		fields = append(fields, "auth_date="+strconv.FormatInt(req.AuthDate, 10))
+	}
+	if req.FirstName != "" {
+		fields = append(fields, "first_name="+req.FirstName)
+	}
+	if req.ID != 0 {
+		fields = append(fields, "id="+strconv.FormatInt(req.ID, 10))
+	}
+	if req.LastName != "" {
+		fields = append(fields, "last_name="+req.LastName)
+	}
+	if req.PhotoURL != "" {
+		fields = append(fields, "photo_url="+req.PhotoURL)
+	}
+	if req.Username != "" {
+		fields = append(fields, "username="+req.Username)
+	}
+
+	sort.Strings(fields)
+	dataCheckString := strings.Join(fields, "\n")
+
+	secretKey := sha256.Sum256([]byte(h.cfg.TelegramBotToken))
+	mac := hmac.New(sha256.New, secretKey[:])
+	mac.Write([]byte(dataCheckString))
+	expectedHash := hex.EncodeToString(mac.Sum(nil))
+
+	return hmac.Equal([]byte(expectedHash), []byte(req.Hash))
 }
 
 func (h *TelegramHandler) Auth(w http.ResponseWriter, r *http.Request) {
@@ -134,60 +91,27 @@ func (h *TelegramHandler) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.IDToken == "" {
-		writeError(w, http.StatusBadRequest, "id_token is required")
+	if req.ID == 0 || req.Hash == "" || req.AuthDate == 0 {
+		writeError(w, http.StatusBadRequest, "id, hash and auth_date are required")
 		return
 	}
 
-	keys, err := h.getPublicKeys()
+	if !h.verifyTelegramHash(&req) {
+		writeError(w, http.StatusUnauthorized, "invalid telegram auth hash")
+		return
+	}
+
+	authTime := time.Unix(req.AuthDate, 0)
+	if time.Since(authTime) > maxAuthAge {
+		writeError(w, http.StatusUnauthorized, "telegram auth data is too old")
+		return
+	}
+
+	user, err := h.db.GetUserByTelegramID(req.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to fetch Telegram keys")
-		return
-	}
-
-	token, err := jwt.ParseWithClaims(req.IDToken, &telegramClaims{}, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-
-		kid, ok := t.Header["kid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("kid not found in token header")
-		}
-
-		key, found := keys[kid]
-		if !found {
-			return nil, fmt.Errorf("key %s not found in JWKS", kid)
-		}
-
-		return key, nil
-	})
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid telegram token")
-		return
-	}
-
-	claims, ok := token.Claims.(*telegramClaims)
-	if !ok || !token.Valid {
-		writeError(w, http.StatusUnauthorized, "invalid telegram token claims")
-		return
-	}
-
-	if claims.Issuer != "https://oauth.telegram.org" {
-		writeError(w, http.StatusUnauthorized, "invalid token issuer")
-		return
-	}
-
-	if claims.ID == 0 {
-		writeError(w, http.StatusUnauthorized, "telegram user id not found in token")
-		return
-	}
-
-	user, err := h.db.GetUserByTelegramID(claims.ID)
-	if err != nil {
-		username := claims.PreferredUsername
+		username := req.Username
 		if username == "" {
-			username = fmt.Sprintf("tg_%d", claims.ID)
+			username = fmt.Sprintf("tg_%d", req.ID)
 		}
 
 		var referrerID *int64
@@ -197,15 +121,15 @@ func (h *TelegramHandler) Auth(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		user, err = h.db.CreateUserByTelegram(claims.ID, username, referrerID)
+		user, err = h.db.CreateUserByTelegram(req.ID, username, referrerID)
 		if err != nil {
 			existingUser, lookupErr := h.db.GetUserByUsername(username)
 			if lookupErr == nil && existingUser.TelegramID == 0 {
 				writeError(w, http.StatusConflict, "username already taken by another account")
 				return
 			}
-			username = fmt.Sprintf("tg_%d", claims.ID)
-			user, err = h.db.CreateUserByTelegram(claims.ID, username, referrerID)
+			username = fmt.Sprintf("tg_%d", req.ID)
+			user, err = h.db.CreateUserByTelegram(req.ID, username, referrerID)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, "failed to create user")
 				return

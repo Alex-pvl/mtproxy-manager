@@ -1,12 +1,22 @@
 import { useCallback } from 'react';
 
+export interface TelegramUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
+
 declare global {
   interface Window {
     Telegram?: {
       Login: {
         auth: (
-          options: { client_id: number; request_access?: string[]; lang?: string },
-          callback: (data: { id_token?: string; error?: string }) => void,
+          options: { bot_id: number; request_access?: string; lang?: string },
+          callback: (result: false | TelegramUser) => void,
         ) => void;
       };
     };
@@ -15,18 +25,18 @@ declare global {
 
 interface TelegramLoginButtonProps {
   label: string;
-  onToken: (idToken: string) => void;
+  onAuth: (user: TelegramUser) => void;
   onError: (error: string) => void;
   disabled?: boolean;
 }
 
-const TG_CLIENT_ID = import.meta.env.VITE_TG_CLIENT_ID
+const TG_BOT_ID = import.meta.env.VITE_TG_CLIENT_ID
   ? Number(import.meta.env.VITE_TG_CLIENT_ID)
   : 0;
 
 export default function TelegramLoginButton({
   label,
-  onToken,
+  onAuth,
   onError,
   disabled,
 }: TelegramLoginButtonProps) {
@@ -36,24 +46,24 @@ export default function TelegramLoginButton({
       return;
     }
 
-    if (!TG_CLIENT_ID) {
-      onError('Telegram Client ID not configured');
+    if (!TG_BOT_ID) {
+      onError('Telegram Bot ID not configured');
       return;
     }
 
     window.Telegram.Login.auth(
-      { client_id: TG_CLIENT_ID, request_access: ['write'] },
-      (data) => {
-        if (data.error) {
-          onError(data.error);
-        } else if (data.id_token) {
-          onToken(data.id_token);
+      { bot_id: TG_BOT_ID, request_access: 'write' },
+      (result) => {
+        if (!result) {
+          onError('Telegram login cancelled');
+          return;
         }
+        onAuth(result);
       },
     );
-  }, [onToken, onError]);
+  }, [onAuth, onError]);
 
-  if (!TG_CLIENT_ID) return null;
+  if (!TG_BOT_ID) return null;
 
   return (
     <button

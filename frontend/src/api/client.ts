@@ -74,9 +74,19 @@ export interface AuthResponse {
   };
 }
 
+export interface TelegramAuthData {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
+
 export const authApi = {
-  telegramLogin: (idToken: string, ref?: string) =>
-    api.post<AuthResponse>('/auth/telegram', { id_token: idToken, ref: ref || undefined }),
+  telegramLogin: (data: TelegramAuthData, ref?: string) =>
+    api.post<AuthResponse>('/auth/telegram', { ...data, ref: ref || undefined }),
   me: () => api.get<User>('/auth/me'),
 };
 

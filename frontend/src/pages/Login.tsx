@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import TelegramLoginButton from '../components/TelegramLoginButton';
+import type { TelegramUser } from '../components/TelegramLoginButton';
 
 function SunIcon() {
   return (
@@ -39,11 +40,11 @@ export default function Login() {
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
 
-  const handleTelegramToken = useCallback(async (idToken: string) => {
+  const handleTelegramAuth = useCallback(async (user: TelegramUser) => {
     setError('');
     setLoading(true);
     try {
-      await telegramLogin(idToken, refFromUrl);
+      await telegramLogin(user, refFromUrl);
       navigate('/');
     } catch {
       setError(t.login.telegramError);
@@ -89,7 +90,7 @@ export default function Login() {
 
           <TelegramLoginButton
             label={t.login.telegramLogin}
-            onToken={handleTelegramToken}
+            onAuth={handleTelegramAuth}
             onError={handleTelegramError}
             disabled={loading}
           />
