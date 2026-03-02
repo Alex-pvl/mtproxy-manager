@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
@@ -14,6 +15,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -182,6 +184,8 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("OIDC token exchange OK, id_token length=%d", len(tokenResp.IDToken))
+
 	idClaims, err := h.validateIDToken(tokenResp.IDToken)
 	if err != nil {
 		log.Printf("OIDC id_token validation error: %v", err)
@@ -189,7 +193,7 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	telegramID := idClaims.ID
+	telegramID := idClaims.TelegramID()
 	if telegramID == 0 {
 		h.redirectWithError(w, r, "missing telegram user id")
 		return
@@ -288,7 +292,7 @@ func (h *OIDCHandler) exchangeCode(code, codeVerifier, redirectURI string) (*oid
 // --- ID Token Validation ---
 
 type telegramIDClaims struct {
-	ID                int64  `json:"id"`
+	RawID             string `json:"id"`
 	Name              string `json:"name"`
 	PreferredUsername  string `json:"preferred_username"`
 	Picture           string `json:"picture"`
@@ -296,10 +300,28 @@ type telegramIDClaims struct {
 	jwt.RegisteredClaims
 }
 
+func (c *telegramIDClaims) TelegramID() int64 {
+	id, _ := strconv.ParseInt(c.RawID, 10, 64)
+	return id
+}
+
 func (h *OIDCHandler) validateIDToken(rawToken string) (*telegramIDClaims, error) {
+	// Log the token header for debugging
+	parts := strings.SplitN(rawToken, ".", 3)
+	if len(parts) == 3 {
+		if headerJSON, err := base64.RawURLEncoding.DecodeString(parts[0]); err == nil {
+			log.Printf("OIDC id_token header: %s", string(headerJSON))
+		}
+	}
+
 	keys, err := h.getJWKS()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
+	}
+
+	log.Printf("OIDC JWKS loaded: %d keys", len(keys))
+	for kid, key := range keys {
+		log.Printf("OIDC JWKS key kid=%s type=%T", kid, key)
 	}
 
 	var claims telegramIDClaims
@@ -309,9 +331,10 @@ func (h *OIDCHandler) validateIDToken(rawToken string) (*telegramIDClaims, error
 			return nil, fmt.Errorf("missing kid in token header")
 		}
 
+		log.Printf("OIDC token alg=%v kid=%s", t.Header["alg"], kid)
+
 		key, found := keys[kid]
 		if !found {
-			// Key not found — invalidate cache and retry once
 			h.invalidateJWKSCache()
 			keys, err = h.getJWKS()
 			if err != nil {
@@ -326,7 +349,7 @@ func (h *OIDCHandler) validateIDToken(rawToken string) (*telegramIDClaims, error
 		return key, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("jwt parse: %w", err)
 	}
 	if !token.Valid {
 		return nil, fmt.Errorf("token is not valid")
@@ -338,7 +361,7 @@ func (h *OIDCHandler) validateIDToken(rawToken string) (*telegramIDClaims, error
 
 	aud, _ := claims.GetAudience()
 	if !sliceContains(aud, h.cfg.TGClientID) {
-		return nil, fmt.Errorf("invalid audience")
+		return nil, fmt.Errorf("invalid audience: got %v, want %s", aud, h.cfg.TGClientID)
 	}
 
 	return &claims, nil
@@ -389,22 +412,25 @@ func (h *OIDCHandler) getJWKS() (map[string]interface{}, error) {
 
 	resp, err := h.httpClient.Get(telegramJWKSURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("JWKS fetch error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("JWKS read error: %w", err)
 	}
+
+	log.Printf("OIDC JWKS response (%d): %s", resp.StatusCode, string(body))
 
 	var jwks jwksResponse
 	if err := json.Unmarshal(body, &jwks); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("JWKS parse error: %w", err)
 	}
 
 	keys := make(map[string]interface{})
 	for _, k := range jwks.Keys {
+		log.Printf("OIDC JWKS entry: kty=%s kid=%s alg=%s crv=%s", k.Kty, k.Kid, k.Alg, k.Crv)
 		switch k.Kty {
 		case "RSA":
 			pub, err := parseRSAJWK(k)
@@ -420,6 +446,15 @@ func (h *OIDCHandler) getJWKS() (map[string]interface{}, error) {
 				continue
 			}
 			keys[k.Kid] = pub
+		case "OKP":
+			pub, err := parseOKPJWK(k)
+			if err != nil {
+				log.Printf("OIDC: skipping OKP key %s: %v", k.Kid, err)
+				continue
+			}
+			keys[k.Kid] = pub
+		default:
+			log.Printf("OIDC: skipping unsupported key type %s (kid=%s)", k.Kty, k.Kid)
 		}
 	}
 
@@ -478,6 +513,20 @@ func parseECJWK(k jwkKey) (*ecdsa.PublicKey, error) {
 		X:     new(big.Int).SetBytes(xBytes),
 		Y:     new(big.Int).SetBytes(yBytes),
 	}, nil
+}
+
+func parseOKPJWK(k jwkKey) (ed25519.PublicKey, error) {
+	if k.Crv != "Ed25519" {
+		return nil, fmt.Errorf("unsupported OKP curve: %s", k.Crv)
+	}
+	xBytes, err := base64.RawURLEncoding.DecodeString(k.X)
+	if err != nil {
+		return nil, fmt.Errorf("decode x: %w", err)
+	}
+	if len(xBytes) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("invalid Ed25519 key size: %d", len(xBytes))
+	}
+	return ed25519.PublicKey(xBytes), nil
 }
 
 func randomString(n int) (string, error) {
