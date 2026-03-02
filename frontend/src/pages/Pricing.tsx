@@ -3,7 +3,7 @@ import { paymentApi } from '../api/client';
 import type { Plan } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Sticker from '../components/Sticker';
 
 const POPULAR_PLAN = 'year_1';
@@ -11,7 +11,6 @@ const POPULAR_PLAN = 'year_1';
 export default function Pricing() {
   const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [buyingPlan, setBuyingPlan] = useState<string | null>(null);
@@ -38,7 +37,7 @@ export default function Pricing() {
   }, [refreshUser]);
 
   const handleBuy = async (planId: string) => {
-    if (!user) { navigate('/login'); return; }
+    if (!user) return;
     setBuyingPlan(planId);
     setError('');
     try {

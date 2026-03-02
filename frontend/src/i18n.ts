@@ -79,12 +79,6 @@ const ru = {
     featureSpeedDesc: 'Серверы имеют скорость соединения до 1 Гбит/с.',
     loading: 'Загрузка...',
   },
-  login: {
-    title: 'Вход',
-    loading: 'Вход...',
-    telegramLogin: 'Войти через Telegram',
-    telegramError: 'Ошибка входа через Telegram',
-  },
   referral: {
     title: 'Приглашайте друзей — получайте бонусные дни',
     description:
@@ -101,7 +95,7 @@ const ru = {
   },
   common: {
     loading: 'Загрузка...',
-    appName: 'TelegramProxy',
+    appName: 'Stay',
   },
 };
 
@@ -184,12 +178,6 @@ const en = {
     featureSpeedDesc: 'Servers with connection speeds up to 1 Gbit/s.',
     loading: 'Loading...',
   },
-  login: {
-    title: 'Sign in',
-    loading: 'Signing in...',
-    telegramLogin: 'Sign in with Telegram',
-    telegramError: 'Telegram login failed',
-  },
   referral: {
     title: 'Invite friends — get bonus days',
     description:
@@ -206,7 +194,7 @@ const en = {
   },
   common: {
     loading: 'Loading...',
-    appName: 'TelegramProxy',
+    appName: 'Stay',
   },
 };
 

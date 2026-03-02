@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import ReferralModal from './ReferralModal';
+import TelegramLoginButton from './TelegramLoginButton';
+import type { TelegramUser } from './TelegramLoginButton';
 
 function SunIcon() {
   return (
@@ -44,18 +46,29 @@ function NavLink({ to, children, className = '', onClick }: { to: string; childr
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, telegramLogin, logout } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [referralOpen, setReferralOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
     setMenuOpen(false);
   };
+
+  const handleTelegramAuth = useCallback(async (tgUser: TelegramUser) => {
+    setLoginLoading(true);
+    try {
+      await telegramLogin(tgUser);
+    } catch { /* ignore */ }
+    setLoginLoading(false);
+  }, [telegramLogin]);
+
+  const handleTelegramError = useCallback(() => {}, []);
 
   const navLinks = (
     <>
@@ -96,7 +109,6 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Theme toggle slider */}
             <button
               type="button"
               onClick={toggleTheme}
@@ -110,7 +122,6 @@ export default function Layout() {
               </span>
             </button>
 
-            {/* Language toggle slider */}
             <button
               type="button"
               onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
@@ -142,9 +153,13 @@ export default function Layout() {
                 </button>
               </>
             ) : (
-              <div className="hidden md:flex items-center gap-3">
-                <NavLink to="/login">{t.nav.login}</NavLink>
-              </div>
+              <TelegramLoginButton
+                label={t.nav.login}
+                onAuth={handleTelegramAuth}
+                onError={handleTelegramError}
+                disabled={loginLoading}
+                className="hidden md:flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
+              />
             )}
             <button
               type="button"
@@ -174,9 +189,13 @@ export default function Layout() {
                   </button>
                 </>
               ) : (
-                <Link to="/login" onClick={() => setMenuOpen(false)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  {t.nav.login}
-                </Link>
+                <TelegramLoginButton
+                  label={t.nav.login}
+                  onAuth={handleTelegramAuth}
+                  onError={handleTelegramError}
+                  disabled={loginLoading}
+                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation"
+                />
               )}
             </div>
           </div>
