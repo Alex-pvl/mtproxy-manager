@@ -9,6 +9,7 @@ interface AuthState {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, ref?: string) => Promise<void>;
+  telegramLogin: (idToken: string, ref?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -50,6 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me.data);
   };
 
+  const telegramLogin = async (idToken: string, ref?: string) => {
+    const res = await authApi.telegramLogin(idToken, ref);
+    localStorage.setItem('token', res.data.token);
+    setToken(res.data.token);
+    const me = await authApi.me();
+    setUser(me.data);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -65,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, telegramLogin, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

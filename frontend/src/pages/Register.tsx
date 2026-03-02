@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import TelegramLoginButton from '../components/TelegramLoginButton';
 
 function SunIcon() {
   return (
@@ -37,7 +38,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, telegramLogin } = useAuth();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -66,6 +67,23 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  const handleTelegramToken = useCallback(async (idToken: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      await telegramLogin(idToken, refFromUrl);
+      navigate('/');
+    } catch {
+      setError(t.register.telegramError);
+    } finally {
+      setLoading(false);
+    }
+  }, [telegramLogin, navigate, refFromUrl, t]);
+
+  const handleTelegramError = useCallback((err: string) => {
+    setError(err || t.register.telegramError);
+  }, [t]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4">
@@ -140,6 +158,19 @@ export default function Register() {
           >
             {loading ? t.register.loading : t.register.submit}
           </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            <span className="text-xs text-gray-400 dark:text-gray-500">{t.register.or}</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          </div>
+
+          <TelegramLoginButton
+            label={t.register.telegramRegister}
+            onToken={handleTelegramToken}
+            onError={handleTelegramError}
+            disabled={loading}
+          />
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
             {t.register.hasAccount}{' '}

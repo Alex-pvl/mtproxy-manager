@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/models"
+
+	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type DB struct {
@@ -113,6 +114,15 @@ func (db *DB) migrate() error {
 		}
 	}
 
+	for _, alter := range []string{
+		"ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT DEFAULT 0",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id) WHERE telegram_id > 0",
+	} {
+		if _, err := db.conn.Exec(alter); err != nil {
+			return err
+		}
+	}
+
 	// SOCKS5 columns migration (idempotent via IF NOT EXISTS)
 	for _, alter := range []string{
 		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS socks5_port INTEGER DEFAULT 0",
@@ -192,12 +202,50 @@ func (db *DB) CreateUser(username, password string, referrerID *int64) (*models.
 	return user, nil
 }
 
+func (db *DB) GetUserByTelegramID(telegramID int64) (*models.User, error) {
+	u := &models.User{}
+	err := db.conn.QueryRow(
+		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), created_at FROM users WHERE telegram_id = $1",
+		telegramID,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (db *DB) CreateUserByTelegram(telegramID int64, username string, referrerID *int64) (*models.User, error) {
+	var id int64
+	err := db.conn.QueryRow(
+		"INSERT INTO users (username, password_hash, role, max_proxies, telegram_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+		username, "", models.RoleUser, db.cfg.DefaultMaxProxies, telegramID,
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &models.User{
+		ID:         id,
+		Username:   username,
+		Role:       models.RoleUser,
+		MaxProxies: db.cfg.DefaultMaxProxies,
+		TelegramID: telegramID,
+		CreatedAt:  time.Now(),
+	}
+
+	if referrerID != nil && *referrerID > 0 && *referrerID != id {
+		_ = db.CreateReferral(*referrerID, id)
+	}
+
+	return user, nil
+}
+
 func (db *DB) GetUserByUsername(username string) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, username, password_hash, role, max_proxies, created_at FROM users WHERE username = $1",
+		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), created_at FROM users WHERE username = $1",
 		username,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -207,9 +255,9 @@ func (db *DB) GetUserByUsername(username string) (*models.User, error) {
 func (db *DB) GetUserByID(id int64) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, username, password_hash, role, max_proxies, created_at FROM users WHERE id = $1",
+		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), created_at FROM users WHERE id = $1",
 		id,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
