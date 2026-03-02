@@ -20,8 +20,8 @@ type Config struct {
 	CryptoBotToken    string
 	BaseURL           string
 	AdminUsername     string
-	AdminPassword     string
-	TelegramBotToken  string
+	AdminTelegramID  int64
+	TelegramBotToken string
 }
 
 func Load() *Config {
@@ -40,8 +40,8 @@ func Load() *Config {
 		CryptoBotToken:    getEnv("CRYPTOBOT_TOKEN", ""),
 		BaseURL:           getEnv("BASE_URL", ""),
 		AdminUsername:     getEnv("ADMIN_USERNAME", "admin"),
-		AdminPassword:     getEnv("ADMIN_PASSWORD", ""),
-		TelegramBotToken:  getEnv("TG_BOT_TOKEN", ""),
+		AdminTelegramID:  int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
+		TelegramBotToken: getEnv("TG_BOT_TOKEN", ""),
 	}
 }
 

@@ -7,8 +7,6 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, ref?: string) => Promise<void>;
   telegramLogin: (idToken: string, ref?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -35,22 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  const login = async (username: string, password: string) => {
-    const res = await authApi.login(username, password);
-    localStorage.setItem('token', res.data.token);
-    setToken(res.data.token);
-    const me = await authApi.me();
-    setUser(me.data);
-  };
-
-  const register = async (username: string, password: string, ref?: string) => {
-    const res = await authApi.register(username, password, ref);
-    localStorage.setItem('token', res.data.token);
-    setToken(res.data.token);
-    const me = await authApi.me();
-    setUser(me.data);
-  };
-
   const telegramLogin = async (idToken: string, ref?: string) => {
     const res = await authApi.telegramLogin(idToken, ref);
     localStorage.setItem('token', res.data.token);
@@ -74,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, telegramLogin, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, telegramLogin, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

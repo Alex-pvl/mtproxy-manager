@@ -63,8 +63,6 @@ func main() {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/register", authHandler.Register)
-			r.Post("/login", authHandler.Login)
 			r.Post("/telegram", telegramHandler.Auth)
 			r.With(middleware.AuthRequired(jwtSvc)).Get("/me", authHandler.Me)
 		})

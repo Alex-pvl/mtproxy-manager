@@ -11,7 +11,6 @@ import (
 	"mtproxy-manager/internal/models"
 
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type DB struct {
@@ -140,6 +139,10 @@ func (db *DB) migrate() error {
 }
 
 func (db *DB) ensureAdmin() error {
+	if db.cfg.AdminTelegramID == 0 {
+		return nil
+	}
+
 	var count int
 	err := db.conn.QueryRow("SELECT COUNT(*) FROM users WHERE role = $1", models.RoleAdmin).Scan(&count)
 	if err != nil {
@@ -149,58 +152,19 @@ func (db *DB) ensureAdmin() error {
 		return nil
 	}
 
-	if len(db.cfg.AdminPassword) < 6 {
-		return fmt.Errorf("ADMIN_PASSWORD must be set and at least 6 characters for initial admin creation")
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(db.cfg.AdminPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-
 	adminUsername := db.cfg.AdminUsername
 	if adminUsername == "" {
 		adminUsername = "admin"
 	}
 
 	_, err = db.conn.Exec(
-		"INSERT INTO users (username, password_hash, role, max_proxies) VALUES ($1, $2, $3, $4)",
-		adminUsername, string(hash), models.RoleAdmin, 100,
+		"INSERT INTO users (username, password_hash, role, max_proxies, telegram_id) VALUES ($1, '', $2, $3, $4)",
+		adminUsername, models.RoleAdmin, 100, db.cfg.AdminTelegramID,
 	)
 	return err
 }
 
 // --- User queries ---
-
-func (db *DB) CreateUser(username, password string, referrerID *int64) (*models.User, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, err
-	}
-
-	var id int64
-	err = db.conn.QueryRow(
-		"INSERT INTO users (username, password_hash, role, max_proxies) VALUES ($1, $2, $3, $4) RETURNING id",
-		username, string(hash), models.RoleUser, db.cfg.DefaultMaxProxies,
-	).Scan(&id)
-	if err != nil {
-		return nil, err
-	}
-
-	user := &models.User{
-		ID:         id,
-		Username:   username,
-		Role:       models.RoleUser,
-		MaxProxies: db.cfg.DefaultMaxProxies,
-		CreatedAt:  time.Now(),
-	}
-
-	if referrerID != nil && *referrerID > 0 && *referrerID != id {
-		_ = db.CreateReferral(*referrerID, id)
-	}
-
-	return user, nil
-}
 
 func (db *DB) GetUserByTelegramID(telegramID int64) (*models.User, error) {
 	u := &models.User{}

@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -31,41 +30,27 @@ function MoonIcon() {
 }
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, telegramLogin } = useAuth();
+  const { telegramLogin } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refFromUrl = searchParams.get('ref') ?? undefined;
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await login(username, password);
-      navigate('/');
-    } catch {
-      setError(t.login.error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleTelegramToken = useCallback(async (idToken: string) => {
     setError('');
     setLoading(true);
     try {
-      await telegramLogin(idToken);
+      await telegramLogin(idToken, refFromUrl);
       navigate('/');
     } catch {
       setError(t.login.telegramError);
     } finally {
       setLoading(false);
     }
-  }, [telegramLogin, navigate, t]);
+  }, [telegramLogin, navigate, refFromUrl, t]);
 
   const handleTelegramError = useCallback((err: string) => {
     setError(err || t.login.telegramError);
@@ -93,50 +78,14 @@ export default function Login() {
 
       <div className="w-full max-w-sm flex-1 flex flex-col justify-center">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-8">{t.common.appName}</h1>
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t.login.title}</h2>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white text-center">{t.login.title}</h2>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded px-3 py-2">
               {error}
             </div>
           )}
-
-          <div>
-            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">{t.login.username}</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-3 py-2.5 text-gray-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">{t.login.password}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-3 py-2.5 text-gray-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded px-4 py-2.5 transition-colors touch-manipulation"
-          >
-            {loading ? t.login.loading : t.login.submit}
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-            <span className="text-xs text-gray-400 dark:text-gray-500">{t.login.or}</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-          </div>
 
           <TelegramLoginButton
             label={t.login.telegramLogin}
@@ -145,13 +94,10 @@ export default function Login() {
             disabled={loading}
           />
 
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            {t.login.noAccount}{' '}
-            <Link to="/register" className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300">
-              {t.login.register}
-            </Link>
-          </p>
-        </form>
+          {loading && (
+            <p className="text-center text-sm text-gray-400 dark:text-gray-500">{t.login.loading}</p>
+          )}
+        </div>
       </div>
       <footer className="py-4 text-center text-xs text-gray-400 dark:text-gray-500" />
     </div>

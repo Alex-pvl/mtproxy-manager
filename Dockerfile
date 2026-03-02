@@ -3,6 +3,8 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
+ARG VITE_TG_CLIENT_ID
+ENV VITE_TG_CLIENT_ID=$VITE_TG_CLIENT_ID
 RUN npm run build
 
 FROM golang:1.25-alpine AS backend

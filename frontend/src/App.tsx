@@ -4,7 +4,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Home from './pages/Home';
 import Proxies from './pages/Proxies';
 import Admin from './pages/Admin';
@@ -33,7 +32,6 @@ export default function App() {
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-              <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/proxies" element={<Proxies />} />

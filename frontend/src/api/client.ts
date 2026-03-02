@@ -75,10 +75,6 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  register: (username: string, password: string, ref?: string) =>
-    api.post<AuthResponse>('/auth/register', { username, password, ref: ref || undefined }),
-  login: (username: string, password: string) =>
-    api.post<AuthResponse>('/auth/login', { username, password }),
   telegramLogin: (idToken: string, ref?: string) =>
     api.post<AuthResponse>('/auth/telegram', { id_token: idToken, ref: ref || undefined }),
   me: () => api.get<User>('/auth/me'),

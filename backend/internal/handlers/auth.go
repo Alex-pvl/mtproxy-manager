@@ -1,13 +1,9 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
-	"unicode"
 
-	"golang.org/x/crypto/bcrypt"
 	"mtproxy-manager/internal/auth"
 	"mtproxy-manager/internal/database"
 	"mtproxy-manager/internal/models"
@@ -22,12 +18,6 @@ func NewAuthHandler(db *database.DB, jwtSvc *auth.JWTService) *AuthHandler {
 	return &AuthHandler{db: db, jwtSvc: jwtSvc}
 }
 
-type authRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Ref      string `json:"ref"`
-}
-
 type authResponse struct {
 	Token string `json:"token"`
 	User  struct {
@@ -35,92 +25,6 @@ type authResponse struct {
 		Username string `json:"username"`
 		Role     string `json:"role"`
 	} `json:"user"`
-}
-
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req authRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	req.Username = strings.TrimSpace(req.Username)
-	req.Password = strings.TrimSpace(req.Password)
-
-	if len(req.Username) < 3 || len(req.Password) < 6 {
-		writeError(w, http.StatusBadRequest, "username must be at least 3 chars, password at least 6")
-		return
-	}
-
-	for _, r := range req.Username {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
-			writeError(w, http.StatusBadRequest, "username may only contain letters, digits, underscores and hyphens")
-			return
-		}
-	}
-
-	if strings.ContainsAny(req.Password, " \t\n\r") {
-		writeError(w, http.StatusBadRequest, "password must not contain spaces")
-		return
-	}
-
-	var referrerID *int64
-	if req.Ref != "" {
-		if id, err := h.db.GetUserIDByReferralCode(req.Ref); err == nil {
-			referrerID = &id
-		}
-	}
-
-	user, err := h.db.CreateUser(req.Username, req.Password, referrerID)
-	if err != nil {
-		writeError(w, http.StatusConflict, "username already taken")
-		return
-	}
-
-	token, err := h.jwtSvc.GenerateToken(user)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to generate token")
-		return
-	}
-
-	resp := authResponse{Token: token}
-	resp.User.ID = user.ID
-	resp.User.Username = user.Username
-	resp.User.Role = string(user.Role)
-
-	writeJSON(w, http.StatusCreated, resp)
-}
-
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req authRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	user, err := h.db.GetUserByUsername(req.Username)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
-	token, err := h.jwtSvc.GenerateToken(user)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to generate token")
-		return
-	}
-
-	resp := authResponse{Token: token}
-	resp.User.ID = user.ID
-	resp.User.Username = user.Username
-	resp.User.Role = string(user.Role)
-
-	writeJSON(w, http.StatusOK, resp)
 }
 
 type subscriptionInfo struct {

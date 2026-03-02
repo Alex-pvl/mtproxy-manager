@@ -1,6 +1,9 @@
 services:
   mtproxy-manager:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_TG_CLIENT_ID: ${VITE_TG_CLIENT_ID}
     container_name: mtproxy-manager
     restart: unless-stopped
     ports:
@@ -13,7 +16,7 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_USERNAME=${ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_TELEGRAM_ID=${ADMIN_TELEGRAM_ID}
       - CRYPTOBOT_TOKEN=${CRYPTOBOT_TOKEN}
       - SERVER_IP=${SERVER_IP}
       - SERVER_PORT=${SERVER_PORT:-8080}
@@ -26,6 +29,7 @@ services:
       - DB_PATH=${DB_PATH:-/app/data/mtproxy.db}
       - MTG_IMAGE=${MTG_IMAGE:-nineseconds/mtg:2}
       - BASE_URL=${BASE_URL}
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
 
 volumes:
   mtproxy-data:

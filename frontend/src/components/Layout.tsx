@@ -144,12 +144,6 @@ export default function Layout() {
             ) : (
               <div className="hidden md:flex items-center gap-3">
                 <NavLink to="/login">{t.nav.login}</NavLink>
-                <Link
-                  to="/register"
-                  className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-md px-3 py-1.5 transition-colors whitespace-nowrap"
-                >
-                  {t.nav.register}
-                </Link>
               </div>
             )}
             <button
@@ -180,14 +174,9 @@ export default function Layout() {
                   </button>
                 </>
               ) : (
-                <div className="flex items-center gap-3 w-full">
-                  <Link to="/login" onClick={() => setMenuOpen(false)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-                    {t.nav.login}
-                  </Link>
-                  <Link to="/register" onClick={() => setMenuOpen(false)} className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-md px-3 py-1.5 transition-colors">
-                    {t.nav.register}
-                  </Link>
-                </div>
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                  {t.nav.login}
+                </Link>
               )}
             </div>
           </div>

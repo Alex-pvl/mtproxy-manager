@@ -55,7 +55,7 @@ nano .env
 ```env
 JWT_SECRET=ваш-секретный-ключ-минимум-32-символа
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=ваш-пароль-минимум-6-символов
+ADMIN_TELEGRAM_ID=ваш-telegram-id
 
 DATABASE_URL=postgres://mtproxy:yourpassword@localhost:5432/mtproxy?sslmode=disable
 
@@ -64,6 +64,10 @@ SERVER_PORT=3000
 BASE_URL=https://staytg.org
 
 CRYPTOBOT_TOKEN=токен-из-@CryptoBot
+
+# Telegram Login (@BotFather → Bot Settings → Web Login)
+TG_BOT_TOKEN=токен-бота
+VITE_TG_CLIENT_ID=числовой-ID-бота
 
 PORT_MIN=8000
 PORT_MAX=9999
@@ -128,7 +132,13 @@ sudo journalctl -u mtproxy-manager -f
 
 ## 4. Сборка и деплой фронтенда
 
+> **Важно:** переменная `VITE_TG_CLIENT_ID` должна быть задана при сборке —
+> Vite встраивает её в бандл на этапе `npm run build`.
+
 ```bash
+# Загрузить переменные из .env (для VITE_TG_CLIENT_ID)
+set -a && source ../.env && set +a
+
 cd frontend
 
 # Установить зависимости
@@ -155,9 +165,12 @@ sudo chown -R www-data:www-data /var/www/staytg.org
 При обновлении фронтенда:
 
 ```bash
+set -a && source .env && set +a
 cd frontend && npm ci && npm run build
 sudo rsync -a --delete dist/ /var/www/staytg.org/
 ```
+
+> Или используйте `deploy/deploy.sh` — он загружает `.env` и собирает всё автоматически.
 
 ---
 
@@ -200,13 +213,9 @@ sudo systemctl reload nginx
 cd mtproxy-manager
 git pull
 
-# Пересборка и деплой бэкенда
+# Полная пересборка и деплой (бэкенд + фронтенд)
 ./deploy/deploy.sh
 sudo systemctl restart mtproxy-manager
-
-# Пересборка фронтенда
-cd frontend && npm ci && npm run build
-sudo rsync -a --delete dist/ /var/www/staytg.org/
 ```
 
 ---
