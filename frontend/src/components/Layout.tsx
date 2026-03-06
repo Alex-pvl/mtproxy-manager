@@ -77,17 +77,6 @@ function AdminNavIcon() {
   );
 }
 
-// ─── TON wallet icon ──────────────────────────────────────────────────────────
-
-function TonIcon() {
-  return (
-    <svg className="w-4 h-4" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M28 56C43.464 56 56 43.464 56 28C56 12.536 43.464 0 28 0C12.536 0 0 12.536 0 28C0 43.464 12.536 56 28 56Z" fill="currentColor" opacity="0.15" />
-      <path d="M37.44 15H18.56C15.12 15 13 18.72 14.72 21.68L26.88 42.76C27.44 43.72 28.8 43.72 29.36 42.76L41.52 21.68C43.0 18.72 40.88 15 37.44 15ZM25.2 38.24L22.4 33.04L17.84 24.96H24.96L25.2 38.24ZM38.4 24.96L33.84 33.04L31.04 38.24L30.8 24.96H38.4V24.96Z" fill="currentColor" />
-    </svg>
-  );
-}
-
 // ─── Shared NavLink (desktop layout) ──────────────────────────────────────────
 
 function NavLink({ to, children, className = '', onClick }: { to: string; children: React.ReactNode; className?: string; onClick?: () => void }) {
