@@ -195,7 +195,7 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.xuiClient != nil && vlessUUID != "" {
 		remark := fmt.Sprintf("stay-proxy-%d", proxy.ID)
-		proxy.LinkVless = h.xuiClient.BuildLink(vlessUUID, serverIP, remark)
+		proxy.LinkVless = h.xuiClient.BuildLink(vlessUUID, "", remark)
 	}
 
 	writeJSON(w, http.StatusCreated, proxy)
@@ -225,7 +225,7 @@ func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		if h.xuiClient != nil && proxies[i].VlessUUID != "" {
 			remark := fmt.Sprintf("stay-proxy-%d", proxies[i].ID)
-			proxies[i].LinkVless = h.xuiClient.BuildLink(proxies[i].VlessUUID, serverIP, remark)
+			proxies[i].LinkVless = h.xuiClient.BuildLink(proxies[i].VlessUUID, "", remark)
 		}
 	}
 

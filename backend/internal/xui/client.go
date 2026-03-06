@@ -48,6 +48,7 @@ type streamSettings struct {
 	TLSSettings     *tlsSettings     `json:"tlsSettings,omitempty"`
 	WSSettings      *wsSettings      `json:"wsSettings,omitempty"`
 	GRPCSettings    *grpcSettings    `json:"grpcSettings,omitempty"`
+	XHTTPSettings   *xhttpSettings   `json:"xhttpSettings,omitempty"`
 }
 
 type realitySettings struct {
@@ -73,6 +74,12 @@ type wsSettings struct {
 
 type grpcSettings struct {
 	ServiceName string `json:"serviceName"`
+}
+
+type xhttpSettings struct {
+	Path string `json:"path"`
+	Host string `json:"host"`
+	Mode string `json:"mode"`
 }
 
 type xuiClient struct {
@@ -307,6 +314,18 @@ func (c *Client) BuildLink(uuid, serverIP, remark string) string {
 	case "grpc":
 		if ss.GRPCSettings != nil && ss.GRPCSettings.ServiceName != "" {
 			params.Set("serviceName", ss.GRPCSettings.ServiceName)
+		}
+	case "xhttp":
+		if ss.XHTTPSettings != nil {
+			if ss.XHTTPSettings.Path != "" {
+				params.Set("path", ss.XHTTPSettings.Path)
+			}
+			if ss.XHTTPSettings.Host != "" {
+				params.Set("host", ss.XHTTPSettings.Host)
+			}
+			if ss.XHTTPSettings.Mode != "" {
+				params.Set("mode", ss.XHTTPSettings.Mode)
+			}
 		}
 	}
 
