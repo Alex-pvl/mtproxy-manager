@@ -83,12 +83,12 @@ var Plans = []Plan{
 	{
 		ID: "month_6", Name: "6 месяцев", DurationDays: 180,
 		Price: "960.00", PriceLabel: "960 ₽", PriceUSDLabel: "~$12.50", OriginalPriceLabel: "1 200 ₽", DiscountPercent: 20, PerMonth: "160 ₽", MaxProxies: 5,
-		StarsPrice: 630, TonAmount: "900000000",
+		StarsPrice: 900, TonAmount: "900000000",
 	},
 	{
 		ID: "year_1", Name: "1 год", DurationDays: 365,
 		Price: "1680.00", PriceLabel: "1 680 ₽", PriceUSDLabel: "~$21.80", OriginalPriceLabel: "2 400 ₽", DiscountPercent: 30, PerMonth: "140 ₽", MaxProxies: 10,
-		StarsPrice: 1100, TonAmount: "1700000000",
+		StarsPrice: 1500, TonAmount: "1700000000",
 	},
 }
 

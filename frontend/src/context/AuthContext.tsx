@@ -14,6 +14,7 @@ declare global {
             first_name: string;
             last_name?: string;
             username?: string;
+            photo_url?: string;
           };
           start_param?: string;
         };
@@ -31,6 +32,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isMiniApp: boolean;
+  telegramPhotoUrl: string | null;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -59,6 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const webApp = getTelegramWebApp();
   const isMiniApp = !!(webApp && webApp.initData);
+  const telegramPhotoUrl = isMiniApp
+    ? (webApp!.initDataUnsafe.user?.photo_url ?? null)
+    : null;
 
   // Signal to Telegram that the Mini App is ready
   useEffect(() => {
@@ -131,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isMiniApp, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isMiniApp, telegramPhotoUrl, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

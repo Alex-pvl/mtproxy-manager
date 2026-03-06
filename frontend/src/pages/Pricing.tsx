@@ -383,12 +383,6 @@ export default function Pricing() {
                   <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
                   {t.pricing.proxy(plan.max_proxies)}
                 </li>
-                {plan.stars_price && (
-                  <li className="flex items-center gap-2">
-                    <span className="text-yellow-500">⭐</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{plan.stars_price} Stars</span>
-                  </li>
-                )}
               </ul>
 
               {/* Payment methods hint */}

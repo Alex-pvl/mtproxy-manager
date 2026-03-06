@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { referralApi } from '../api/client';
 
@@ -32,14 +33,6 @@ function GiftIcon() {
   );
 }
 
-function WalletIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-    </svg>
-  );
-}
-
 function SupportIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
@@ -64,18 +57,26 @@ function ShieldIcon() {
   );
 }
 
-function LogoutIcon() {
+function SunIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
     </svg>
   );
 }
 
-function DocIcon() {
+function MoonIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );
 }
@@ -88,7 +89,6 @@ function ListRow({
   sublabel,
   onClick,
   href,
-  danger = false,
   right,
 }: {
   icon: React.ReactNode;
@@ -96,18 +96,13 @@ function ListRow({
   sublabel?: string;
   onClick?: () => void;
   href?: string;
-  danger?: boolean;
   right?: React.ReactNode;
 }) {
   const inner = (
     <div className="flex items-center gap-3 px-4 py-3.5 w-full">
-      <span className={`shrink-0 ${danger ? 'text-red-500' : 'text-indigo-500 dark:text-indigo-400'}`}>
-        {icon}
-      </span>
+      <span className="shrink-0 text-indigo-500 dark:text-indigo-400">{icon}</span>
       <div className="flex-1 min-w-0">
-        <span className={`text-sm font-medium ${danger ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
-          {label}
-        </span>
+        <span className="text-sm font-medium text-gray-900 dark:text-white">{label}</span>
         {sublabel && (
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{sublabel}</p>
         )}
@@ -143,9 +138,11 @@ function ListSection({ children }: { children: React.ReactNode }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, telegramPhotoUrl } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage } = useLanguage();
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const [copiedLink, setCopiedLink] = useState(false);
@@ -164,15 +161,6 @@ export default function Profile() {
     } catch {}
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  const shortWallet = wallet?.account.address
-    ? wallet.account.address.slice(0, 6) + '...' + wallet.account.address.slice(-4)
-    : null;
-
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400 text-sm">
@@ -185,16 +173,25 @@ export default function Profile() {
     <div className="max-w-lg mx-auto space-y-4 pb-4">
       {/* ── Avatar + name ── */}
       <div className="flex flex-col items-center pt-6 pb-2">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-4xl font-bold select-none shadow-lg mb-3">
-          {user.username.charAt(0).toUpperCase()}
-        </div>
+        {telegramPhotoUrl ? (
+          <img
+            src={telegramPhotoUrl}
+            alt={user.username}
+            className="w-24 h-24 rounded-full object-cover shadow-lg mb-3"
+          />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-4xl font-bold select-none shadow-lg mb-3">
+            {user.username.charAt(0).toUpperCase()}
+          </div>
+        )}
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">{user.username}</h1>
         {user.subscription?.active && user.subscription.expires_at && (
           <p className="text-sm text-emerald-500 dark:text-emerald-400 mt-1">
             {t.proxies.subscriptionUntil}{' '}
-            {new Date(user.subscription.expires_at).toLocaleDateString('ru-RU', {
-              day: 'numeric', month: 'long', year: 'numeric',
-            })}
+            {new Date(user.subscription.expires_at).toLocaleDateString(
+              language === 'ru' ? 'ru-RU' : 'en-US',
+              { day: 'numeric', month: 'long', year: 'numeric' }
+            )}
           </p>
         )}
         {user.role === 'admin' && (
@@ -233,9 +230,9 @@ export default function Profile() {
       {/* ── Wallet section ── */}
       <ListSection>
         <ListRow
-          icon={<WalletIcon />}
+          icon={<img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />}
           label={t.profile.wallet}
-          sublabel={shortWallet ?? undefined}
+          sublabel={wallet ? wallet.account.address.slice(0, 6) + '...' + wallet.account.address.slice(-4) : undefined}
           onClick={() => tonConnectUI.openModal()}
           right={
             wallet ? (
@@ -251,24 +248,18 @@ export default function Profile() {
         />
       </ListSection>
 
-      {/* ── Support & links ── */}
+      {/* ── Support & channel ── */}
       <ListSection>
         <ListRow
           icon={<TelegramIcon />}
           label={t.profile.telegramChannel}
-          href="https://t.me/oddwallet"
+          href="https://t.me/staytg_news"
         />
         <ListRow
           icon={<SupportIcon />}
           label={t.profile.support}
-          href="https://t.me/oddwallet"
+          href="https://t.me/staytg_news"
         />
-      </ListSection>
-
-      {/* ── Legal ── */}
-      <ListSection>
-        <ListRow icon={<DocIcon />} label={t.profile.terms} onClick={() => {}} />
-        <ListRow icon={<ShieldIcon />} label={t.profile.privacy} onClick={() => {}} />
       </ListSection>
 
       {/* ── Admin (if admin) ── */}
@@ -282,16 +273,41 @@ export default function Profile() {
         </ListSection>
       )}
 
-      {/* ── Logout ── */}
-      <ListSection>
-        <ListRow
-          icon={<LogoutIcon />}
-          label={t.profile.logout}
-          onClick={handleLogout}
-          danger
-          right={<span />}
-        />
-      </ListSection>
+      {/* ── App settings row: logo + toggles ── */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <img src="/logo.png" alt="Stay" className="w-8 h-8 rounded-xl object-cover shrink-0" />
+          <span className="font-semibold text-sm text-gray-900 dark:text-white">Stay</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation"
+          >
+            <span className={`absolute inset-0 flex items-center transition-all duration-200 ${theme === 'dark' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+              <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-gray-600 dark:text-gray-700">
+                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+              </span>
+            </span>
+          </button>
+          {/* Language toggle */}
+          <button
+            type="button"
+            onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
+            aria-label="Toggle language"
+            className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation"
+          >
+            <span className={`absolute inset-0 flex items-center transition-all duration-200 ${language === 'en' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+              <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-[10px] font-bold text-gray-700">
+                {language === 'ru' ? 'RU' : 'EN'}
+              </span>
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useTonBalance } from '../hooks/useTonBalance';
 import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
 
@@ -116,7 +117,7 @@ function formatSubscriptionDate(dateStr: string, locale: string): string {
 // ─── Main Layout ──────────────────────────────────────────────────────────────
 
 export default function Layout() {
-  const { user, logout, isMiniApp } = useAuth();
+  const { user, logout, isMiniApp, telegramPhotoUrl } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
@@ -125,6 +126,7 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
+  const tonBalance = useTonBalance();
 
   const handleLogout = () => {
     logout();
@@ -170,10 +172,6 @@ export default function Layout() {
       ? `${t.proxies.subscriptionUntil} ${formatSubscriptionDate(user.subscription.expires_at, locale)}`
       : t.miniApp.noSubscription;
 
-    const shortWallet = wallet?.account.address
-      ? wallet.account.address.slice(0, 4) + '...' + wallet.account.address.slice(-4)
-      : null;
-
     type BottomItem = { to: string; icon: React.ReactNode; ariaLabel: string };
 
     const bottomItems: BottomItem[] = [
@@ -193,13 +191,25 @@ export default function Layout() {
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 sticky top-0 z-40">
           <div className="flex items-center justify-between gap-3">
 
-            {/* Avatar + name + subscription */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            {/* Avatar + name + subscription — tapping navigates to /profile */}
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="flex items-center gap-3 min-w-0 flex-1 text-left touch-manipulation"
+            >
               {user ? (
                 <>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-semibold text-base shrink-0 select-none">
-                    {user.username.charAt(0).toUpperCase()}
-                  </div>
+                  {telegramPhotoUrl ? (
+                    <img
+                      src={telegramPhotoUrl}
+                      alt={user.username}
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-semibold text-base shrink-0 select-none">
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm text-gray-900 dark:text-white truncate">
@@ -221,28 +231,26 @@ export default function Layout() {
                   {t.common.appName}
                 </span>
               )}
-            </div>
+            </button>
 
-            {/* Right side: TON wallet + toggles */}
-            <div className="flex items-center gap-2 shrink-0">
-              {/* TON Connect button */}
-              <button
-                type="button"
-                onClick={() => tonConnectUI.openModal()}
-                aria-label="TON wallet"
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
-                  wallet
-                    ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                }`}
-              >
-                <TonIcon />
-                {wallet ? shortWallet : 'TON'}
-              </button>
-
-              {themeToggle}
-              {langToggle}
-            </div>
+            {/* TON Connect: toncoin.jpg icon + balance */}
+            <button
+              type="button"
+              onClick={() => tonConnectUI.openModal()}
+              aria-label="TON wallet"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
+                wallet
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
+              <span>
+                {wallet
+                  ? (tonBalance !== null ? `${tonBalance} TON` : '...')
+                  : 'TON'}
+              </span>
+            </button>
           </div>
         </header>
 
