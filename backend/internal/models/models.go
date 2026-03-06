@@ -44,6 +44,8 @@ type Proxy struct {
 	Socks5ContainerID   string      `json:"socks5_container_id,omitempty"`
 	Socks5ContainerName string      `json:"socks5_container_name,omitempty"`
 	LinkSocks5          string      `json:"link_socks5,omitempty"`
+	VlessUUID           string      `json:"vless_uuid,omitempty"`
+	LinkVless           string      `json:"link_vless,omitempty"`
 }
 
 // --- Plans & Subscriptions ---

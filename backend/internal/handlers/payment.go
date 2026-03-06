@@ -16,17 +16,19 @@ import (
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/database"
 	"mtproxy-manager/internal/models"
+	"mtproxy-manager/internal/xui"
 )
 
 const cryptoPayAPI = "https://pay.crypt.bot/api"
 
 type PaymentHandler struct {
-	db  *database.DB
-	cfg *config.Config
+	db        *database.DB
+	cfg       *config.Config
+	xuiClient *xui.Client // nil if x-ui integration is disabled
 }
 
-func NewPaymentHandler(db *database.DB, cfg *config.Config) *PaymentHandler {
-	return &PaymentHandler{db: db, cfg: cfg}
+func NewPaymentHandler(db *database.DB, cfg *config.Config, xuiClient *xui.Client) *PaymentHandler {
+	return &PaymentHandler{db: db, cfg: cfg, xuiClient: xuiClient}
 }
 
 func (h *PaymentHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
@@ -211,6 +213,9 @@ func (h *PaymentHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 		if user, err := h.db.GetUserByID(userID); err == nil {
 			_ = h.db.UpdateUser(userID, user.Role, plan.MaxProxies)
 		}
+		// Sync new expiry to all existing VLESS clients for this user
+		h.syncVlessExpiry(userID, expiresAt)
+
 		// Referral bonus: 15% of subscription days to referrer (once per payment)
 		if referrerID, err := h.db.GetReferrerByReferred(userID); err == nil && referrerID > 0 {
 			exists, _ := h.db.ReferralBonusExistsForPayment(paymentID)
@@ -223,6 +228,10 @@ func (h *PaymentHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 						log.Printf("Failed to extend referrer subscription: %v", err)
 					} else {
 						log.Printf("Referral bonus: %d days added to user %d for referred user %d", bonusDays, referrerID, userID)
+						// Sync new expiry for referrer's VLESS clients too
+						if referrerSub, err := h.db.GetActiveSubscription(referrerID); err == nil && referrerSub != nil {
+							h.syncVlessExpiry(referrerID, referrerSub.ExpiresAt)
+						}
 					}
 				}
 			}
@@ -258,6 +267,29 @@ func (h *PaymentHandler) GetSubscription(w http.ResponseWriter, r *http.Request)
 		"plan_name":  planName,
 		"expires_at": sub.ExpiresAt,
 	})
+}
+
+// syncVlessExpiry updates the expiry time of all VLESS clients belonging to userID
+// in the x-ui panel to match their subscription expiry. Called after any subscription change.
+func (h *PaymentHandler) syncVlessExpiry(userID int64, expiresAt time.Time) {
+	if h.xuiClient == nil {
+		return
+	}
+	proxies, err := h.db.ListProxiesWithVlessByUser(userID)
+	if err != nil {
+		log.Printf("syncVlessExpiry: list proxies for user %d: %v", userID, err)
+		return
+	}
+	for _, p := range proxies {
+		email := vlessEmail(p.Port, p.UserID)
+		if err := h.xuiClient.UpdateClientExpiry(p.VlessUUID, email, expiresAt); err != nil {
+			log.Printf("syncVlessExpiry: update uuid=%s user=%d: %v", p.VlessUUID, userID, err)
+		}
+	}
+	if len(proxies) > 0 {
+		log.Printf("syncVlessExpiry: updated %d VLESS client(s) for user %d, expires %s",
+			len(proxies), userID, expiresAt.Format(time.RFC3339))
+	}
 }
 
 func (h *PaymentHandler) verifySignature(body []byte, signature string) bool {

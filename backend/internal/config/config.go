@@ -20,13 +20,22 @@ type Config struct {
 	CryptoBotToken    string
 	BaseURL           string
 	AdminUsername     string
-	AdminTelegramID  int64
-	TelegramBotToken string
-	TGClientID       string
-	TGClientSecret   string
+	AdminTelegramID   int64
+	TelegramBotToken  string
+	TGClientID        string
+	TGClientSecret    string
+
+	// x-ui / 3x-ui panel integration for VLESS link generation
+	XUIEnabled    bool
+	XUIURL        string
+	XUIPathPrefix string // custom panel base path (e.g. "vwtLfHqxkCntctQ"), empty = default
+	XUIUsername   string
+	XUIPassword   string
+	XUIInboundID  int
 }
 
 func Load() *Config {
+	xuiURL := getEnv("XUI_URL", "")
 	return &Config{
 		ServerPort:        getEnv("SERVER_PORT", "3000"),
 		JWTSecret:         getEnv("JWT_SECRET", "change-me-in-production"),
@@ -42,10 +51,16 @@ func Load() *Config {
 		CryptoBotToken:    getEnv("CRYPTOBOT_TOKEN", ""),
 		BaseURL:           getEnv("BASE_URL", ""),
 		AdminUsername:     getEnv("ADMIN_USERNAME", "admin"),
-		AdminTelegramID:  int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
-		TelegramBotToken: getEnv("TG_BOT_TOKEN", ""),
-		TGClientID:       getEnv("TG_CLIENT_ID", ""),
-		TGClientSecret:   getEnv("TG_CLIENT_SECRET", ""),
+		AdminTelegramID:   int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
+		TelegramBotToken:  getEnv("TG_BOT_TOKEN", ""),
+		TGClientID:        getEnv("TG_CLIENT_ID", ""),
+		TGClientSecret:    getEnv("TG_CLIENT_SECRET", ""),
+		XUIEnabled:        xuiURL != "",
+		XUIURL:            xuiURL,
+		XUIPathPrefix:     getEnv("XUI_PATH_PREFIX", ""),
+		XUIUsername:       getEnv("XUI_USERNAME", "admin"),
+		XUIPassword:       getEnv("XUI_PASSWORD", ""),
+		XUIInboundID:      getEnvInt("XUI_INBOUND_ID", 1),
 	}
 }
 

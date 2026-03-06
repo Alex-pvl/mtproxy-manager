@@ -9,21 +9,25 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"mtproxy-manager/internal/database"
 	"mtproxy-manager/internal/docker"
 	"mtproxy-manager/internal/models"
+	"mtproxy-manager/internal/xui"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type ProxyHandler struct {
-	db     *database.DB
-	docker *docker.Manager
+	db        *database.DB
+	docker    *docker.Manager
+	xuiClient *xui.Client
+	serverIP  string
 }
 
-func NewProxyHandler(db *database.DB, docker *docker.Manager) *ProxyHandler {
-	return &ProxyHandler{db: db, docker: docker}
+func NewProxyHandler(db *database.DB, docker *docker.Manager, xuiClient *xui.Client) *ProxyHandler {
+	return &ProxyHandler{db: db, docker: docker, xuiClient: xuiClient}
 }
 
 type createProxyRequest struct {
@@ -135,6 +139,28 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate VLESS UUID and register client in x-ui if enabled.
+	// Expiry is set to match the user's active subscription so x-ui
+	// automatically blocks access when the subscription ends.
+	var vlessUUID string
+	if h.xuiClient != nil {
+		uuid, err := xui.GenerateUUID()
+		if err != nil {
+			log.Printf("generate vless uuid: %v", err)
+		} else {
+			var expiryTime time.Time
+			if sub, subErr := h.db.GetActiveSubscription(claims.UserID); subErr == nil && sub != nil {
+				expiryTime = sub.ExpiresAt
+			}
+			email := vlessEmail(port, claims.UserID)
+			if err := h.xuiClient.AddClient(uuid, email, expiryTime); err != nil {
+				log.Printf("xui add client (proxy port=%d): %v", port, err)
+			} else {
+				vlessUUID = uuid
+			}
+		}
+	}
+
 	proxy := &models.Proxy{
 		UserID:              claims.UserID,
 		Port:                port,
@@ -148,11 +174,15 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Socks5Pass:          socks5Pass,
 		Socks5ContainerID:   socks5ContainerID,
 		Socks5ContainerName: socks5ContainerName,
+		VlessUUID:           vlessUUID,
 	}
 
 	if err := h.db.CreateProxy(proxy); err != nil {
 		h.docker.RemoveProxy(ctx, containerID)
 		h.docker.RemoveProxy(ctx, socks5ContainerID)
+		if h.xuiClient != nil && vlessUUID != "" {
+			_ = h.xuiClient.RemoveClient(vlessUUID)
+		}
 		writeError(w, http.StatusInternalServerError, "failed to save proxy")
 		return
 	}
@@ -162,6 +192,10 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		proxy.Link = fmt.Sprintf("tg://proxy?server=%s&port=%d&secret=%s", serverIP, port, secret)
 		proxy.LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
 			serverIP, socks5Port, url.QueryEscape(socks5User), url.QueryEscape(socks5Pass))
+	}
+	if h.xuiClient != nil && vlessUUID != "" {
+		remark := fmt.Sprintf("stay-proxy-%d", proxy.ID)
+		proxy.LinkVless = h.xuiClient.BuildLink(vlessUUID, serverIP, remark)
 	}
 
 	writeJSON(w, http.StatusCreated, proxy)
@@ -188,6 +222,10 @@ func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 				proxies[i].LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
 					serverIP, proxies[i].Socks5Port, url.QueryEscape(proxies[i].Socks5User), url.QueryEscape(proxies[i].Socks5Pass))
 			}
+		}
+		if h.xuiClient != nil && proxies[i].VlessUUID != "" {
+			remark := fmt.Sprintf("stay-proxy-%d", proxies[i].ID)
+			proxies[i].LinkVless = h.xuiClient.BuildLink(proxies[i].VlessUUID, serverIP, remark)
 		}
 	}
 
@@ -262,6 +300,11 @@ func (h *ProxyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if proxy.Socks5ContainerID != "" {
 		h.docker.RemoveProxy(r.Context(), proxy.Socks5ContainerID)
 	}
+	if h.xuiClient != nil && proxy.VlessUUID != "" {
+		if err := h.xuiClient.RemoveClient(proxy.VlessUUID); err != nil {
+			log.Printf("xui remove client (proxy id=%d uuid=%s): %v", proxy.ID, proxy.VlessUUID, err)
+		}
+	}
 
 	if err := h.db.DeleteProxy(proxy.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete proxy")
@@ -297,6 +340,12 @@ func (h *ProxyHandler) getOwnedProxy(w http.ResponseWriter, r *http.Request) (*m
 	}
 
 	return proxy, true
+}
+
+// vlessEmail returns a deterministic x-ui client email for a given proxy port and user.
+// This lets us reconstruct it later when updating expiry without storing it separately.
+func vlessEmail(port int, userID int64) string {
+	return fmt.Sprintf("proxy-%d-user-%d", port, userID)
 }
 
 func generateSocks5Credentials() (user, pass string, err error) {

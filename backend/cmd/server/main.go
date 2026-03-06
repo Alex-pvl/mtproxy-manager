@@ -15,6 +15,7 @@ import (
 	"mtproxy-manager/internal/docker"
 	"mtproxy-manager/internal/handlers"
 	"mtproxy-manager/internal/middleware"
+	"mtproxy-manager/internal/xui"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -38,15 +39,27 @@ func main() {
 	}
 	defer dockerMgr.Close()
 
+	// Initialize x-ui client only when XUI_URL is configured
+	var xuiClient *xui.Client
+	if cfg.XUIEnabled {
+		xuiClient, err = xui.NewClient(cfg.XUIURL, cfg.XUIPathPrefix, cfg.XUIUsername, cfg.XUIPassword, cfg.XUIInboundID)
+		if err != nil {
+			log.Printf("WARNING: x-ui integration disabled — %v", err)
+			xuiClient = nil
+		} else {
+			log.Printf("x-ui integration enabled (inbound id=%d)", cfg.XUIInboundID)
+		}
+	}
+
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
 
 	authHandler := handlers.NewAuthHandler(db, jwtSvc)
 	telegramHandler := handlers.NewTelegramHandler(db, jwtSvc, cfg)
 	oidcHandler := handlers.NewOIDCHandler(db, jwtSvc, cfg)
 	webAppHandler := handlers.NewWebAppHandler(db, jwtSvc, cfg)
-	proxyHandler := handlers.NewProxyHandler(db, dockerMgr)
+	proxyHandler := handlers.NewProxyHandler(db, dockerMgr, xuiClient)
 	adminHandler := handlers.NewAdminHandler(db, dockerMgr)
-	paymentHandler := handlers.NewPaymentHandler(db, cfg)
+	paymentHandler := handlers.NewPaymentHandler(db, cfg, xuiClient)
 	referralHandler := handlers.NewReferralHandler(db, cfg)
 
 	r := chi.NewRouter()

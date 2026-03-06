@@ -135,6 +135,14 @@ func (db *DB) migrate() error {
 		}
 	}
 
+	for _, alter := range []string{
+		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS vless_uuid TEXT DEFAULT ''",
+	} {
+		if _, err := db.conn.Exec(alter); err != nil {
+			return err
+		}
+	}
+
 	return db.ensureAdmin()
 }
 
@@ -261,10 +269,12 @@ func (db *DB) DeleteUser(id int64) error {
 func (db *DB) CreateProxy(p *models.Proxy) error {
 	err := db.conn.QueryRow(
 		`INSERT INTO proxies (user_id, port, domain, secret, container_id, container_name, status,
-			socks5_port, socks5_user, socks5_pass, socks5_container_id, socks5_container_name)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, created_at`,
+			socks5_port, socks5_user, socks5_pass, socks5_container_id, socks5_container_name,
+			vless_uuid)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, created_at`,
 		p.UserID, p.Port, p.Domain, p.Secret, p.ContainerID, p.ContainerName, p.Status,
 		p.Socks5Port, p.Socks5User, p.Socks5Pass, p.Socks5ContainerID, p.Socks5ContainerName,
+		p.VlessUUID,
 	).Scan(&p.ID, &p.CreatedAt)
 	return err
 }
@@ -274,10 +284,12 @@ func (db *DB) GetProxy(id int64) (*models.Proxy, error) {
 	err := db.conn.QueryRow(
 		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
 			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
-			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, '')
+			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, ''),
+			COALESCE(vless_uuid, '')
 		 FROM proxies WHERE id = $1`, id,
 	).Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
-		&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName)
+		&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName,
+		&p.VlessUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +300,8 @@ func (db *DB) ListProxiesByUser(userID int64) ([]models.Proxy, error) {
 	rows, err := db.conn.Query(
 		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
 			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
-			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, '')
+			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, ''),
+			COALESCE(vless_uuid, '')
 		 FROM proxies WHERE user_id = $1 ORDER BY id`, userID,
 	)
 	if err != nil {
@@ -300,7 +313,8 @@ func (db *DB) ListProxiesByUser(userID int64) ([]models.Proxy, error) {
 	for rows.Next() {
 		var p models.Proxy
 		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
-			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName); err != nil {
+			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName,
+			&p.VlessUUID); err != nil {
 			return nil, err
 		}
 		proxies = append(proxies, p)
@@ -312,7 +326,8 @@ func (db *DB) ListAllProxies() ([]models.Proxy, error) {
 	rows, err := db.conn.Query(
 		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
 			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
-			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, '')
+			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, ''),
+			COALESCE(vless_uuid, '')
 		 FROM proxies ORDER BY id`,
 	)
 	if err != nil {
@@ -324,7 +339,30 @@ func (db *DB) ListAllProxies() ([]models.Proxy, error) {
 	for rows.Next() {
 		var p models.Proxy
 		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
-			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName); err != nil {
+			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName,
+			&p.VlessUUID); err != nil {
+			return nil, err
+		}
+		proxies = append(proxies, p)
+	}
+	return proxies, nil
+}
+
+// ListProxiesWithVlessByUser returns all proxies for a user that have a VLESS UUID assigned.
+func (db *DB) ListProxiesWithVlessByUser(userID int64) ([]models.Proxy, error) {
+	rows, err := db.conn.Query(
+		`SELECT id, user_id, port, COALESCE(vless_uuid, '')
+		 FROM proxies WHERE user_id = $1 AND vless_uuid != '' ORDER BY id`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var proxies []models.Proxy
+	for rows.Next() {
+		var p models.Proxy
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.VlessUUID); err != nil {
 			return nil, err
 		}
 		proxies = append(proxies, p)
