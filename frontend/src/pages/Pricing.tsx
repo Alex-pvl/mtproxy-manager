@@ -49,20 +49,6 @@ interface PaymentMethodSheetProps {
   onSuccess: () => void;
 }
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        openInvoice: (url: string, callback: (status: string) => void) => void;
-        initData: string;
-        initDataUnsafe: { user?: { id: number; first_name: string } };
-        ready: () => void;
-        expand: () => void;
-        close: () => void;
-      };
-    };
-  }
-}
 
 function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProps) {
   const { t } = useLanguage();

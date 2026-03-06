@@ -17,6 +17,7 @@ declare global {
           };
           start_param?: string;
         };
+        openInvoice: (url: string, callback: (status: string) => void) => void;
         ready: () => void;
         expand: () => void;
         close: () => void;
