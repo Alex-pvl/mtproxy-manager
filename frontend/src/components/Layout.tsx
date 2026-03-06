@@ -324,6 +324,25 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* TON Connect widget */}
+            <button
+              type="button"
+              onClick={() => tonConnectUI.openModal()}
+              aria-label="TON wallet"
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
+                wallet
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 hover:bg-sky-500/25 dark:hover:bg-sky-500/25'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
+              <span>
+                {wallet
+                  ? (tonBalance !== null ? `${tonBalance} TON` : '...')
+                  : 'TON'}
+              </span>
+            </button>
+
             {themeToggle}
             {langToggle}
 
@@ -369,6 +388,20 @@ export default function Layout() {
         {menuOpen && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 flex flex-col gap-3">
             {navLinks}
+            <button
+              type="button"
+              onClick={() => { tonConnectUI.openModal(); setMenuOpen(false); }}
+              className={`sm:hidden flex items-center gap-2 w-full py-2 rounded-lg text-left transition-colors ${
+                wallet
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />
+              <span className="text-sm font-medium">
+                {wallet ? (tonBalance !== null ? `${tonBalance} TON` : 'TON') : t.payment.tonNotConnected}
+              </span>
+            </button>
             <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
               {user ? (
                 <>

@@ -214,7 +214,7 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
               type="button"
               onClick={m.action}
               disabled={loading !== null}
-              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 active:bg-gray-100 dark:active:bg-gray-700 transition-colors touch-manipulation disabled:opacity-60 text-left"
+              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 active:bg-indigo-50 dark:active:bg-indigo-500/10 transition-colors touch-manipulation disabled:opacity-60 text-left"
             >
               <span className="shrink-0">{m.icon}</span>
               <div className="flex-1 min-w-0">

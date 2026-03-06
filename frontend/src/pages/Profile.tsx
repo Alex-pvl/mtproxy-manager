@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { referralApi } from '../api/client';
+import { toFriendlyAddress } from '../utils/tonAddress';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -232,7 +233,7 @@ export default function Profile() {
         <ListRow
           icon={<img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />}
           label={t.profile.wallet}
-          sublabel={wallet ? wallet.account.address.slice(0, 6) + '...' + wallet.account.address.slice(-4) : undefined}
+          sublabel={wallet ? toFriendlyAddress(wallet.account.address) : undefined}
           onClick={() => tonConnectUI.openModal()}
           right={
             wallet ? (
@@ -258,7 +259,7 @@ export default function Profile() {
         <ListRow
           icon={<SupportIcon />}
           label={t.profile.support}
-          href="https://t.me/staytg_news"
+          href="https://t.me/oddwallet"
         />
       </ListSection>
 
