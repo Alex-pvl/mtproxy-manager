@@ -437,6 +437,26 @@ func (db *DB) UpdatePaymentStatus(externalID, status string) error {
 	return err
 }
 
+func (db *DB) GetPendingPaymentsByUser(userID int64) ([]*models.Payment, error) {
+	rows, err := db.conn.Query(
+		`SELECT id, user_id, plan_id, external_id, amount, status, created_at FROM payments WHERE user_id = $1 AND status = 'pending' ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*models.Payment
+	for rows.Next() {
+		p := &models.Payment{}
+		if err := rows.Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status, &p.CreatedAt); err != nil {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 // --- Subscription queries ---
 
 func (db *DB) CreateSubscription(s *models.Subscription) error {

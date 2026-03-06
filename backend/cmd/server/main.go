@@ -106,10 +106,14 @@ func main() {
 
 		r.Get("/plans", paymentHandler.ListPlans)
 		r.Post("/payments/webhook", paymentHandler.Webhook)
+		r.Post("/webhook/bot", paymentHandler.BotWebhook)
 
 		r.Route("/payments", func(r chi.Router) {
 			r.Use(middleware.AuthRequired(jwtSvc))
 			r.Post("/create", paymentHandler.CreatePayment)
+			r.Post("/stars/create", paymentHandler.CreateStarsPayment)
+			r.Post("/ton/create", paymentHandler.CreateTonPayment)
+			r.Post("/check-pending", paymentHandler.CheckPendingPayments)
 		})
 
 		r.With(middleware.AuthRequired(jwtSvc)).Get("/subscription", paymentHandler.GetSubscription)

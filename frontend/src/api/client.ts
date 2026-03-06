@@ -119,12 +119,18 @@ export interface Plan {
   discount_percent?: number;
   per_month: string;
   max_proxies: number;
+  stars_price?: number;
+  ton_amount?: string;
 }
 
 export const paymentApi = {
   listPlans: () => api.get<Plan[]>('/plans'),
   createPayment: (planId: string) =>
     api.post<{ payment_url: string }>('/payments/create', { plan_id: planId }),
+  createStarsPayment: (planId: string) =>
+    api.post<{ invoice_link: string }>('/payments/stars/create', { plan_id: planId }),
+  createTonPayment: (planId: string) =>
+    api.post<{ address: string; amount: string; comment: string }>('/payments/ton/create', { plan_id: planId }),
   checkPendingPayments: () =>
     api.post<{ updated: boolean }>('/payments/check-pending'),
   getSubscription: () => api.get<Subscription>('/subscription'),

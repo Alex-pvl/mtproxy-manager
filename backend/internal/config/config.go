@@ -25,6 +25,9 @@ type Config struct {
 	TGClientID        string
 	TGClientSecret    string
 
+	// TON wallet address for direct TON payments
+	TonWalletAddress string
+
 	// x-ui / 3x-ui panel integration for VLESS link generation
 	XUIEnabled    bool
 	XUIURL        string
@@ -55,6 +58,7 @@ func Load() *Config {
 		TelegramBotToken:  getEnv("TG_BOT_TOKEN", ""),
 		TGClientID:        getEnv("TG_CLIENT_ID", ""),
 		TGClientSecret:    getEnv("TG_CLIENT_SECRET", ""),
+		TonWalletAddress:  getEnv("TON_WALLET_ADDRESS", ""),
 		XUIEnabled:        xuiURL != "",
 		XUIURL:            xuiURL,
 		XUIPathPrefix:     getEnv("XUI_PATH_PREFIX", ""),
