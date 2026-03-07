@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { beginCell } from '@ton/core';
 import { paymentApi } from '../api/client';
 import type { Plan } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -108,21 +109,37 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
     setError('');
     try {
       const res = await paymentApi.createTonPayment(plan.id);
+      const commentCell = beginCell().storeUint(0, 32).storeStringTail(res.data.comment).endCell();
+      const payloadB64 = Buffer.from(commentCell.toBoc()).toString('base64');
+
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [
           {
             address: res.data.address,
             amount: res.data.amount,
-            payload: res.data.comment,
+            payload: payloadB64,
           },
         ],
       });
       setShowSuccess(true);
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 2000);
+      // Poll for payment confirmation (backend verifies on-chain via TonAPI)
+      const poll = async () => {
+        for (let i = 0; i < 12; i++) {
+          await new Promise((r) => setTimeout(r, 5000));
+          try {
+            await paymentApi.checkPendingPayments();
+            onSuccess();
+            const sub = await paymentApi.getSubscription();
+            if (sub.data?.active) {
+              setTimeout(() => onClose(), 500);
+              return;
+            }
+          } catch {}
+        }
+        setTimeout(() => onClose(), 500);
+      };
+      poll();
     } catch (err: any) {
       if (err?.message !== 'Reject request') {
         setError(err.response?.data?.error || t.pricing.failedPayment);
@@ -173,7 +190,7 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
       icon: <TonPayIcon className="w-10 h-10" />,
       label: t.payment.ton,
       desc: wallet
-        ? (plan.ton_amount ? `${plan.ton_amount} TON` : t.payment.tonDesc)
+        ? (plan.ton_amount ? `${(parseInt(plan.ton_amount, 10) / 1e9).toFixed(2)} TON` : t.payment.tonDesc)
         : t.payment.tonNotConnected,
       action: handleTon,
     },

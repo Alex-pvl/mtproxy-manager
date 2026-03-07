@@ -295,7 +295,9 @@ func (h *PaymentHandler) activateSubscription(userID int64, plan *models.Plan, e
 	return nil
 }
 
-// CheckPendingPayments polls CryptoPay for pending invoices and activates subscriptions.
+const tonAPIBase = "https://tonapi.io/v2"
+
+// CheckPendingPayments polls CryptoPay and TonAPI for pending payments and activates subscriptions.
 func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims == nil {
@@ -303,27 +305,8 @@ func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if h.cfg.CryptoBotToken == "" {
-		writeJSON(w, http.StatusOK, map[string]bool{"updated": false})
-		return
-	}
-
 	pending, err := h.db.GetPendingPaymentsByUser(claims.UserID)
 	if err != nil || len(pending) == 0 {
-		writeJSON(w, http.StatusOK, map[string]bool{"updated": false})
-		return
-	}
-
-	// Build list of external IDs to check (CryptoPay invoice IDs only)
-	invoiceIDs := make([]string, 0, len(pending))
-	for _, p := range pending {
-		// Skip Stars and TON payments (not CryptoPay)
-		if len(p.ExternalID) > 0 && p.ExternalID[0] != 's' {
-			invoiceIDs = append(invoiceIDs, p.ExternalID)
-		}
-	}
-
-	if len(invoiceIDs) == 0 {
 		writeJSON(w, http.StatusOK, map[string]bool{"updated": false})
 		return
 	}
@@ -337,13 +320,68 @@ func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Req
 		if plan == nil {
 			continue
 		}
-		// Re-check via CryptoPay API
-		if err := h.checkCryptoPayInvoice(p.ExternalID, p.UserID, plan); err == nil {
-			updated = true
+		// TON payments: external_id = "stay_{userID}_{planID}"
+		if len(p.ExternalID) >= 5 && p.ExternalID[:5] == "stay_" {
+			if h.cfg.TonWalletAddress != "" {
+				if err := h.checkTonPayment(p.ExternalID, p.UserID, plan); err == nil {
+					updated = true
+				}
+			}
+			continue
+		}
+		// Stars: external_id starts with "stars_"
+		if len(p.ExternalID) >= 6 && p.ExternalID[:6] == "stars_" {
+			continue // Stars are handled by BotWebhook
+		}
+		// CryptoPay
+		if h.cfg.CryptoBotToken != "" {
+			if err := h.checkCryptoPayInvoice(p.ExternalID, p.UserID, plan); err == nil {
+				updated = true
+			}
 		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]bool{"updated": updated})
+}
+
+func (h *PaymentHandler) checkTonPayment(comment string, userID int64, plan *models.Plan) error {
+	url := tonAPIBase + "/accounts/" + h.cfg.TonWalletAddress + "/events?limit=30"
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var data struct {
+		Events []struct {
+			Actions []struct {
+				Type        string `json:"type"`
+				TonTransfer *struct {
+					Amount  int64  `json:"amount"`
+					Comment string `json:"comment"`
+				} `json:"TonTransfer"`
+			} `json:"actions"`
+		} `json:"events"`
+	}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return err
+	}
+
+	wantAmount, _ := strconv.ParseInt(plan.TonAmount, 10, 64)
+	for _, ev := range data.Events {
+		for _, a := range ev.Actions {
+			if a.Type != "TonTransfer" || a.TonTransfer == nil {
+				continue
+			}
+			t := a.TonTransfer
+			if t.Comment == comment && t.Amount >= wantAmount {
+				return h.activateSubscription(userID, plan, comment)
+			}
+		}
+	}
+	return fmt.Errorf("ton payment not found")
 }
 
 func (h *PaymentHandler) checkCryptoPayInvoice(invoiceID string, userID int64, plan *models.Plan) error {
