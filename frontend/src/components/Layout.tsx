@@ -234,7 +234,7 @@ export default function Layout() {
               }`}
             >
               <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
-              <span>
+              <span className="tabular-nums whitespace-nowrap">
                 {wallet
                   ? (tonBalance !== null ? `${tonBalance} TON` : '...')
                   : 'TON'}
@@ -336,7 +336,7 @@ export default function Layout() {
               }`}
             >
               <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
-              <span>
+              <span className="tabular-nums whitespace-nowrap">
                 {wallet
                   ? (tonBalance !== null ? `${tonBalance} TON` : '...')
                   : 'TON'}
@@ -398,7 +398,7 @@ export default function Layout() {
               }`}
             >
               <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />
-              <span className="text-sm font-medium">
+              <span className="text-sm font-medium tabular-nums whitespace-nowrap">
                 {wallet ? (tonBalance !== null ? `${tonBalance} TON` : 'TON') : t.payment.tonNotConnected}
               </span>
             </button>
