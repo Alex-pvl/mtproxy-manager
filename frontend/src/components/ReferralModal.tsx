@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { referralApi } from '../api/client';
 import Sticker from './Sticker';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 interface ReferralModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ReferralModalProps {
 
 export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
   const { t } = useLanguage();
+  const { isMiniApp } = useAuth();
   const [link, setLink] = useState('');
   const [invitedCount, setInvitedCount] = useState(0);
   const [bonusDays, setBonusDays] = useState(0);
@@ -20,7 +22,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
     if (!isOpen) return;
     setLoading(true);
     referralApi
-      .get()
+      .get(isMiniApp)
       .then((res) => {
         setLink(res.data.referral_link);
         setInvitedCount(res.data.invited_count);
@@ -30,7 +32,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
         setLink('');
       })
       .finally(() => setLoading(false));
-  }, [isOpen]);
+  }, [isOpen, isMiniApp]);
 
   const handleCopy = async () => {
     if (!link) return;

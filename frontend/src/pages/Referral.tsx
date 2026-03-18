@@ -2,33 +2,7 @@ import { useState, useEffect } from 'react';
 import { referralApi } from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-
-// ─── SVG illustration ─────────────────────────────────────────────────────────
-
-function ReferralIllustration() {
-  return (
-    <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-28 h-28">
-      <circle cx="60" cy="60" r="56" fill="url(#grad1)" opacity="0.15" />
-      <circle cx="60" cy="60" r="42" fill="url(#grad1)" opacity="0.2" />
-      <circle cx="60" cy="60" r="28" fill="url(#grad1)" />
-      {/* Person left */}
-      <circle cx="42" cy="52" r="8" fill="white" opacity="0.9" />
-      <path d="M28 72c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" />
-      {/* Person right */}
-      <circle cx="78" cy="52" r="8" fill="white" opacity="0.9" />
-      <path d="M64 72c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" />
-      {/* Link arrow */}
-      <path d="M55 60h10" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M62 57l3 3-3 3" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <defs>
-        <linearGradient id="grad1" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6366f1" />
-          <stop offset="1" stopColor="#4f46e5" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
+import Sticker from '../components/Sticker';
 
 function CopyIcon() {
   return (
@@ -78,7 +52,7 @@ function UserPlusIcon() {
 
 export default function Referral() {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, isMiniApp } = useAuth();
   const [link, setLink] = useState('');
   const [invitedCount, setInvitedCount] = useState(0);
   const [bonusDays, setBonusDays] = useState(0);
@@ -88,7 +62,7 @@ export default function Referral() {
   useEffect(() => {
     setLoading(true);
     referralApi
-      .get()
+      .get(isMiniApp)
       .then((res) => {
         setLink(res.data.referral_link);
         setInvitedCount(res.data.invited_count);
@@ -96,7 +70,7 @@ export default function Referral() {
       })
       .catch(() => setLink(''))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isMiniApp]);
 
   const handleCopy = async () => {
     if (!link) return;
@@ -119,7 +93,7 @@ export default function Referral() {
     <div className="max-w-lg mx-auto pb-4">
       {/* ── Illustration + title ── */}
       <div className="flex flex-col items-center text-center pt-4 pb-6 px-4">
-        <ReferralIllustration />
+        <Sticker name="referals" className="w-28 h-28" />
         <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-4 mb-2">
           {t.referral.title}
         </h1>

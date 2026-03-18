@@ -139,7 +139,7 @@ function ListSection({ children }: { children: React.ReactNode }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Profile() {
-  const { user, telegramPhotoUrl } = useAuth();
+  const { user, telegramPhotoUrl, isMiniApp } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -150,8 +150,8 @@ export default function Profile() {
   const [referralLink, setReferralLink] = useState('');
 
   useEffect(() => {
-    referralApi.get().then((res) => setReferralLink(res.data.referral_link)).catch(() => {});
-  }, []);
+    referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => {});
+  }, [isMiniApp]);
 
   const handleCopyLink = async () => {
     if (!referralLink) return;

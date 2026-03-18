@@ -87,7 +87,10 @@ export interface ReferralInfo {
 }
 
 export const referralApi = {
-  get: () => api.get<ReferralInfo>('/referral'),
+  get: (miniApp = false) =>
+    api.get<ReferralInfo>('/referral', {
+      params: miniApp ? { miniapp: '1' } : undefined,
+    }),
 };
 
 export const proxyApi = {
