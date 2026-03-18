@@ -67,6 +67,7 @@ CRYPTOBOT_TOKEN=токен-из-@CryptoBot
 
 # Telegram Login (@BotFather → Bot Settings → Web Login)
 TG_BOT_TOKEN=токен-бота
+TG_BOT_USERNAME=username-бота-без-@
 VITE_TG_CLIENT_ID=числовой-ID-бота
 
 PORT_MIN=8000

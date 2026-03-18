@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"mtproxy-manager/internal/config"
@@ -41,6 +42,11 @@ func (h *ReferralHandler) Get(w http.ResponseWriter, r *http.Request) {
 		baseURL = "https://example.com"
 	}
 	referralLink := baseURL + "/register?ref=" + code
+	if r.URL.Query().Get("miniapp") == "1" {
+		if miniAppLink := buildMiniAppReferralLink(h.cfg.TelegramBotUsername, code); miniAppLink != "" {
+			referralLink = miniAppLink
+		}
+	}
 
 	invited, _ := h.db.CountReferredBy(claims.UserID)
 	bonusDays, _ := h.db.SumBonusDaysReceived(claims.UserID)
@@ -50,4 +56,12 @@ func (h *ReferralHandler) Get(w http.ResponseWriter, r *http.Request) {
 		"invited_count":       invited,
 		"bonus_days_received": bonusDays,
 	})
+}
+
+func buildMiniAppReferralLink(botUsername, refCode string) string {
+	username := strings.TrimPrefix(strings.TrimSpace(botUsername), "@")
+	if username == "" {
+		return ""
+	}
+	return "https://t.me/" + url.PathEscape(username) + "?startapp=" + url.QueryEscape(refCode)
 }
