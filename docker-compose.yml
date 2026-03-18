@@ -11,6 +11,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - mtproxy-data:/app/data
+    networks:
+      - proxy-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
@@ -30,6 +34,10 @@ services:
       - MTG_IMAGE=${MTG_IMAGE:-nineseconds/mtg:2}
       - BASE_URL=${BASE_URL}
       - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+
+networks:
+  proxy-net:
+    driver: bridge
 
 volumes:
   mtproxy-data:

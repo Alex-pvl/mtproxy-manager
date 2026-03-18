@@ -270,7 +270,7 @@ export default function Proxies() {
                       </button>
                     </div>
                   </div>
-                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
+                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
                     <BlurredLink text={proxy.link} type="mtproxy" />
                   </code>
                 </div>
@@ -304,7 +304,7 @@ export default function Proxies() {
                       </button>
                     </div>
                   </div>
-                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
+                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
                     <BlurredLink text={proxy.link_socks5} type="socks5" />
                   </code>
                 </div>
@@ -328,7 +328,7 @@ export default function Proxies() {
                       {copied === `link-vless-${proxy.id}` ? t.proxies.copied : t.proxies.copy}
                     </button>
                   </div>
-                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block overflow-x-auto break-all sm:break-normal sm:whitespace-nowrap">
+                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
                     {proxy.link_vless}
                   </code>
                 </div>
