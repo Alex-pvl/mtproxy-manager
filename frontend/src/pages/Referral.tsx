@@ -78,23 +78,24 @@ export default function Referral() {
     } catch {}
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!link) return;
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: t.referral.shareTitle,
-          text: t.referral.shareText,
-          url: link,
-        });
+      const shareUrl = `https://t.me/share/url?${new URLSearchParams({
+        url: link,
+        text: t.referral.shareText,
+      }).toString()}`;
+
+      if (isMiniApp && window.Telegram?.WebApp?.openTelegramLink) {
+        window.Telegram.WebApp.openTelegramLink(shareUrl);
       } else {
-        await navigator.clipboard.writeText(link);
+        const popup = window.open(shareUrl, '_blank', 'noopener,noreferrer');
+        if (!popup) window.location.href = shareUrl;
       }
+
       setShared(true);
       setTimeout(() => setShared(false), 2000);
-    } catch (error) {
-      if ((error as DOMException).name === 'AbortError') return;
-    }
+    } catch {}
   };
 
   if (!user) {
