@@ -81,8 +81,7 @@ export default function Referral() {
   const handleShare = () => {
     if (!link) return;
     try {
-      const shareMessage = `${t.referral.shareText.trim()} ${link}`;
-      const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(shareMessage)}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(t.referral.shareText)}`;
 
       if (isMiniApp && window.Telegram?.WebApp?.openTelegramLink) {
         window.Telegram.WebApp.openTelegramLink(shareUrl);
