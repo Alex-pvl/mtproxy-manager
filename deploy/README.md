@@ -166,9 +166,11 @@ sudo chown -R www-data:www-data /var/www/staytg.org
 При обновлении фронтенда:
 
 ```bash
+git fetch && git pull
 set -a && source .env && set +a
 cd frontend && npm ci && npm run build
 sudo rsync -a --delete dist/ /var/www/staytg.org/dist/
+sudo systemctl reload nginx
 ```
 
 > Или используйте `deploy/deploy.sh` — он загружает `.env` и собирает всё автоматически.
