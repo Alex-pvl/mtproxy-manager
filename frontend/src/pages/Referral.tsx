@@ -21,18 +21,14 @@ function CheckIcon() {
   );
 }
 
-function StarIcon() {
+function ShareIcon() {
   return (
-    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-
-function GiftCardIcon() {
-  return (
-    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.59 13.51L15.42 17.49" />
+      <path d="M15.41 6.51L8.59 10.49" />
     </svg>
   );
 }
@@ -58,6 +54,7 @@ export default function Referral() {
   const [bonusDays, setBonusDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -79,6 +76,25 @@ export default function Referral() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
+  };
+
+  const handleShare = async () => {
+    if (!link) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: t.referral.shareTitle,
+          text: t.referral.shareText,
+          url: link,
+        });
+      } else {
+        await navigator.clipboard.writeText(link);
+      }
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch (error) {
+      if ((error as DOMException).name === 'AbortError') return;
+    }
   };
 
   if (!user) {
@@ -106,11 +122,11 @@ export default function Referral() {
       <div className="grid grid-cols-2 gap-3 px-4 mb-4">
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 text-center">
           <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{invitedCount}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.referral.invited.replace(':', '')}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.referral.invitedLabel}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 text-center">
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{bonusDays}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.referral.bonusDays.replace(':', '')}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.referral.bonusDaysLabel}</p>
         </div>
       </div>
 
@@ -138,7 +154,7 @@ export default function Referral() {
       </div>
 
       {/* ── Copy button ── */}
-      <div className="mx-4 mb-5">
+      <div className="mx-4 mb-5 space-y-2.5">
         <button
           type="button"
           onClick={handleCopy}
@@ -147,38 +163,19 @@ export default function Referral() {
         >
           {copied ? t.referral.copied : t.referral.copy}
         </button>
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={loading || !link}
+          className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-2xl px-4 py-3.5 transition-colors touch-manipulation"
+        >
+          <ShareIcon />
+          {shared ? t.referral.shared : t.referral.share}
+        </button>
       </div>
 
       {/* ── How it works ── */}
       <div className="mx-4 space-y-3">
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex gap-3">
-          <span className="text-indigo-500 dark:text-indigo-400 mt-0.5">
-            <StarIcon />
-          </span>
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-              15% бонусного времени
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              Получайте дополнительные дни подписки каждый раз, когда ваш друг продлевает подписку.
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex gap-3">
-          <span className="text-emerald-500 dark:text-emerald-400 mt-0.5">
-            <GiftCardIcon />
-          </span>
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-              Бонусные подарки
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              Бонусные дни начисляются автоматически при каждом продлении подписки приглашённого друга.
-            </p>
-          </div>
-        </div>
-
         {invitedCount > 0 && (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex gap-3">
             <span className="text-violet-500 dark:text-violet-400 mt-0.5">
@@ -186,10 +183,10 @@ export default function Referral() {
             </span>
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                Приглашено пользователей
+                {t.referral.invitedUsersTitle}
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {invitedCount} чел. → +{bonusDays} бонусных дней
+                {t.referral.invitedUsersSummary(invitedCount, bonusDays)}
               </p>
             </div>
           </div>

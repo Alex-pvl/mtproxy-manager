@@ -99,10 +99,10 @@ chmod +x deploy/deploy.sh
 
 ```bash
 # Сборка (CGO не нужен — используем lib/pq)
-cd backend
-CGO_ENABLED=0 go build -o mtproxy-manager ./cmd/server
+cd backend && CGO_ENABLED=0 go build -o mtproxy-manager ./cmd/server
 
 # Установка
+rm -rf /opt/mtproxy-manager
 sudo mkdir -p /opt/mtproxy-manager
 sudo cp mtproxy-manager /opt/mtproxy-manager/
 sudo cp ../.env /opt/mtproxy-manager/.env
@@ -114,7 +114,7 @@ sudo cp ../.env /opt/mtproxy-manager/.env
 sudo cp deploy/mtproxy-manager.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable mtproxy-manager
-sudo systemctl start mtproxy-manager
+sudo systemctl restart mtproxy-manager
 
 # Проверка
 sudo systemctl status mtproxy-manager
@@ -168,7 +168,7 @@ sudo chown -R www-data:www-data /var/www/staytg.org
 ```bash
 set -a && source .env && set +a
 cd frontend && npm ci && npm run build
-sudo rsync -a --delete dist/ /var/www/staytg.org/
+sudo rsync -a --delete dist/ /var/www/staytg.org/dist/
 ```
 
 > Или используйте `deploy/deploy.sh` — он загружает `.env` и собирает всё автоматически.
