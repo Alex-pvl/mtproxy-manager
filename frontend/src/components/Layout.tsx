@@ -293,6 +293,9 @@ export default function Layout() {
       <NavLink to="/pricing" onClick={() => setMenuOpen(false)}>
         {t.nav.pricing}
       </NavLink>
+      <NavLink to="/instructions" onClick={() => setMenuOpen(false)}>
+        {t.nav.instructions}
+      </NavLink>
       {user && (
         <button
           type="button"
