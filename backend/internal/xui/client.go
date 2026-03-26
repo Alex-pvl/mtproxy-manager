@@ -122,6 +122,29 @@ func NewClient(baseURL, pathPrefix, username, password string, inboundID int) (*
 	return c, nil
 }
 
+// DescribeForLog returns non-secret panel context for error logs (URLs, inbound ids, protocol).
+func (c *Client) DescribeForLog() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	host := c.baseURL
+	if u, err := url.Parse(c.baseURL); err == nil && u.Host != "" {
+		host = u.Host
+	}
+	pfx := c.pathPrefix
+	if pfx == "" {
+		pfx = "-"
+	}
+	inID, inPort, inProto, inRem := 0, 0, "", ""
+	if c.inbound != nil {
+		inID = c.inbound.ID
+		inPort = c.inbound.Port
+		inProto = c.inbound.Protocol
+		inRem = c.inbound.Remark
+	}
+	return fmt.Sprintf("xui_host=%s path_prefix=%s configured_inbound_id=%d cached_inbound={db_id:%d listen_port:%d protocol:%s remark:%q}",
+		host, pfx, c.inboundID, inID, inPort, inProto, inRem)
+}
+
 func (c *Client) apiURL(path string) string {
 	path = strings.TrimLeft(path, "/")
 	if c.pathPrefix != "" {
@@ -365,6 +388,7 @@ func (c *Client) doPost(path string, body []byte) error {
 		if err != nil {
 			return nil, err
 		}
+		req.Header.Set("Accept", "application/json")
 		if body != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
@@ -377,8 +401,17 @@ func (c *Client) doPost(path string, body []byte) error {
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
+	status := resp.StatusCode
 
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+	// 3x-ui checkAPIAuth returns 404 with an empty body when the session cookie
+	// is missing or invalid (to hide API existence). Treat like auth failure.
+	needsReauth := status == http.StatusUnauthorized || status == http.StatusForbidden
+	if status == http.StatusNotFound && len(bytes.TrimSpace(respBody)) == 0 &&
+		strings.Contains(path, "panel/api") {
+		needsReauth = true
+	}
+
+	if needsReauth {
 		if err := c.login(); err != nil {
 			return err
 		}
@@ -388,17 +421,38 @@ func (c *Client) doPost(path string, body []byte) error {
 		}
 		defer resp2.Body.Close()
 		respBody, _ = io.ReadAll(resp2.Body)
-
-		return checkAPISuccess(respBody)
+		status = resp2.StatusCode
 	}
 
-	return checkAPISuccess(respBody)
+	return checkAPISuccess(status, respBody)
 }
 
-func checkAPISuccess(body []byte) error {
+func checkAPISuccess(statusCode int, body []byte) error {
+	body = bytes.TrimSpace(body)
+	if statusCode < 200 || statusCode >= 300 {
+		if len(body) == 0 {
+			return fmt.Errorf("x-ui HTTP %d with empty body (wrong URL, proxy error, or panel down); check XUI_URL and XUI_PATH_PREFIX", statusCode)
+		}
+		var result apiResponse
+		if err := json.Unmarshal(body, &result); err == nil && result.Msg != "" {
+			return fmt.Errorf("x-ui HTTP %d: %s", statusCode, result.Msg)
+		}
+		snip := string(body)
+		if len(snip) > 240 {
+			snip = snip[:240] + "…"
+		}
+		return fmt.Errorf("x-ui HTTP %d (non-JSON or error page): %q", statusCode, snip)
+	}
+	if len(body) == 0 {
+		return fmt.Errorf("x-ui returned HTTP %d with empty body — panel usually responds with JSON; check XUI_URL, XUI_PATH_PREFIX, reverse proxy buffering, and that addClient route exists", statusCode)
+	}
 	var result apiResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("decode response: %w", err)
+		snip := string(body)
+		if len(snip) > 240 {
+			snip = snip[:240] + "…"
+		}
+		return fmt.Errorf("decode x-ui response (HTTP %d): %w; body starts with: %q", statusCode, err, snip)
 	}
 	if !result.Success {
 		return fmt.Errorf("api error: %s", result.Msg)

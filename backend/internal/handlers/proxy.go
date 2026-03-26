@@ -146,7 +146,8 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if h.xuiClient != nil {
 		uuid, err := xui.GenerateUUID()
 		if err != nil {
-			log.Printf("generate vless uuid: %v", err)
+			log.Printf("vless: generate uuid failed: user_id=%d mtproxy_port=%d domain=%q err=%v",
+				claims.UserID, port, req.Domain, err)
 		} else {
 			var expiryTime time.Time
 			if sub, subErr := h.db.GetActiveSubscription(claims.UserID); subErr == nil && sub != nil {
@@ -154,7 +155,12 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			}
 			email := vlessEmail(port, claims.UserID)
 			if err := h.xuiClient.AddClient(uuid, email, expiryTime); err != nil {
-				log.Printf("xui add client (proxy port=%d): %v", port, err)
+				expStr := "none"
+				if !expiryTime.IsZero() {
+					expStr = expiryTime.UTC().Format(time.RFC3339)
+				}
+				log.Printf("vless: x-ui addClient failed: %s user_id=%d mtproxy_port=%d xui_client_email=%q vless_uuid=%s subscription_expiry_utc=%s err=%v",
+					h.xuiClient.DescribeForLog(), claims.UserID, port, email, uuid, expStr, err)
 			} else {
 				vlessUUID = uuid
 			}
@@ -196,6 +202,10 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if h.xuiClient != nil && vlessUUID != "" {
 		remark := fmt.Sprintf("stay-proxy-%d", proxy.ID)
 		proxy.LinkVless = h.xuiClient.BuildLink(vlessUUID, "", remark)
+		if proxy.LinkVless == "" {
+			log.Printf("vless: BuildLink returned empty: user_id=%d proxy_db_id=%d vless_uuid=%q remark=%q %s",
+				claims.UserID, proxy.ID, vlessUUID, remark, h.xuiClient.DescribeForLog())
+		}
 	}
 
 	writeJSON(w, http.StatusCreated, proxy)
