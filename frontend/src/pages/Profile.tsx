@@ -151,6 +151,11 @@ export default function Profile() {
   const [tonActionsOpen, setTonActionsOpen] = useState(false);
   const [tonCopied, setTonCopied] = useState(false);
 
+  const shortWalletAddress = (address: string) => {
+    if (address.length <= 11) return address;
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+
   useEffect(() => {
     referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => {});
   }, [isMiniApp]);
@@ -261,7 +266,7 @@ export default function Profile() {
         <ListRow
           icon={<img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />}
           label={t.profile.wallet}
-          sublabel={wallet ? toFriendlyAddress(wallet.account.address) : undefined}
+          sublabel={wallet ? shortWalletAddress(toFriendlyAddress(wallet.account.address)) : undefined}
           onClick={handleWalletTap}
         />
       </ListSection>

@@ -412,6 +412,18 @@ export default function Layout() {
 
             {themeToggle}
             {langToggle}
+            <button
+              type="button"
+              onClick={openTonWalletActions}
+              aria-label="TON wallet"
+              className={`md:hidden flex items-center justify-center w-9 h-9 rounded-full transition-colors touch-manipulation shrink-0 ${
+                wallet
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />
+            </button>
 
             {user ? (
               <>
@@ -455,20 +467,6 @@ export default function Layout() {
         {menuOpen && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 flex flex-col gap-3">
             {navLinks}
-            <button
-              type="button"
-              onClick={() => { openTonWalletActions(); setMenuOpen(false); }}
-              className={`sm:hidden flex items-center gap-2 w-full py-2 rounded-lg text-left transition-colors ${
-                wallet
-                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />
-              <span className="text-sm font-medium tabular-nums whitespace-nowrap">
-                {wallet ? (tonBalance !== null ? `${tonBalance} TON` : 'TON') : t.payment.tonNotConnected}
-              </span>
-            </button>
             <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
               {user ? (
                 <>
