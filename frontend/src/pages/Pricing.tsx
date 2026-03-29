@@ -98,7 +98,16 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
     setError('');
     try {
       const res = await paymentApi.createSbpPayment(plan.id);
-      window.location.href = res.data.payment_url;
+      const webApp: any = window.Telegram?.WebApp;
+      if (isMiniApp && webApp?.openLink) {
+        // Prefer opening SBP payment outside Mini App webview.
+        webApp.openLink(res.data.payment_url, {
+          try_instant_view: false,
+          try_browser: 'chrome',
+        });
+      } else {
+        window.location.href = res.data.payment_url;
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || t.pricing.failedPayment);
       setLoading(null);
