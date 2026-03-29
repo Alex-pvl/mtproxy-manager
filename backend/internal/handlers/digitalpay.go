@@ -48,6 +48,9 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 	partnerPaymentID := fmt.Sprintf("sbp_%d_%d", claims.UserID, time.Now().UnixMilli())
 	callbackURL := strings.TrimRight(h.cfg.BaseURL, "/") + "/api/payments/sbp/webhook"
 	backURL := strings.TrimRight(h.cfg.BaseURL, "/") + "/pricing?payment=1"
+	if h.cfg.DigitalPaySBPBackURL != "" {
+		backURL = h.cfg.DigitalPaySBPBackURL
+	}
 
 	q := url.Values{}
 	q.Set("PartnerPaymentId", partnerPaymentID)
@@ -177,7 +180,7 @@ func (h *PaymentHandler) checkDigitalPayPayment(externalID string, userID int64,
 	defer resp.Body.Close()
 
 	var result struct {
-		OK   bool   `json:"ok"`
+		OK   bool `json:"ok"`
 		Data struct {
 			Status string `json:"status"`
 		} `json:"data"`
@@ -195,4 +198,3 @@ func (h *PaymentHandler) checkDigitalPayPayment(externalID string, userID int64,
 		return fmt.Errorf("not paid yet")
 	}
 }
-
