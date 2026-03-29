@@ -130,6 +130,8 @@ export const paymentApi = {
   listPlans: () => api.get<Plan[]>('/plans'),
   createPayment: (planId: string) =>
     api.post<{ payment_url: string }>('/payments/create', { plan_id: planId }),
+  createSbpPayment: (planId: string) =>
+    api.post<{ payment_url: string }>('/payments/sbp/create', { plan_id: planId }),
   createStarsPayment: (planId: string) =>
     api.post<{ invoice_link: string }>('/payments/stars/create', { plan_id: planId }),
   createTonPayment: (planId: string) =>

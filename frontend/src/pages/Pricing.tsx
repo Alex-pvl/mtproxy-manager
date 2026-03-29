@@ -24,6 +24,10 @@ function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
   return <img src="/toncoin.jpg" alt="TON" className={`${className} rounded-xl object-cover`} />;
 }
 
+function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+  return <img src="/sbp.jpg" alt="SBP" className={`${className} rounded-xl object-cover`} />;
+}
+
 function CheckCircleIcon() {
   return (
     <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -42,7 +46,7 @@ function XIcon() {
 
 // ─── Payment method modal ─────────────────────────────────────────────────────
 
-type PayMethod = 'cryptobot' | 'stars' | 'ton';
+type PayMethod = 'cryptobot' | 'stars' | 'ton' | 'sbp';
 
 interface PaymentMethodSheetProps {
   plan: Plan;
@@ -66,6 +70,18 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
     setError('');
     try {
       const res = await paymentApi.createPayment(plan.id);
+      window.location.href = res.data.payment_url;
+    } catch (err: any) {
+      setError(err.response?.data?.error || t.pricing.failedPayment);
+      setLoading(null);
+    }
+  };
+
+  const handleSbp = async () => {
+    setLoading('sbp');
+    setError('');
+    try {
+      const res = await paymentApi.createSbpPayment(plan.id);
       window.location.href = res.data.payment_url;
     } catch (err: any) {
       setError(err.response?.data?.error || t.pricing.failedPayment);
@@ -184,6 +200,13 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
       label: t.payment.cryptobot,
       desc: plan.price_usd_label ? `${plan.price_usd_label} · ${t.payment.cryptobotDesc}` : t.payment.cryptobotDesc,
       action: handleCryptoBot,
+    },
+    {
+      id: 'sbp',
+      icon: <SbpPayIcon className="w-10 h-10" />,
+      label: t.payment.sbp,
+      desc: t.payment.sbpDesc,
+      action: handleSbp,
     },
     {
       id: 'ton',
@@ -405,6 +428,7 @@ export default function Pricing() {
               {/* Payment methods hint */}
               <div className="flex items-center gap-1.5 mb-3">
                 <StarsPayIcon className="w-5 h-5" />
+                <SbpPayIcon className="w-5 h-5" />
                 <CryptoBotIcon className="w-5 h-5" />
                 <TonPayIcon className="w-5 h-5" />
               </div>
