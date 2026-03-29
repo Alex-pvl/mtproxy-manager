@@ -18,6 +18,8 @@ type Config struct {
 	GostImage           string
 	ServerIP            string
 	CryptoBotToken      string
+	DigitalPayAPIKey    string
+	DigitalPayBaseURL   string
 	BaseURL             string
 	AdminUsername       string
 	AdminTelegramID     int64
@@ -53,6 +55,8 @@ func Load() *Config {
 		GostImage:           getEnv("GOST_IMAGE", "ginuerzh/gost:2.12"),
 		ServerIP:            getEnv("SERVER_IP", ""),
 		CryptoBotToken:      getEnv("CRYPTOBOT_TOKEN", ""),
+		DigitalPayAPIKey:    getEnv("DIGITALPAY_API_KEY", ""),
+		DigitalPayBaseURL:   getEnv("DIGITALPAY_BASE_URL", "https://digitalpay.cc"),
 		BaseURL:             getEnv("BASE_URL", ""),
 		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
 		AdminTelegramID:     int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),

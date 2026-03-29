@@ -333,6 +333,15 @@ func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Req
 		if len(p.ExternalID) >= 6 && p.ExternalID[:6] == "stars_" {
 			continue // Stars are handled by BotWebhook
 		}
+		// DigitalPay SBP
+		if len(p.ExternalID) >= 4 && p.ExternalID[:4] == "sbp_" {
+			if h.cfg.DigitalPayAPIKey != "" {
+				if err := h.checkDigitalPayPayment(p.ExternalID, p.UserID, plan); err == nil {
+					updated = true
+				}
+			}
+			continue
+		}
 		// CryptoPay
 		if h.cfg.CryptoBotToken != "" {
 			if err := h.checkCryptoPayInvoice(p.ExternalID, p.UserID, plan); err == nil {
