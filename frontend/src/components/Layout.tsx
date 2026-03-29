@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTonBalance } from '../hooks/useTonBalance';
+import { toFriendlyAddress } from '../utils/tonAddress';
 import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
 
@@ -113,6 +114,8 @@ export default function Layout() {
   const { language, setLanguage, t } = useLanguage();
   const [referralOpen, setReferralOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tonActionsOpen, setTonActionsOpen] = useState(false);
+  const [tonCopied, setTonCopied] = useState(false);
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const tonBalance = useTonBalance();
@@ -122,6 +125,41 @@ export default function Layout() {
     navigate('/');
     setMenuOpen(false);
   };
+
+  const openTonWalletActions = () => {
+    if (!wallet) {
+      tonConnectUI.openModal();
+      return;
+    }
+    setTonActionsOpen(true);
+  };
+
+  const handleCopyWallet = async () => {
+    if (!wallet) return;
+    try {
+      await navigator.clipboard.writeText(toFriendlyAddress(wallet.account.address));
+      setTonCopied(true);
+      setTimeout(() => setTonCopied(false), 1600);
+    } catch {
+      // ignore clipboard failures
+    }
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      await tonConnectUI.disconnect();
+    } finally {
+      setTonActionsOpen(false);
+      setTonCopied(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!wallet) {
+      setTonActionsOpen(false);
+      setTonCopied(false);
+    }
+  }, [wallet]);
 
   const themeToggle = (
     <button
@@ -225,7 +263,7 @@ export default function Layout() {
             {/* TON Connect: toncoin.jpg icon + balance */}
             <button
               type="button"
-              onClick={() => tonConnectUI.openModal()}
+              onClick={openTonWalletActions}
               aria-label="TON wallet"
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
@@ -250,6 +288,35 @@ export default function Layout() {
         >
           <Outlet />
         </main>
+
+        {tonActionsOpen && wallet && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-4">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setTonActionsOpen(false)} />
+            <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 shadow-xl">
+              <button
+                type="button"
+                onClick={handleCopyWallet}
+                className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                {tonCopied ? t.proxies.copied : t.proxies.copy}
+              </button>
+              <button
+                type="button"
+                onClick={handleDisconnectWallet}
+                className="mt-2 w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+              >
+                {t.profile.walletDisconnect}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTonActionsOpen(false)}
+                className="mt-2 w-full rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                {t.payment.cancel}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Bottom navigation bar ── */}
         <nav
@@ -327,7 +394,7 @@ export default function Layout() {
             {/* TON Connect widget */}
             <button
               type="button"
-              onClick={() => tonConnectUI.openModal()}
+              onClick={openTonWalletActions}
               aria-label="TON wallet"
               className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
@@ -390,7 +457,7 @@ export default function Layout() {
             {navLinks}
             <button
               type="button"
-              onClick={() => { tonConnectUI.openModal(); setMenuOpen(false); }}
+              onClick={() => { openTonWalletActions(); setMenuOpen(false); }}
               className={`sm:hidden flex items-center gap-2 w-full py-2 rounded-lg text-left transition-colors ${
                 wallet
                   ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
@@ -423,6 +490,36 @@ export default function Layout() {
       <main className="mx-auto max-w-6xl w-full px-3 sm:px-4 py-4 sm:py-8 flex-1">
         <Outlet />
       </main>
+
+      {tonActionsOpen && wallet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setTonActionsOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 shadow-xl">
+            <button
+              type="button"
+              onClick={handleCopyWallet}
+              className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              {tonCopied ? t.proxies.copied : t.proxies.copy}
+            </button>
+            <button
+              type="button"
+              onClick={handleDisconnectWallet}
+              className="mt-2 w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+            >
+              {t.profile.walletDisconnect}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTonActionsOpen(false)}
+              className="mt-2 w-full rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              {t.payment.cancel}
+            </button>
+          </div>
+        </div>
+      )}
+
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4">
         <div className="mx-auto max-w-6xl px-4 text-center text-xs text-gray-400 dark:text-gray-500">
           {t.footer.feedback}{' '}

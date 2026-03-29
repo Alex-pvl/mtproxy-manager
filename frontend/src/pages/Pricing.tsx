@@ -28,6 +28,22 @@ function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
   return <img src="/sbp.jpg" alt="SBP" className={`${className} rounded-xl object-cover`} />;
 }
 
+function PaymentIconFrame({
+  children,
+  outlined = false,
+}: {
+  children: React.ReactNode;
+  outlined?: boolean;
+}) {
+  return (
+    <span
+      className={`shrink-0 rounded-xl ${outlined ? 'ring-1 ring-gray-200 dark:ring-gray-700' : ''}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 function CheckCircleIcon() {
   return (
     <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -186,8 +202,23 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
 
   const methods: { id: PayMethod; icon: React.ReactNode; label: string; desc: string; action: () => void; disabled?: boolean; badge?: string }[] = [
     {
+      id: 'sbp',
+      icon: (
+        <PaymentIconFrame outlined>
+          <SbpPayIcon className="w-10 h-10" />
+        </PaymentIconFrame>
+      ),
+      label: t.payment.sbp,
+      desc: t.payment.sbpDesc,
+      action: handleSbp,
+    },
+    {
       id: 'stars',
-      icon: <StarsPayIcon className="w-10 h-10" />,
+      icon: (
+        <PaymentIconFrame outlined>
+          <StarsPayIcon className="w-10 h-10" />
+        </PaymentIconFrame>
+      ),
       label: t.payment.stars,
       desc: plan.stars_price ? `${plan.stars_price} ⭐` : t.payment.starsDesc,
       action: handleStars,
@@ -200,13 +231,6 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
       label: t.payment.cryptobot,
       desc: plan.price_usd_label ? `${plan.price_usd_label} · ${t.payment.cryptobotDesc}` : t.payment.cryptobotDesc,
       action: handleCryptoBot,
-    },
-    {
-      id: 'sbp',
-      icon: <SbpPayIcon className="w-10 h-10" />,
-      label: t.payment.sbp,
-      desc: t.payment.sbpDesc,
-      action: handleSbp,
     },
     {
       id: 'ton',
@@ -254,7 +278,7 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
               type="button"
               onClick={m.action}
               disabled={loading !== null}
-              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 active:bg-indigo-50 dark:active:bg-indigo-500/10 transition-colors touch-manipulation disabled:opacity-60 text-left"
+              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-200 dark:hover:border-indigo-500/30 active:bg-indigo-50 dark:active:bg-indigo-500/10 transition-colors touch-manipulation disabled:opacity-60 text-left"
             >
               <span className="shrink-0">{m.icon}</span>
               <div className="flex-1 min-w-0">
@@ -427,10 +451,18 @@ export default function Pricing() {
 
               {/* Payment methods hint */}
               <div className="flex items-center gap-1.5 mb-3">
-                <StarsPayIcon className="w-5 h-5" />
-                <SbpPayIcon className="w-5 h-5" />
-                <CryptoBotIcon className="w-5 h-5" />
-                <TonPayIcon className="w-5 h-5" />
+                <PaymentIconFrame outlined>
+                  <SbpPayIcon className="w-5 h-5" />
+                </PaymentIconFrame>
+                <PaymentIconFrame outlined>
+                  <StarsPayIcon className="w-5 h-5" />
+                </PaymentIconFrame>
+                <PaymentIconFrame>
+                  <CryptoBotIcon className="w-5 h-5" />
+                </PaymentIconFrame>
+                <PaymentIconFrame>
+                  <TonPayIcon className="w-5 h-5" />
+                </PaymentIconFrame>
               </div>
 
               <button
@@ -439,7 +471,7 @@ export default function Pricing() {
                 className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation ${
                   isPopular
                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                    : 'bg-indigo-50 border border-indigo-200 dark:border-gray-700 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-gray-700 text-indigo-700 dark:text-gray-100'
                 }`}
               >
                 {sub?.active ? t.pricing.renew : t.pricing.buy}

@@ -148,6 +148,8 @@ export default function Profile() {
   const wallet = useTonWallet();
   const [copiedLink, setCopiedLink] = useState(false);
   const [referralLink, setReferralLink] = useState('');
+  const [tonActionsOpen, setTonActionsOpen] = useState(false);
+  const [tonCopied, setTonCopied] = useState(false);
 
   useEffect(() => {
     referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => {});
@@ -160,6 +162,32 @@ export default function Profile() {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     } catch {}
+  };
+
+  const handleWalletTap = () => {
+    if (!wallet) {
+      tonConnectUI.openModal();
+      return;
+    }
+    setTonActionsOpen(true);
+  };
+
+  const handleCopyWallet = async () => {
+    if (!wallet) return;
+    try {
+      await navigator.clipboard.writeText(toFriendlyAddress(wallet.account.address));
+      setTonCopied(true);
+      setTimeout(() => setTonCopied(false), 1500);
+    } catch {}
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      await tonConnectUI.disconnect();
+    } finally {
+      setTonActionsOpen(false);
+      setTonCopied(false);
+    }
   };
 
   if (!user) {
@@ -234,18 +262,7 @@ export default function Profile() {
           icon={<img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />}
           label={t.profile.wallet}
           sublabel={wallet ? toFriendlyAddress(wallet.account.address) : undefined}
-          onClick={() => tonConnectUI.openModal()}
-          right={
-            wallet ? (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); tonConnectUI.disconnect(); }}
-                className="text-xs text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full shrink-0 touch-manipulation"
-              >
-                {t.profile.walletDisconnect}
-              </button>
-            ) : undefined
-          }
+          onClick={handleWalletTap}
         />
       </ListSection>
 
@@ -309,6 +326,35 @@ export default function Profile() {
           </button>
         </div>
       </div>
+
+      {tonActionsOpen && wallet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setTonActionsOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 shadow-xl">
+            <button
+              type="button"
+              onClick={handleCopyWallet}
+              className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              {tonCopied ? t.proxies.copied : t.proxies.copy}
+            </button>
+            <button
+              type="button"
+              onClick={handleDisconnectWallet}
+              className="mt-2 w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+            >
+              {t.profile.walletDisconnect}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTonActionsOpen(false)}
+              className="mt-2 w-full rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              {t.payment.cancel}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

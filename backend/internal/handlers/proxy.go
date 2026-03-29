@@ -195,7 +195,7 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	serverIP := h.docker.GetServerIP()
 	if serverIP != "" {
-		proxy.Link = fmt.Sprintf("tg://proxy?server=%s&port=%d&secret=%s", serverIP, port, secret)
+		proxy.Link = fmt.Sprintf("https://t.me/proxy?server=%s&port=%d&secret=%s", serverIP, port, secret)
 		proxy.LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
 			serverIP, socks5Port, url.QueryEscape(socks5User), url.QueryEscape(socks5Pass))
 	}
@@ -227,7 +227,7 @@ func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 	serverIP := h.docker.GetServerIP()
 	for i := range proxies {
 		if serverIP != "" {
-			proxies[i].Link = fmt.Sprintf("tg://proxy?server=%s&port=%d&secret=%s", serverIP, proxies[i].Port, proxies[i].Secret)
+			proxies[i].Link = fmt.Sprintf("https://t.me/proxy?server=%s&port=%d&secret=%s", serverIP, proxies[i].Port, proxies[i].Secret)
 			if proxies[i].Socks5Port > 0 && proxies[i].Socks5User != "" {
 				proxies[i].LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
 					serverIP, proxies[i].Socks5Port, url.QueryEscape(proxies[i].Socks5User), url.QueryEscape(proxies[i].Socks5Pass))
