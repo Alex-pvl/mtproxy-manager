@@ -66,7 +66,13 @@ function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProp
     setError('');
     try {
       const res = await paymentApi.createPayment(plan.id);
-      window.location.href = res.data.payment_url;
+      const paymentUrl = res.data.payment_url;
+      if (window.Telegram?.WebApp?.openLink) {
+        // In Telegram Mini App, force opening payment in an external browser.
+        window.Telegram.WebApp.openLink(paymentUrl, { try_browser: true } as any);
+      } else {
+        window.open(paymentUrl, '_blank', 'noopener,noreferrer');
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || t.pricing.failedPayment);
       setLoading(null);
