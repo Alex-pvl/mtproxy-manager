@@ -124,6 +124,19 @@ export default function Pricing() {
   ];
   const selectedMethodMeta = methods.find((m) => m.id === selectedMethod) ?? methods[0];
 
+  const openPaymentLink = (url: string, preferExternalBrowser = false) => {
+    if (isMiniApp && window.Telegram?.WebApp?.openLink) {
+      if (preferExternalBrowser) {
+        // try_browser asks Telegram to open system browser when possible.
+        window.Telegram.WebApp.openLink(url, { try_browser: true });
+      } else {
+        window.Telegram.WebApp.openLink(url);
+      }
+      return;
+    }
+    window.location.href = url;
+  };
+
   useEffect(() => {
     paymentApi.listPlans()
       .then((res) => setPlans(res.data))
@@ -133,13 +146,48 @@ export default function Pricing() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has('payment')) {
-      paymentApi
-        .checkPendingPayments()
-        .then(() => refreshUser())
-        .catch(() => refreshUser())
-        .finally(() => window.history.replaceState({}, '', '/pricing'));
+    const hasLegacyPaymentFlag = params.has('payment');
+    const startParam =
+      params.get('startapp') ||
+      params.get('tgWebAppStartParam') ||
+      params.get('start_param');
+    const isMiniAppPaymentReturn = startParam === 'payment_success';
+
+    if (!hasLegacyPaymentFlag && !isMiniAppPaymentReturn) {
+      return;
     }
+
+    paymentApi
+      .checkPendingPayments()
+      .then(async (res) => {
+        if (res.data?.updated) {
+          setShowSuccess(true);
+        }
+
+        await refreshUser();
+
+        // Fallback for race conditions: webhook may activate subscription
+        // a little later than checkPendingPayments returns.
+        if (!res.data?.updated) {
+          try {
+            const subRes = await paymentApi.getSubscription();
+            if (subRes.data?.active) {
+              setShowSuccess(true);
+            }
+          } catch {
+            // ignore subscription polling errors
+          }
+        }
+      })
+      .catch(() => refreshUser())
+      .finally(() => {
+        params.delete('payment');
+        params.delete('startapp');
+        params.delete('tgWebAppStartParam');
+        params.delete('start_param');
+        const nextSearch = params.toString();
+        window.history.replaceState({}, '', nextSearch ? `/pricing?${nextSearch}` : '/pricing');
+      });
   }, [refreshUser]);
 
   const handleBuyPlan = async (plan: Plan) => {
@@ -150,13 +198,13 @@ export default function Pricing() {
     try {
       if (selectedMethod === 'sbp') {
         const res = await paymentApi.createSbpPayment(plan.id);
-        window.location.href = res.data.payment_url;
+        openPaymentLink(res.data.payment_url, true);
         return;
       }
 
       if (selectedMethod === 'cryptobot') {
         const res = await paymentApi.createPayment(plan.id);
-        window.location.href = res.data.payment_url;
+        openPaymentLink(res.data.payment_url);
         return;
       }
 

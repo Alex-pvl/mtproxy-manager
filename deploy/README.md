@@ -108,7 +108,6 @@ sudo cp mtproxy-manager /opt/mtproxy-manager/
 sudo cp ../.env /opt/mtproxy-manager/.env
 sudo systemctl restart mtproxy-manager
 sudo systemctl status mtproxy-manager
-
 ```
 
 ### Systemd-сервис
