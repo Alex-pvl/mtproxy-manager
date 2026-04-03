@@ -213,8 +213,7 @@ func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
 			if payURL == "" {
 				payURL = "https://t.me/staytg_bot/pay"
 			}
-			fullText := botWelcomeText + "\n\n" + payURL
-			if err := h.sendTelegramMessage(update.Message.Chat.ID, fullText, payURL); err != nil {
+			if err := h.sendTelegramMessage(update.Message.Chat.ID, botWelcomeText, payURL); err != nil {
 				log.Printf("BotWebhook /start sendMessage: %v", err)
 			}
 			w.WriteHeader(http.StatusOK)
@@ -265,7 +264,7 @@ func (h *PaymentHandler) sendTelegramMessage(chatID int64, text string, payURL s
 	if payURL != "" {
 		payload["reply_markup"] = map[string]interface{}{
 			"inline_keyboard": [][]map[string]string{
-				{{"text": "💳 Тарифы и оплата", "url": payURL}},
+				{{"text": "Открыть Stay", "url": payURL}},
 			},
 		}
 	}

@@ -106,6 +106,9 @@ rm -rf /opt/mtproxy-manager
 sudo mkdir -p /opt/mtproxy-manager
 sudo cp mtproxy-manager /opt/mtproxy-manager/
 sudo cp ../.env /opt/mtproxy-manager/.env
+sudo systemctl restart mtproxy-manager
+sudo systemctl status mtproxy-manager
+
 ```
 
 ### Systemd-сервис
@@ -114,7 +117,7 @@ sudo cp ../.env /opt/mtproxy-manager/.env
 sudo cp deploy/mtproxy-manager.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable mtproxy-manager
-sudo systemctl restart mtproxy-manager
+
 
 # Проверка
 sudo systemctl status mtproxy-manager
