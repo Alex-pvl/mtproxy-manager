@@ -139,6 +139,48 @@ const ru = {
     successTitle: 'Платёж принят',
     successDesc: 'Подписка будет активирована в течение нескольких минут.',
     ok: 'Готово',
+    sbpAgreementShort: 'Соглашение об оплате через СБП',
+  },
+  sbpAgreement: {
+    title: 'Пользовательское соглашение об оплате через СБП',
+    lastUpdated: 'Дата последнего обновления: 3 апреля 2026 г.',
+    back: '← К тарифам',
+    sections: [
+      {
+        heading: '1. Общие положения',
+        paragraphs: [
+          'Настоящее пользовательское соглашение (далее — «Соглашение») регулирует порядок оплаты услуг сервиса Stay (далее — «Сервис») с использованием Системы быстрых платежей (СБП).',
+          'Оплата через СБП доступна пользователям, которые принимают условия настоящего Соглашения. Совершая платёж, вы подтверждаете, что ознакомились с текстом Соглашения и принимаете его.',
+        ],
+      },
+      {
+        heading: '2. Предмет',
+        paragraphs: [
+          'СБП — сервис Банка России для мгновенных переводов между счетами в рублях. При выборе оплаты через СБП вы перенаправляетесь на защищённую страницу платёжного провайдера или банка для подтверждения перевода по QR-коду или в мобильном приложении банка.',
+          'Сервис оказывает доступ к подписке на прокси- и VPN-функциональность в соответствии с выбранным тарифом. Сумма и валюта платежа указываются на этапе оформления заказа в рублях РФ.',
+        ],
+      },
+      {
+        heading: '3. Обработка платежей',
+        paragraphs: [
+          'Исполнение платежа и хранение платёжных данных осуществляются уполномоченным партнёром (эквайером / платёжным агрегатором) и вашим банком в рамках правил СБП и законодательства РФ.',
+          'Сервис не хранит полные реквизиты банковских карт и не является стороной договора между вами и вашим банком. Время зачисления платежа может составлять до нескольких минут; активация подписки выполняется после подтверждения успешной оплаты.',
+        ],
+      },
+      {
+        heading: '4. Возвраты и споры',
+        paragraphs: [
+          'Цифровые услуги предоставляются в виде доступа к сервису. Возврат денежных средств возможен в случаях, предусмотренных законом «О защите прав потребителей», а также при технической невозможности оказания услуги по вине Сервиса.',
+          'Для вопросов по платежам и возвратам обращайтесь в поддержку: Telegram @oddwallet, указав идентификатор пользователя и дату платежа.',
+        ],
+      },
+      {
+        heading: '5. Изменения',
+        paragraphs: [
+          'Сервис вправе обновлять настоящее Соглашение; актуальная редакция публикуется на этой странице. Продолжение использования оплаты через СБП после публикации изменений означает согласие с ними, если иное не предусмотрено законом.',
+        ],
+      },
+    ],
   },
 };
 
@@ -281,6 +323,48 @@ const en = {
     successTitle: 'Payment received',
     successDesc: 'Your subscription will be activated within a few minutes.',
     ok: 'Done',
+    sbpAgreementShort: 'SBP payment agreement',
+  },
+  sbpAgreement: {
+    title: 'User agreement for payments via the Faster Payments System (SBP)',
+    lastUpdated: 'Last updated: April 3, 2026',
+    back: '← Back to pricing',
+    sections: [
+      {
+        heading: '1. General',
+        paragraphs: [
+          'This user agreement (the “Agreement”) governs payment for Stay services (the “Service”) using the Faster Payments System (SBP).',
+          'SBP payments are available to users who accept this Agreement. By completing a payment, you confirm that you have read and agree to these terms.',
+        ],
+      },
+      {
+        heading: '2. Subject matter',
+        paragraphs: [
+          'SBP is a Bank of Russia service for instant transfers between accounts in rubles. When you choose SBP, you are redirected to a secure page of the payment provider or your bank to confirm the transfer via QR code or in your bank’s mobile app.',
+          'The Service provides subscription access to proxy and VPN features according to the plan you select. The amount and currency are shown at checkout in RUB.',
+        ],
+      },
+      {
+        heading: '3. Payment processing',
+        paragraphs: [
+          'Payment execution and storage of payment credentials are handled by an authorized partner (acquirer / payment aggregator) and your bank under SBP rules and applicable Russian law.',
+          'The Service does not store full card details and is not a party to the agreement between you and your bank. Settlement may take a few minutes; your subscription is activated after successful payment confirmation.',
+        ],
+      },
+      {
+        heading: '4. Refunds and disputes',
+        paragraphs: [
+          'Digital services are provided as access to the Service. Refunds are available where required by consumer protection law and when the Service cannot be provided due to a fault on our side.',
+          'For payment and refund questions, contact support on Telegram @oddwallet with your user identifier and payment date.',
+        ],
+      },
+      {
+        heading: '5. Changes',
+        paragraphs: [
+          'We may update this Agreement; the current version is published on this page. Continued use of SBP payments after changes are published constitutes acceptance unless otherwise required by law.',
+        ],
+      },
+    ],
   },
 };
 

@@ -304,6 +304,16 @@ export default function Pricing() {
             </div>
           )}
         </div>
+        {selectedMethod === 'sbp' && (
+          <p className="mt-3 text-center">
+            <Link
+              to="/legal/sbp"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {t.payment.sbpAgreementShort}
+            </Link>
+          </p>
+        )}
       </div>
 
       <div className="mb-8">

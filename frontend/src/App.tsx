@@ -10,6 +10,7 @@ import Admin from './pages/Admin';
 import Pricing from './pages/Pricing';
 import Profile from './pages/Profile';
 import Referral from './pages/Referral';
+import SbpAgreement from './pages/SbpAgreement';
 import type { ReactNode } from 'react';
 
 const MANIFEST_URL = `${window.location.origin}/tonconnect-manifest.json`;
@@ -36,6 +37,7 @@ export default function App() {
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/referral" element={<Referral />} />
+                  <Route path="/legal/sbp" element={<SbpAgreement />} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" />} />

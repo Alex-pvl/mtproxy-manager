@@ -8,12 +8,19 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"mtproxy-manager/internal/models"
 )
 
 const telegramBotAPI = "https://api.telegram.org/bot"
+
+const botWelcomeText = `👋 Добро пожаловать в Stay!
+
+🛡️ Получите быстрые и стабильные MTProto/SOCKS5 прокси и VPN в Telegram.
+
+💪 Мгновенная настройка • Высокоскоростные серверы • 100% бесперебойная работа`
 
 // CreateStarsPayment creates a Telegram Stars (XTR) invoice link via Bot API.
 func (h *PaymentHandler) CreateStarsPayment(w http.ResponseWriter, r *http.Request) {
@@ -160,14 +167,22 @@ func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
 	var update struct {
 		UpdateID         int64 `json:"update_id"`
 		PreCheckoutQuery *struct {
-			ID               string `json:"id"`
-			From             struct{ ID int64 `json:"id"` } `json:"from"`
-			Currency         string `json:"currency"`
-			TotalAmount      int    `json:"total_amount"`
-			InvoicePayload   string `json:"invoice_payload"`
+			ID   string `json:"id"`
+			From struct {
+				ID int64 `json:"id"`
+			} `json:"from"`
+			Currency       string `json:"currency"`
+			TotalAmount    int    `json:"total_amount"`
+			InvoicePayload string `json:"invoice_payload"`
 		} `json:"pre_checkout_query"`
 		Message *struct {
-			From             struct{ ID int64 `json:"id"` } `json:"from"`
+			Chat struct {
+				ID int64 `json:"id"`
+			} `json:"chat"`
+			From struct {
+				ID int64 `json:"id"`
+			} `json:"from"`
+			Text              string `json:"text"`
 			SuccessfulPayment *struct {
 				Currency                string `json:"currency"`
 				TotalAmount             int    `json:"total_amount"`
@@ -188,6 +203,23 @@ func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
 		h.answerPreCheckoutQuery(update.PreCheckoutQuery.ID, true, "")
 		w.WriteHeader(http.StatusOK)
 		return
+	}
+
+	// /start — приветствие и ссылка на тарифы
+	if update.Message != nil && update.Message.Text != "" && h.cfg.TelegramBotToken != "" {
+		text := strings.TrimSpace(update.Message.Text)
+		if strings.HasPrefix(text, "/start") {
+			payURL := h.cfg.TelegramPayURL
+			if payURL == "" {
+				payURL = "https://t.me/staytg_bot/pay"
+			}
+			fullText := botWelcomeText + "\n\n" + payURL
+			if err := h.sendTelegramMessage(update.Message.Chat.ID, fullText, payURL); err != nil {
+				log.Printf("BotWebhook /start sendMessage: %v", err)
+			}
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 	}
 
 	// Handle successful Stars payment
@@ -222,6 +254,44 @@ func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *PaymentHandler) sendTelegramMessage(chatID int64, text string, payURL string) error {
+	payload := map[string]interface{}{
+		"chat_id":                  chatID,
+		"text":                     text,
+		"disable_web_page_preview": false,
+	}
+	if payURL != "" {
+		payload["reply_markup"] = map[string]interface{}{
+			"inline_keyboard": [][]map[string]string{
+				{{"text": "💳 Тарифы и оплата", "url": payURL}},
+			},
+		}
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	url := fmt.Sprintf("%s%s/sendMessage", telegramBotAPI, h.cfg.TelegramBotToken)
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	var tgResp struct {
+		OK          bool   `json:"ok"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(respBody, &tgResp); err != nil {
+		return fmt.Errorf("sendMessage parse: %w; body=%s", err, string(respBody))
+	}
+	if !tgResp.OK {
+		return fmt.Errorf("sendMessage: %s", tgResp.Description)
+	}
+	return nil
 }
 
 func (h *PaymentHandler) answerPreCheckoutQuery(queryID string, ok bool, errorMsg string) {
@@ -429,4 +499,3 @@ func (h *PaymentHandler) checkCryptoPayInvoice(invoiceID string, userID int64, p
 
 	return fmt.Errorf("not paid yet")
 }
-

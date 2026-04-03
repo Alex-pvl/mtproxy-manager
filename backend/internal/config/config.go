@@ -26,6 +26,8 @@ type Config struct {
 	AdminTelegramID      int64
 	TelegramBotToken     string
 	TelegramBotUsername  string
+	// TelegramPayURL — ссылка на оплату (например Mini App: https://t.me/botname/pay)
+	TelegramPayURL string
 	TGClientID           string
 	TGClientSecret       string
 
@@ -64,6 +66,7 @@ func Load() *Config {
 		AdminTelegramID:      int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
 		TelegramBotToken:     getEnv("TG_BOT_TOKEN", ""),
 		TelegramBotUsername:  getEnv("TG_BOT_USERNAME", ""),
+		TelegramPayURL:       getEnv("TG_PAY_URL", "https://t.me/staytg_bot/pay"),
 		TGClientID:           getEnv("TG_CLIENT_ID", ""),
 		TGClientSecret:       getEnv("TG_CLIENT_SECRET", ""),
 		TonWalletAddress:     getEnv("TON_WALLET_ADDRESS", ""),
