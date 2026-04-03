@@ -19,6 +19,13 @@ declare global {
           start_param?: string;
         };
         openInvoice: (url: string, callback: (status: string) => void) => void;
+        openLink?: (
+          url: string,
+          options?: {
+            try_instant_view?: boolean;
+            try_browser?: boolean;
+          }
+        ) => void;
         openTelegramLink?: (url: string) => void;
         ready: () => void;
         expand: () => void;
