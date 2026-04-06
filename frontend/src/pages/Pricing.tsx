@@ -68,6 +68,14 @@ function ChevronDownIcon({ open }: { open: boolean }) {
 
 type PayMethod = 'cryptobot' | 'stars' | 'ton' | 'sbp';
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Pricing() {
@@ -234,7 +242,7 @@ export default function Pricing() {
       }
       const res = await paymentApi.createTonPayment(plan.id);
       const commentCell = beginCell().storeUint(0, 32).storeStringTail(res.data.comment).endCell();
-      const payloadB64 = Buffer.from(commentCell.toBoc()).toString('base64');
+      const payloadB64 = bytesToBase64(commentCell.toBoc());
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,

@@ -55,6 +55,8 @@ nano .env
 ```env
 JWT_SECRET=ваш-секретный-ключ-минимум-32-символа
 ADMIN_USERNAME=admin
+# Опционально: пароль для входа админа через логин+пароль
+ADMIN_PASSWORD=сильный-пароль-минимум-8-символов
 ADMIN_TELEGRAM_ID=ваш-telegram-id
 
 DATABASE_URL=postgres://mtproxy:yourpassword@localhost:5432/mtproxy?sslmode=disable

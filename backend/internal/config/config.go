@@ -23,13 +23,14 @@ type Config struct {
 	DigitalPaySBPBackURL string
 	BaseURL              string
 	AdminUsername        string
+	AdminPassword        string
 	AdminTelegramID      int64
 	TelegramBotToken     string
 	TelegramBotUsername  string
 	// TelegramPayURL — ссылка на оплату (например Mini App: https://t.me/botname/pay)
 	TelegramPayURL string
-	TGClientID           string
-	TGClientSecret       string
+	TGClientID     string
+	TGClientSecret string
 
 	// TON wallet address for direct TON payments
 	TonWalletAddress string
@@ -63,6 +64,7 @@ func Load() *Config {
 		DigitalPaySBPBackURL: getEnv("DIGITALPAY_SBP_BACK_URL", ""),
 		BaseURL:              getEnv("BASE_URL", ""),
 		AdminUsername:        getEnv("ADMIN_USERNAME", "admin"),
+		AdminPassword:        getEnv("ADMIN_PASSWORD", ""),
 		AdminTelegramID:      int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
 		TelegramBotToken:     getEnv("TG_BOT_TOKEN", ""),
 		TelegramBotUsername:  getEnv("TG_BOT_USERNAME", ""),

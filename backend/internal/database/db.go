@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/models"
 
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type DB struct {
@@ -147,8 +149,18 @@ func (db *DB) migrate() error {
 }
 
 func (db *DB) ensureAdmin() error {
-	if db.cfg.AdminTelegramID == 0 {
-		return nil
+	adminUsername := strings.TrimSpace(db.cfg.AdminUsername)
+	if adminUsername == "" {
+		adminUsername = "admin"
+	}
+
+	passwordHash := ""
+	if strings.TrimSpace(db.cfg.AdminPassword) != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(db.cfg.AdminPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		passwordHash = string(hash)
 	}
 
 	var count int
@@ -157,17 +169,22 @@ func (db *DB) ensureAdmin() error {
 		return err
 	}
 	if count > 0 {
+		if passwordHash != "" {
+			_, _ = db.conn.Exec(
+				"UPDATE users SET password_hash = $1 WHERE username = $2 AND role = $3 AND password_hash = ''",
+				passwordHash, adminUsername, models.RoleAdmin,
+			)
+		}
 		return nil
 	}
 
-	adminUsername := db.cfg.AdminUsername
-	if adminUsername == "" {
-		adminUsername = "admin"
+	if db.cfg.AdminTelegramID == 0 {
+		return nil
 	}
 
 	_, err = db.conn.Exec(
-		"INSERT INTO users (username, password_hash, role, max_proxies, telegram_id) VALUES ($1, '', $2, $3, $4)",
-		adminUsername, models.RoleAdmin, 100, db.cfg.AdminTelegramID,
+		"INSERT INTO users (username, password_hash, role, max_proxies, telegram_id) VALUES ($1, $2, $3, $4, $5)",
+		adminUsername, passwordHash, models.RoleAdmin, 100, db.cfg.AdminTelegramID,
 	)
 	return err
 }
