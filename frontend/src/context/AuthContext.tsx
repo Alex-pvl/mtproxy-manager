@@ -47,9 +47,30 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+const TELEGRAM_WEBAPP_SDK_ID = 'telegram-web-app-sdk';
+const TELEGRAM_WEBAPP_SDK_URL = 'https://telegram.org/js/telegram-web-app.js';
 
 function getTelegramWebApp() {
   return window.Telegram?.WebApp;
+}
+
+function looksLikeTelegramMiniAppContext(): boolean {
+  const search = new URLSearchParams(window.location.search);
+  const tgQueryKeys = [
+    'tgWebAppData',
+    'tgWebAppVersion',
+    'tgWebAppPlatform',
+    'tgWebAppThemeParams',
+    'tgWebAppStartParam',
+    'tgWebAppBotInline',
+    'tgWebAppShowSettings',
+  ];
+  if (tgQueryKeys.some((key) => search.has(key))) return true;
+
+  const hash = window.location.hash;
+  if (hash.includes('tgWebAppData') || hash.includes('tgWebAppVersion')) return true;
+
+  return /Telegram/i.test(navigator.userAgent);
 }
 
 function getInitialToken(): string | null {
@@ -67,8 +88,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(getInitialToken);
   const [isLoading, setIsLoading] = useState(true);
   const webappLoginAttempted = useRef(false);
+  const [telegramSDKReady, setTelegramSDKReady] = useState<boolean>(() => !!getTelegramWebApp());
 
-  const webApp = getTelegramWebApp();
+  useEffect(() => {
+    if (getTelegramWebApp()) {
+      setTelegramSDKReady(true);
+      return;
+    }
+    if (!looksLikeTelegramMiniAppContext()) {
+      return;
+    }
+
+    const existingScript = document.getElementById(TELEGRAM_WEBAPP_SDK_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      const onReady = () => setTelegramSDKReady(true);
+      existingScript.addEventListener('load', onReady);
+      if (getTelegramWebApp()) {
+        setTelegramSDKReady(true);
+      }
+      return () => existingScript.removeEventListener('load', onReady);
+    }
+
+    const script = document.createElement('script');
+    script.id = TELEGRAM_WEBAPP_SDK_ID;
+    script.src = TELEGRAM_WEBAPP_SDK_URL;
+    script.async = true;
+    script.onload = () => setTelegramSDKReady(true);
+    document.head.appendChild(script);
+  }, []);
+
+  const webApp = telegramSDKReady ? getTelegramWebApp() : undefined;
   const isMiniApp = !!(webApp && webApp.initData);
   const telegramPhotoUrl = isMiniApp
     ? (webApp!.initDataUnsafe.user?.photo_url ?? null)
