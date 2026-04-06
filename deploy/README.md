@@ -171,7 +171,7 @@ sudo chown -R www-data:www-data /var/www/staytg.org
 git fetch && git pull
 set -a && source .env && set +a
 cd frontend && npm ci && npm run build
-sudo rsync -a --delete dist/ /var/www/staytg.org/dist/
+sudo rsync -a --delete dist/ /var/www/staytg.ru/dist/
 sudo systemctl reload nginx
 ```
 

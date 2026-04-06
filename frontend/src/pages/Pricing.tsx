@@ -194,16 +194,17 @@ export default function Pricing() {
     if (!user || processingPlanId) return;
     setError('');
     setProcessingPlanId(plan.id);
+    const paymentSource: 'web' | 'tg' = isMiniApp ? 'tg' : 'web';
 
     try {
       if (selectedMethod === 'sbp') {
-        const res = await paymentApi.createSbpPayment(plan.id);
+        const res = await paymentApi.createSbpPayment(plan.id, paymentSource);
         openPaymentLink(res.data.payment_url, true);
         return;
       }
 
       if (selectedMethod === 'cryptobot') {
-        const res = await paymentApi.createPayment(plan.id);
+        const res = await paymentApi.createPayment(plan.id, paymentSource);
         openPaymentLink(res.data.payment_url);
         return;
       }

@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"mtproxy-manager/internal/config"
@@ -37,6 +38,32 @@ func (h *PaymentHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 
 type createPaymentRequest struct {
 	PlanID string `json:"plan_id"`
+	Source string `json:"source,omitempty"` // "tg" | "web"
+}
+
+func normalizePaymentSource(source string) string {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "tg", "telegram", "miniapp":
+		return "tg"
+	default:
+		return "web"
+	}
+}
+
+func (h *PaymentHandler) paymentReturnURL(source string) string {
+	if normalizePaymentSource(source) == "tg" {
+		botUsername := strings.TrimPrefix(strings.TrimSpace(h.cfg.TelegramBotUsername), "@")
+		if botUsername != "" {
+			return fmt.Sprintf("https://t.me/%s?startapp=payment_success", botUsername)
+		}
+		if h.cfg.TelegramPayURL != "" {
+			if strings.Contains(h.cfg.TelegramPayURL, "?") {
+				return h.cfg.TelegramPayURL + "&startapp=payment_success"
+			}
+			return h.cfg.TelegramPayURL + "?startapp=payment_success"
+		}
+	}
+	return strings.TrimRight(h.cfg.BaseURL, "/") + "/pricing?payment=1"
 }
 
 func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
@@ -57,13 +84,15 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid plan")
 		return
 	}
+	source := normalizePaymentSource(req.Source)
 
 	payload, _ := json.Marshal(map[string]string{
 		"user_id": strconv.FormatInt(claims.UserID, 10),
 		"plan_id": plan.ID,
+		"source":  source,
 	})
 
-	returnURL := h.cfg.BaseURL + "/pricing"
+	returnURL := h.paymentReturnURL(source)
 
 	invoiceReq := map[string]interface{}{
 		"currency_type": "fiat",
@@ -302,4 +331,3 @@ func (h *PaymentHandler) verifySignature(body []byte, signature string) bool {
 	expected := hex.EncodeToString(mac.Sum(nil))
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
-

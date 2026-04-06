@@ -37,6 +37,7 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid plan")
 		return
 	}
+	source := normalizePaymentSource(req.Source)
 
 	amountFloat, err := strconv.ParseFloat(plan.Price, 64)
 	if err != nil {
@@ -47,8 +48,8 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 
 	partnerPaymentID := fmt.Sprintf("sbp_%d_%d", claims.UserID, time.Now().UnixMilli())
 	callbackURL := strings.TrimRight(h.cfg.BaseURL, "/") + "/api/payments/sbp/webhook"
-	backURL := strings.TrimRight(h.cfg.BaseURL, "/") + "/pricing?payment=1"
-	if h.cfg.DigitalPaySBPBackURL != "" {
+	backURL := h.paymentReturnURL(source)
+	if source != "tg" && h.cfg.DigitalPaySBPBackURL != "" {
 		backURL = h.cfg.DigitalPaySBPBackURL
 	}
 

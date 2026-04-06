@@ -132,10 +132,10 @@ export interface Plan {
 
 export const paymentApi = {
   listPlans: () => api.get<Plan[]>('/plans'),
-  createPayment: (planId: string) =>
-    api.post<{ payment_url: string }>('/payments/create', { plan_id: planId }),
-  createSbpPayment: (planId: string) =>
-    api.post<{ payment_url: string }>('/payments/sbp/create', { plan_id: planId }),
+  createPayment: (planId: string, source?: 'web' | 'tg') =>
+    api.post<{ payment_url: string }>('/payments/create', { plan_id: planId, source: source || undefined }),
+  createSbpPayment: (planId: string, source?: 'web' | 'tg') =>
+    api.post<{ payment_url: string }>('/payments/sbp/create', { plan_id: planId, source: source || undefined }),
   createStarsPayment: (planId: string) =>
     api.post<{ invoice_link: string }>('/payments/stars/create', { plan_id: planId }),
   createTonPayment: (planId: string) =>
