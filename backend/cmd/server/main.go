@@ -78,6 +78,8 @@ func main() {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
+			r.Post("/register", authHandler.Register)
+			r.Post("/login", authHandler.Login)
 			r.Post("/telegram", telegramHandler.Auth)
 			r.Post("/webapp", webAppHandler.Auth)
 			r.Get("/oidc/init", oidcHandler.Init)

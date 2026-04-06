@@ -8,6 +8,7 @@ import { useTonBalance } from '../hooks/useTonBalance';
 import { toFriendlyAddress } from '../utils/tonAddress';
 import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
+import CredentialsAuthButton from './CredentialsAuthButton';
 
 // ─── Theme icons ──────────────────────────────────────────────────────────────
 
@@ -443,10 +444,13 @@ export default function Layout() {
                 </button>
               </>
             ) : (
-              <TelegramLoginButton
-                label={t.nav.login}
-                className="hidden md:flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
-              />
+              <div className="hidden md:flex items-center gap-2">
+                <TelegramLoginButton
+                  label={t.nav.login}
+                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
+                />
+                <CredentialsAuthButton className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap" />
+              </div>
             )}
             <button
               type="button"
@@ -476,10 +480,16 @@ export default function Layout() {
                   </button>
                 </>
               ) : (
-                <TelegramLoginButton
-                  label={t.nav.login}
-                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation"
-                />
+                <div className="w-full flex flex-col gap-2">
+                  <TelegramLoginButton
+                    label={t.nav.login}
+                    className="flex items-center justify-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-2 transition-colors touch-manipulation"
+                  />
+                  <CredentialsAuthButton
+                    className="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md px-3 py-2 transition-colors touch-manipulation"
+                    onSuccess={() => setMenuOpen(false)}
+                  />
+                </div>
               )}
             </div>
           </div>

@@ -42,6 +42,7 @@ interface AuthState {
   isMiniApp: boolean;
   telegramPhotoUrl: string | null;
   logout: () => void;
+  setAuthToken: (nextToken: string) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -135,6 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const setAuthToken = (nextToken: string) => {
+    localStorage.setItem('token', nextToken);
+    setToken(nextToken);
+  };
+
   const refreshUser = useCallback(async () => {
     if (!token) return;
     try {
@@ -144,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isMiniApp, telegramPhotoUrl, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isMiniApp, telegramPhotoUrl, logout, setAuthToken, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

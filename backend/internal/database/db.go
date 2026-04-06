@@ -212,6 +212,26 @@ func (db *DB) CreateUserByTelegram(telegramID int64, username string, referrerID
 	return user, nil
 }
 
+func (db *DB) CreateUser(username, passwordHash string) (*models.User, error) {
+	var id int64
+	err := db.conn.QueryRow(
+		"INSERT INTO users (username, password_hash, role, max_proxies, telegram_id) VALUES ($1, $2, $3, $4, 0) RETURNING id",
+		username, passwordHash, models.RoleUser, db.cfg.DefaultMaxProxies,
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.User{
+		ID:           id,
+		Username:     username,
+		PasswordHash: passwordHash,
+		Role:         models.RoleUser,
+		MaxProxies:   db.cfg.DefaultMaxProxies,
+		CreatedAt:    time.Now(),
+	}, nil
+}
+
 func (db *DB) GetUserByUsername(username string) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(

@@ -76,6 +76,10 @@ export interface AuthResponse {
 
 export const authApi = {
   me: () => api.get<User>('/auth/me'),
+  login: (username: string, password: string) =>
+    api.post<AuthResponse>('/auth/login', { username, password }),
+  register: (username: string, password: string) =>
+    api.post<AuthResponse>('/auth/register', { username, password }),
   webappLogin: (initData: string, ref?: string) =>
     api.post<AuthResponse>('/auth/webapp', { init_data: initData, ref: ref || undefined }),
 };
