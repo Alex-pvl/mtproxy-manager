@@ -4,14 +4,25 @@ import { useLanguage } from '../context/LanguageContext';
 
 export default function Home() {
   const { t } = useLanguage();
+  const titleMatch = t.home.title.match(/^(Интернет|Internet)\b/i);
+  const highlightedTitleWord = titleMatch?.[0];
+  const titleRest = highlightedTitleWord
+    ? t.home.title.slice(highlightedTitleWord.length).trimStart()
+    : t.home.title;
 
   return (
     <div>
       <div className="flex flex-col items-center text-center mb-10">
         <Sticker name="tariffs" className="w-24 h-24 sm:w-32 sm:h-32 mb-6" />
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 px-2">
-          <span style={{ color: '#08c' }}>Telegram</span>{' '}
-          {t.home.title.replace(/^Telegram\s?/, '')}
+          {highlightedTitleWord ? (
+            <>
+              <span style={{ color: '#08c' }}>{highlightedTitleWord}</span>{' '}
+              {titleRest}
+            </>
+          ) : (
+            t.home.title
+          )}
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base leading-relaxed max-w-2xl px-2">
           {t.home.description}
