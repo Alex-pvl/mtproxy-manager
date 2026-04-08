@@ -250,7 +250,6 @@ export default function Proxies() {
                       <WifiIcon className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
                       <div>
                         <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">MTProto</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-1.5">{t.proxies.mtprotoHint}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -284,7 +283,6 @@ export default function Proxies() {
                       <MobileIcon className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
                       <div>
                         <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">SOCKS5</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-1.5">{t.proxies.socks5Hint}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -318,7 +316,6 @@ export default function Proxies() {
                       <ShieldIcon className="w-4 h-4 text-violet-500 dark:text-violet-400 shrink-0" />
                       <div>
                         <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.vlessLabel}</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-1.5">{t.proxies.vlessHint}</span>
                       </div>
                     </div>
                     <button
