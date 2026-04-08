@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 export default function Home() {
   const { t } = useLanguage();
-  const titleMatch = t.home.title.match(/^(Интернет|Internet)\b/i);
+  const titleMatch = t.home.title.match(/^(Интернет|Internet)(?=\s|$)/i);
   const highlightedTitleWord = titleMatch?.[0];
   const titleRest = highlightedTitleWord
     ? t.home.title.slice(highlightedTitleWord.length).trimStart()

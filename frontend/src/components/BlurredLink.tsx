@@ -3,7 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 type Props = {
   text: string;
-  type: 'mtproxy' | 'socks5';
+  type: 'mtproxy' | 'socks5' | 'vless';
 };
 
 export function BlurredLink({ text, type }: Props) {
@@ -84,6 +84,26 @@ export function BlurredLink({ text, type }: Props) {
         {between}
         <SpoilerSpan>{passVal}</SpoilerSpan>
         {afterPass}
+        <button
+          type="button"
+          onClick={() => setRevealed((v) => !v)}
+          className="ml-2 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 text-xs"
+        >
+          {revealed ? t.proxies.hide : t.proxies.show}
+        </button>
+      </span>
+    );
+  }
+
+  if (type === 'vless') {
+    const match = text.match(/^(vless:\/\/)([^@]+)(@.*)$/i);
+    if (!match) return <span>{text}</span>;
+    const [, prefix, credentialPart, suffix] = match;
+    return (
+      <span>
+        {prefix}
+        <SpoilerSpan>{credentialPart}</SpoilerSpan>
+        {suffix}
         <button
           type="button"
           onClick={() => setRevealed((v) => !v)}

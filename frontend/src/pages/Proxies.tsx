@@ -326,7 +326,7 @@ export default function Proxies() {
                     </button>
                   </div>
                   <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
-                    {proxy.link_vless}
+                    <BlurredLink text={proxy.link_vless} type="vless" />
                   </code>
                 </div>
               )}
