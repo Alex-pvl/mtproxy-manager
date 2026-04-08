@@ -86,7 +86,7 @@ export default function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
+  const [selectedMethod, setSelectedMethod] = useState<PayMethod>('cryptobot');
   const [methodMenuOpen, setMethodMenuOpen] = useState(false);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -103,7 +103,9 @@ export default function Pricing() {
         </PaymentIconFrame>
       ),
       label: t.payment.sbp,
-      desc: t.payment.sbpDesc,
+      desc: t.payment.sbpUnavailableDesc,
+      disabled: true,
+      badge: t.payment.sbpUnavailable,
     },
     {
       id: 'stars',
@@ -206,8 +208,7 @@ export default function Pricing() {
 
     try {
       if (selectedMethod === 'sbp') {
-        const res = await paymentApi.createSbpPayment(plan.id, paymentSource);
-        openPaymentLink(res.data.payment_url, true);
+        setError(t.payment.sbpUnavailableDesc);
         return;
       }
 
@@ -361,7 +362,7 @@ export default function Pricing() {
             </div>
           )}
         </div>
-        {selectedMethod === 'sbp' && (
+        {selectedMethod === 'sbp' && !selectedMethodMeta.disabled && (
           <p className="mt-3 text-center">
             <Link
               to="/legal/sbp"
