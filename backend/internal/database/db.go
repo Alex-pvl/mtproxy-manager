@@ -178,7 +178,9 @@ func (db *DB) ensureAdmin() error {
 		return nil
 	}
 
-	if db.cfg.AdminTelegramID == 0 {
+	// Allow bootstrapping admin either via Telegram ID or via username/password only.
+	// If both are empty, skip creating admin user.
+	if db.cfg.AdminTelegramID == 0 && passwordHash == "" {
 		return nil
 	}
 

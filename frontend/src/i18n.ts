@@ -10,15 +10,14 @@ const ru = {
     login: 'Войти',
   },
   home: {
-    title: 'Telegram без границ — быстро и безопасно',
+    title: 'Интернет без границ — быстро и безопасно',
     description:
-      'MTProxy, SOCKS5 и VPN-конфигурации — надёжные решения для обхода блокировок. MTProxy и SOCKS5 работают прямо в Telegram без дополнительных приложений, а VPN-конфиги обеспечивают полный обход ограничений для любых приложений.',
+      'MTProxy, SOCKS5 и VPN — полезные решения для доступа в интернет. MTProxy и SOCKS5 работают прямо в Telegram, а VPN конфигурации обеспечивают надежный доступ к любому интернет-ресурсу.',
     featureTitle: 'Наши сервисы',
     features: [
-      'MTProto — официальный протокол Telegram, маскирует трафик под HTTPS, идеально работает с WiFi',
-      'SOCKS5 — надёжный прокси-протокол, отлично работает как с мобильными данными, так и с WiFi',
-      'VLESS VPN — защищает весь трафик устройства, обходит блокировки для любых приложений',
-      'Без установки лишнего ПО: MTProxy и SOCKS5 подключаются в один клик прямо в Telegram',
+      'MTProto — официальный протокол Telegram',
+      'SOCKS5 — надёжный прокси-протокол',
+      'VPN — защищает весь трафик устройства, открывает доступ к любым ресурсам',
     ],
     choosePlan: 'Выбрать тариф',
     myServices: 'Мои сервисы',
@@ -194,15 +193,14 @@ const en = {
     login: 'Sign in',
   },
   home: {
-    title: 'Telegram without limits — fast and secure',
+    title: 'Internet without limits — fast and secure',
     description:
-      'MTProxy, SOCKS5, and VPN configurations — reliable solutions to bypass restrictions. MTProxy and SOCKS5 work directly in Telegram without extra apps, while VPN configs provide full bypass for any application.',
+      'MTProxy, SOCKS5 and VPN — useful solutions for internet access. MTProxy and SOCKS5 work directly in Telegram, while VPN configurations provide a reliable access to any internet resource.',
     featureTitle: 'Our services',
     features: [
-      'MTProto — Telegram\'s official protocol, disguises traffic as HTTPS, works best on WiFi',
-      'SOCKS5 — reliable proxy protocol, works great on both mobile data and WiFi',
-      'VLESS VPN — protects all device traffic, bypasses restrictions for any app',
-      'No extra software: MTProxy and SOCKS5 connect in one tap directly inside Telegram',
+      'MTProto — Telegram\'s official protocol',
+      'SOCKS5 — reliable proxy protocol',
+      'VPN — protects all device traffic, provides access to any internet resource',
     ],
     choosePlan: 'Choose a plan',
     myServices: 'My services',

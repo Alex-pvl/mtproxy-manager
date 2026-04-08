@@ -57,6 +57,7 @@ JWT_SECRET=ваш-секретный-ключ-минимум-32-символа
 ADMIN_USERNAME=admin
 # Опционально: пароль для входа админа через логин+пароль
 ADMIN_PASSWORD=сильный-пароль-минимум-8-символов
+# Опционально: Telegram ID админа для входа через Telegram
 ADMIN_TELEGRAM_ID=ваш-telegram-id
 
 DATABASE_URL=postgres://mtproxy:yourpassword@localhost:5432/mtproxy?sslmode=disable
