@@ -103,9 +103,7 @@ export default function Pricing() {
         </PaymentIconFrame>
       ),
       label: t.payment.sbp,
-      desc: t.payment.sbpUnavailableDesc,
-      disabled: true,
-      badge: t.payment.sbpUnavailable,
+      desc: t.payment.sbpDesc,
     },
     {
       id: 'stars',
@@ -134,14 +132,10 @@ export default function Pricing() {
   ];
   const selectedMethodMeta = methods.find((m) => m.id === selectedMethod) ?? methods[0];
 
-  const openPaymentLink = (url: string, preferExternalBrowser = false) => {
+  const openPaymentLink = (url: string) => {
     if (isMiniApp && window.Telegram?.WebApp?.openLink) {
-      if (preferExternalBrowser) {
-        // try_browser asks Telegram to open system browser when possible.
-        window.Telegram.WebApp.openLink(url, { try_browser: true });
-      } else {
-        window.Telegram.WebApp.openLink(url);
-      }
+      // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
+      window.Telegram.WebApp.openLink(url, { try_browser: true });
       return;
     }
     window.location.href = url;
@@ -208,7 +202,8 @@ export default function Pricing() {
 
     try {
       if (selectedMethod === 'sbp') {
-        setError(t.payment.sbpUnavailableDesc);
+        const res = await paymentApi.createSbpPayment(plan.id, paymentSource);
+        openPaymentLink(res.data.payment_url);
         return;
       }
 
