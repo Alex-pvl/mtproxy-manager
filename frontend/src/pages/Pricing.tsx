@@ -86,7 +86,7 @@ export default function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<PayMethod>('cryptobot');
+  const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
   const [methodMenuOpen, setMethodMenuOpen] = useState(false);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
