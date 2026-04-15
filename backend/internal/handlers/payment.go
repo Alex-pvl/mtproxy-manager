@@ -211,60 +211,8 @@ func (h *PaymentHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	externalID := strconv.FormatInt(update.Payload.InvoiceID, 10)
-	h.db.UpdatePaymentStatus(externalID, "paid")
-
-	existing, _ := h.db.GetActiveSubscription(userID)
-
-	startsAt := time.Now()
-	if existing != nil && existing.ExpiresAt.After(startsAt) {
-		startsAt = existing.ExpiresAt
-	}
-	expiresAt := startsAt.AddDate(0, 0, plan.DurationDays)
-
-	var paymentID int64
-	payment, _ := h.db.GetPaymentByExternalID(externalID)
-	if payment != nil {
-		paymentID = payment.ID
-	}
-
-	sub := &models.Subscription{
-		UserID:    userID,
-		PlanID:    planID,
-		PaymentID: paymentID,
-		StartsAt:  startsAt,
-		ExpiresAt: expiresAt,
-	}
-	if err := h.db.CreateSubscription(sub); err != nil {
+	if err := h.activateSubscription(userID, plan, externalID); err != nil {
 		log.Printf("Failed to create subscription: %v", err)
-	} else {
-		log.Printf("Subscription created for user %d, plan %s, expires %s", userID, planID, expiresAt.Format(time.RFC3339))
-		// Update user's max_proxies to match the plan
-		if user, err := h.db.GetUserByID(userID); err == nil {
-			_ = h.db.UpdateUser(userID, user.Role, plan.MaxProxies)
-		}
-		// Sync new expiry to all existing VLESS clients for this user
-		h.syncVlessExpiry(userID, expiresAt)
-
-		// Referral bonus: 15% of subscription days to referrer (once per payment)
-		if referrerID, err := h.db.GetReferrerByReferred(userID); err == nil && referrerID > 0 {
-			exists, _ := h.db.ReferralBonusExistsForPayment(paymentID)
-			if !exists {
-				bonusDays := int(float64(plan.DurationDays) * 0.15)
-				if bonusDays > 0 {
-					if err := h.db.CreateReferralBonus(referrerID, userID, paymentID, bonusDays); err != nil {
-						log.Printf("Failed to create referral bonus: %v", err)
-					} else if err := h.db.ExtendSubscription(referrerID, bonusDays); err != nil {
-						log.Printf("Failed to extend referrer subscription: %v", err)
-					} else {
-						log.Printf("Referral bonus: %d days added to user %d for referred user %d", bonusDays, referrerID, userID)
-						// Sync new expiry for referrer's VLESS clients too
-						if referrerSub, err := h.db.GetActiveSubscription(referrerID); err == nil && referrerSub != nil {
-							h.syncVlessExpiry(referrerID, referrerSub.ExpiresAt)
-						}
-					}
-				}
-			}
-		}
 	}
 
 	w.WriteHeader(http.StatusOK)

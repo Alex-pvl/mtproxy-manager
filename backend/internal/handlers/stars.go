@@ -255,26 +255,17 @@ func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *PaymentHandler) sendTelegramMessage(chatID int64, text string, payURL string) error {
-	payload := map[string]interface{}{
-		"chat_id":                  chatID,
-		"text":                     text,
-		"disable_web_page_preview": false,
-	}
-	if payURL != "" {
-		payload["reply_markup"] = map[string]interface{}{
-			"inline_keyboard": [][]map[string]string{
-				{{"text": "Открыть Stay", "url": payURL}},
-			},
-		}
+func (h *PaymentHandler) telegramPostSendMessage(payload map[string]interface{}) error {
+	if h.cfg.TelegramBotToken == "" {
+		return fmt.Errorf("telegram bot token empty")
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("%s%s/sendMessage", telegramBotAPI, h.cfg.TelegramBotToken)
+	apiURL := fmt.Sprintf("%s%s/sendMessage", telegramBotAPI, h.cfg.TelegramBotToken)
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
+	resp, err := client.Post(apiURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -291,6 +282,149 @@ func (h *PaymentHandler) sendTelegramMessage(chatID int64, text string, payURL s
 		return fmt.Errorf("sendMessage: %s", tgResp.Description)
 	}
 	return nil
+}
+
+func (h *PaymentHandler) sendTelegramMessage(chatID int64, text string, payURL string) error {
+	payload := map[string]interface{}{
+		"chat_id":                  chatID,
+		"text":                     text,
+		"disable_web_page_preview": false,
+	}
+	if payURL != "" {
+		payload["reply_markup"] = map[string]interface{}{
+			"inline_keyboard": [][]map[string]string{
+				{{"text": "Открыть Stay", "url": payURL}},
+			},
+		}
+	}
+	return h.telegramPostSendMessage(payload)
+}
+
+// telegramReplyMarkupOpenStay returns inline_keyboard for opening the Mini App (web_app) or TG_PAY_URL fallback.
+func (h *PaymentHandler) telegramReplyMarkupOpenStay() map[string]interface{} {
+	miniURL := strings.TrimSpace(strings.TrimRight(h.cfg.BaseURL, "/"))
+	payURL := strings.TrimSpace(h.cfg.TelegramPayURL)
+	if payURL == "" {
+		payURL = "https://t.me/staytg_bot/pay"
+	}
+	if strings.HasPrefix(miniURL, "https://") {
+		return map[string]interface{}{
+			"inline_keyboard": [][]map[string]interface{}{
+				{
+					{
+						"text":    "Открыть Stay",
+						"web_app": map[string]string{"url": miniURL},
+					},
+				},
+			},
+		}
+	}
+	return map[string]interface{}{
+		"inline_keyboard": [][]map[string]interface{}{
+			{{"text": "Открыть Stay", "url": payURL}},
+		},
+	}
+}
+
+func formatSubscriptionExpiryForUser(expiresAt time.Time) string {
+	loc, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		loc = time.UTC
+	}
+	t := expiresAt.In(loc)
+	return t.Format("02.01.2006 15:04") + " (МСК)"
+}
+
+// notifyTelegramSubscriptionPaid sends a DM after a successful purchase (CryptoBot, SBP, TON, Stars).
+func (h *PaymentHandler) notifyTelegramSubscriptionPaid(userID int64, plan *models.Plan) {
+	if h.cfg.TelegramBotToken == "" || plan == nil {
+		return
+	}
+	user, err := h.db.GetUserByID(userID)
+	if err != nil || user == nil || user.TelegramID == 0 {
+		return
+	}
+
+	chatID := user.TelegramID
+	planName := plan.Name
+
+	go func() {
+		text := fmt.Sprintf(`✅ Успешная оплата!
+
+Ваша подписка Stay на %s активирована.
+Откройте приложение, чтобы пользоваться прокси и VPN.`, planName)
+
+		payload := map[string]interface{}{
+			"chat_id":                  chatID,
+			"text":                     text,
+			"disable_web_page_preview": true,
+			"reply_markup":             h.telegramReplyMarkupOpenStay(),
+		}
+
+		if err := h.telegramPostSendMessage(payload); err != nil {
+			log.Printf("notifyTelegramSubscriptionPaid user=%d: %v", userID, err)
+		}
+	}()
+}
+
+func (h *PaymentHandler) sendTelegramSubscriptionExpiryReminder(chatID int64, planName string, expiresAt time.Time, daysLeft int) error {
+	when := formatSubscriptionExpiryForUser(expiresAt)
+	var text string
+	switch daysLeft {
+	case 7:
+		text = fmt.Sprintf(`⏳ Подписка Stay (%s) закончится через 7 дней.
+
+Доступ активен до: %s
+
+Продлите подписку, чтобы не потерять прокси и VPN.`, planName, when)
+	case 1:
+		text = fmt.Sprintf(`⚠️ Подписка Stay (%s) заканчивается через 1 день.
+
+Доступ активен до: %s
+
+Продлите подписку, чтобы не потерять доступ.`, planName, when)
+	default:
+		return fmt.Errorf("unsupported daysLeft=%d", daysLeft)
+	}
+	payload := map[string]interface{}{
+		"chat_id":                  chatID,
+		"text":                     text,
+		"disable_web_page_preview": true,
+		"reply_markup":             h.telegramReplyMarkupOpenStay(),
+	}
+	return h.telegramPostSendMessage(payload)
+}
+
+// RunSubscriptionExpiryReminders sends Telegram DMs for subscriptions expiring in 7 or 1 calendar day(s) (UTC). Idempotent via DB flags.
+func (h *PaymentHandler) RunSubscriptionExpiryReminders() {
+	if h.cfg.TelegramBotToken == "" {
+		return
+	}
+
+	process := func(daysLeft int, reminder7d bool, mark func(int64) error) {
+		rows, err := h.db.ListSubscriptionsExpiryCalendarDays(daysLeft, reminder7d)
+		if err != nil {
+			log.Printf("RunSubscriptionExpiryReminders list days=%d: %v", daysLeft, err)
+			return
+		}
+		for _, row := range rows {
+			plan := models.GetPlan(row.PlanID)
+			planName := row.PlanID
+			if plan != nil {
+				planName = plan.Name
+			}
+			if err := h.sendTelegramSubscriptionExpiryReminder(row.TelegramID, planName, row.ExpiresAt, daysLeft); err != nil {
+				log.Printf("expiry reminder sub=%d user=%d days=%d: %v", row.ID, row.UserID, daysLeft, err)
+				continue
+			}
+			if err := mark(row.ID); err != nil {
+				log.Printf("expiry reminder mark sub=%d: %v", row.ID, err)
+			}
+		}
+	}
+
+	process(7, true, h.db.MarkSubscriptionExpiryReminder7dSent)
+	process(1, false, h.db.MarkSubscriptionExpiryReminder1dSent)
 }
 
 func (h *PaymentHandler) answerPreCheckoutQuery(queryID string, ok bool, errorMsg string) {
@@ -360,6 +494,8 @@ func (h *PaymentHandler) activateSubscription(userID int64, plan *models.Plan, e
 			}
 		}
 	}
+
+	h.notifyTelegramSubscriptionPaid(userID, plan)
 
 	return nil
 }

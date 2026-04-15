@@ -145,6 +145,15 @@ func (db *DB) migrate() error {
 		}
 	}
 
+	for _, alter := range []string{
+		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_7d_sent BOOLEAN NOT NULL DEFAULT FALSE",
+		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_1d_sent BOOLEAN NOT NULL DEFAULT FALSE",
+	} {
+		if _, err := db.conn.Exec(alter); err != nil {
+			return err
+		}
+	}
+
 	return db.ensureAdmin()
 }
 
@@ -519,6 +528,62 @@ func (db *DB) GetActiveSubscription(userID int64) (*models.Subscription, error) 
 	return s, nil
 }
 
+// SubscriptionExpiryReminderRow is the user's current active subscription (latest expires_at) due for a calendar-day reminder.
+type SubscriptionExpiryReminderRow struct {
+	ID         int64
+	UserID     int64
+	PlanID     string
+	ExpiresAt  time.Time
+	TelegramID int64
+}
+
+// ListSubscriptionsExpiryCalendarDays lists active subscriptions where UTC calendar days until expiry equals daysLeft (e.g. 7 or 1), reminder not yet sent, user has telegram_id.
+func (db *DB) ListSubscriptionsExpiryCalendarDays(daysLeft int, reminder7d bool) ([]SubscriptionExpiryReminderRow, error) {
+	var sentCol string
+	if reminder7d {
+		sentCol = "expiry_reminder_7d_sent"
+	} else {
+		sentCol = "expiry_reminder_1d_sent"
+	}
+	q := fmt.Sprintf(`
+		SELECT s.id, s.user_id, s.plan_id, s.expires_at, u.telegram_id
+		FROM subscriptions s
+		INNER JOIN (
+			SELECT user_id, MAX(expires_at) AS max_exp
+			FROM subscriptions
+			WHERE expires_at > NOW()
+			GROUP BY user_id
+		) latest ON latest.user_id = s.user_id AND latest.max_exp = s.expires_at
+		INNER JOIN users u ON u.id = s.user_id AND COALESCE(u.telegram_id, 0) > 0
+		WHERE NOT s.%s
+		  AND (s.expires_at AT TIME ZONE 'UTC')::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date = $1`,
+		sentCol)
+	rows, err := db.conn.Query(q, daysLeft)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SubscriptionExpiryReminderRow
+	for rows.Next() {
+		var r SubscriptionExpiryReminderRow
+		if err := rows.Scan(&r.ID, &r.UserID, &r.PlanID, &r.ExpiresAt, &r.TelegramID); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func (db *DB) MarkSubscriptionExpiryReminder7dSent(subscriptionID int64) error {
+	_, err := db.conn.Exec(`UPDATE subscriptions SET expiry_reminder_7d_sent = TRUE WHERE id = $1`, subscriptionID)
+	return err
+}
+
+func (db *DB) MarkSubscriptionExpiryReminder1dSent(subscriptionID int64) error {
+	_, err := db.conn.Exec(`UPDATE subscriptions SET expiry_reminder_1d_sent = TRUE WHERE id = $1`, subscriptionID)
+	return err
+}
+
 // --- Referral queries ---
 
 func generateReferralCode() (string, error) {
@@ -611,7 +676,11 @@ func (db *DB) ExtendSubscription(userID int64, days int) error {
 		return err
 	}
 	_, err = db.conn.Exec(
-		"UPDATE subscriptions SET expires_at = expires_at + ($1 * INTERVAL '1 day') WHERE id = $2",
+		`UPDATE subscriptions SET
+			expires_at = expires_at + ($1 * INTERVAL '1 day'),
+			expiry_reminder_7d_sent = FALSE,
+			expiry_reminder_1d_sent = FALSE
+		WHERE id = $2`,
 		days, sub.ID,
 	)
 	return err

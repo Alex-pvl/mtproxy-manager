@@ -142,6 +142,25 @@ func main() {
 		}
 	}()
 
+	// Subscription expiry reminders (7d / 1d) via Telegram; UTC calendar-day match, idempotent flags on subscriptions.
+	go func() {
+		run := func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("RunSubscriptionExpiryReminders panic: %v", r)
+				}
+			}()
+			paymentHandler.RunSubscriptionExpiryReminders()
+		}
+		time.Sleep(2 * time.Minute)
+		run()
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
