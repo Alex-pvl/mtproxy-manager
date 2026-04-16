@@ -303,6 +303,17 @@ export default function Pricing() {
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
       </div>
 
+      <div className="max-w-3xl mx-auto mb-6">
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-emerald-950/40 dark:to-indigo-950/30 px-4 py-3 text-center">
+          <p className="text-sm sm:text-base font-semibold text-emerald-700 dark:text-emerald-300">
+            Оплата через СБП снова работает
+          </p>
+          <p className="text-xs sm:text-sm text-emerald-700/90 dark:text-emerald-300/90 mt-1">
+            Технические работы завершены — действует скидка 20% на все тарифы
+          </p>
+        </div>
+      </div>
+
       <div className="max-w-xl mx-auto mb-6">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
           {t.payment.selectMethod}
@@ -437,19 +448,25 @@ export default function Pricing() {
 
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
 
-              <div className="mb-4 flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">{plan.price_label}</span>
-                {plan.price_usd_label && (
-                  <span className="text-base text-gray-400 dark:text-gray-500">({plan.price_usd_label})</span>
-                )}
-                {plan.original_price_label && (
-                  <>
-                    <span className="text-base text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
-                    {plan.discount_percent != null && plan.discount_percent > 0 && (
-                      <span className="text-sm font-medium text-blue-500 dark:text-blue-400">−{plan.discount_percent}%</span>
+              <div className="mb-4">
+                {plan.discount_percent != null && plan.discount_percent > 0 && (
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
+                      Скидка {plan.discount_percent}%
+                    </span>
+                    {plan.original_price_label && (
+                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
                     )}
-                  </>
+                  </div>
                 )}
+
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{plan.price_label}</span>
+                  {plan.price_usd_label && (
+                    <span className="text-base text-gray-400 dark:text-gray-500">({plan.price_usd_label})</span>
+                  )}
+                </div>
+
               </div>
 
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
