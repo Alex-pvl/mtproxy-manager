@@ -17,15 +17,15 @@ if [[ ! -f "$IDS_FILE" ]]; then
 fi
 
 MESSAGE="$(cat <<'EOF'
-🎉 СБП снова работает — технические работы платежного шлюза завершены!
+<tg-emoji emoji-id="5233317199480891766">💳</tg-emoji> СБП снова работает — технические работы платежного шлюза завершены!
 
-🎁 В честь этого мы сделали скидку 20% на все тарифы Stay.
+<tg-emoji emoji-id="5199749070830197566">🎁</tg-emoji> В честь этого мы сделали скидку 20% на все тарифы Stay.
 
-👇🏻 Откройте приложение и выберите подходящий план.
+<tg-emoji emoji-id="5470177992950946662">👇🏻</tg-emoji> Откройте приложение и выберите подходящий план.
 EOF
 )"
 API_URL="https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage"
-OPEN_STAY_URL="${OPEN_STAY_URL:-${TELEGRAM_PAY_URL:-${BASE_URL:-https://t.me/staytg_bot/stay}}}"
+OPEN_STAY_URL="${OPEN_STAY_URL:-${TELEGRAM_PAY_URL:-${BASE_URL:-https://t.me/staytg_bot/pay}}}"
 
 if [[ -z "$MESSAGE" ]]; then
   echo "MESSAGE is empty"
@@ -46,11 +46,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     continue
   fi
 
-  if curl -sS --fail -X POST "$API_URL" \
+  if curl -sS --fail --location -X POST "$API_URL" \
+    --header "Content-Type: application/x-www-form-urlencoded" \
     --data-urlencode "chat_id=$chat_id" \
     --data-urlencode "text=$MESSAGE" \
+    --data-urlencode "parse_mode=HTML" \
     --data "disable_web_page_preview=true" \
-    --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Открыть Stay\",\"url\":\"$OPEN_STAY_URL\"}]]}" >/dev/null; then
+    --data-urlencode "reply_markup={\"inline_keyboard\":[[{\"text\":\"Открыть Stay\",\"url\":\"$OPEN_STAY_URL\",\"style\":\"primary\",\"icon_custom_emoji_id\":\"5425094988260188065\"}]]}" >/dev/null; then
     sent=$((sent + 1))
     echo "sent: $chat_id"
   else
