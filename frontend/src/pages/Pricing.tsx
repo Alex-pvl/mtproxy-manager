@@ -132,6 +132,30 @@ export default function Pricing() {
   ];
   const selectedMethodMeta = methods.find((m) => m.id === selectedMethod) ?? methods[0];
 
+  const formatTon = (nano: string) => {
+    const n = Number(nano);
+    if (!Number.isFinite(n)) return nano;
+    const ton = n / 1_000_000_000;
+    const str = ton.toFixed(2).replace(/\.?0+$/, '');
+    return `${str} TON`;
+  };
+
+  const getDisplayPrice = (plan: Plan): { main: string; secondary?: string } => {
+    switch (selectedMethod) {
+      case 'cryptobot':
+        return { main: plan.price_usd_label ? plan.price_usd_label.replace(/^~/, '') : plan.price_label };
+      case 'stars':
+        return plan.stars_price
+          ? { main: `${plan.stars_price.toLocaleString('ru-RU')} ⭐` }
+          : { main: plan.price_label };
+      case 'ton':
+        return plan.ton_amount ? { main: formatTon(plan.ton_amount) } : { main: plan.price_label };
+      case 'sbp':
+      default:
+        return { main: plan.price_label, secondary: plan.price_usd_label };
+    }
+  };
+
   const openPaymentLink = (url: string, options?: { stripReferrer?: boolean }) => {
     if (isMiniApp && window.Telegram?.WebApp?.openLink) {
       // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
@@ -141,8 +165,10 @@ export default function Pricing() {
     }
     if (options?.stripReferrer) {
       // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
+      // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
       const a = document.createElement('a');
       a.href = url;
+      a.target = '_blank';
       a.rel = 'noreferrer noopener';
       a.referrerPolicy = 'no-referrer';
       document.body.appendChild(a);
@@ -450,7 +476,7 @@ export default function Pricing() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
 
               <div className="mb-4">
-                {plan.discount_percent != null && plan.discount_percent > 0 && (
+                {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
                   <div className="mb-1.5 flex items-center gap-2">
                     <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
                       Скидка {plan.discount_percent}%
@@ -461,18 +487,25 @@ export default function Pricing() {
                   </div>
                 )}
 
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{plan.price_label}</span>
-                  {plan.price_usd_label && (
-                    <span className="text-base text-gray-400 dark:text-gray-500">({plan.price_usd_label})</span>
-                  )}
-                </div>
+                {(() => {
+                  const { main, secondary } = getDisplayPrice(plan);
+                  return (
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{main}</span>
+                      {secondary && (
+                        <span className="text-base text-gray-400 dark:text-gray-500">({secondary})</span>
+                      )}
+                    </div>
+                  );
+                })()}
 
               </div>
 
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                {plan.per_month}{t.pricing.perMonth}
-              </p>
+              {selectedMethod === 'sbp' && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  {plan.per_month}{t.pricing.perMonth}
+                </p>
+              )}
 
               <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2 mb-4 flex-1">
                 <li className="flex items-center gap-2">
