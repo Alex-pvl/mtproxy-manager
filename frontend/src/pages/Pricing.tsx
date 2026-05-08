@@ -168,7 +168,6 @@ export default function Pricing() {
       // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
       const a = document.createElement('a');
       a.href = url;
-      a.target = '_blank';
       a.rel = 'noreferrer noopener';
       a.referrerPolicy = 'no-referrer';
       document.body.appendChild(a);
