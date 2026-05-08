@@ -132,10 +132,22 @@ export default function Pricing() {
   ];
   const selectedMethodMeta = methods.find((m) => m.id === selectedMethod) ?? methods[0];
 
-  const openPaymentLink = (url: string) => {
+  const openPaymentLink = (url: string, options?: { stripReferrer?: boolean }) => {
     if (isMiniApp && window.Telegram?.WebApp?.openLink) {
       // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
+      // В Telegram политика no-referrer не требуется.
       window.Telegram.WebApp.openLink(url, { try_browser: true });
+      return;
+    }
+    if (options?.stripReferrer) {
+      // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
+      const a = document.createElement('a');
+      a.href = url;
+      a.rel = 'noreferrer noopener';
+      a.referrerPolicy = 'no-referrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       return;
     }
     window.location.href = url;
@@ -203,7 +215,7 @@ export default function Pricing() {
     try {
       if (selectedMethod === 'sbp') {
         const res = await paymentApi.createSbpPayment(plan.id, paymentSource);
-        openPaymentLink(res.data.payment_url);
+        openPaymentLink(res.data.payment_url, { stripReferrer: true });
         return;
       }
 

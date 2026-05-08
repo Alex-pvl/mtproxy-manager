@@ -85,7 +85,8 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 			Type      string `json:"type"`
 			Currency  string `json:"currency"`
 			Creds     struct {
-				PaymentURL string `json:"PaymentUrl"`
+				PaymentURL string `json:"paymentUrl"`
+				CleanURL   string `json:"cleanUrl"`
 			} `json:"credentials"`
 		} `json:"data"`
 	}
@@ -93,7 +94,13 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "failed to create payment")
 		return
 	}
-	if !digitalResp.OK || digitalResp.Data.PaymentID == "" || digitalResp.Data.Creds.PaymentURL == "" {
+	// DigitalPay теперь сразу возвращает прямую ссылку НСПК в cleanUrl
+	// вместе с формой оплаты (paymentUrl) — отдельный запрос не нужен.
+	paymentLink := digitalResp.Data.Creds.CleanURL
+	if paymentLink == "" {
+		paymentLink = digitalResp.Data.Creds.PaymentURL
+	}
+	if !digitalResp.OK || digitalResp.Data.PaymentID == "" || paymentLink == "" {
 		log.Printf("DigitalPay create failed: ok=%v message=%s", digitalResp.OK, digitalResp.Message)
 		writeError(w, http.StatusInternalServerError, "failed to create payment")
 		return
@@ -112,7 +119,7 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{
-		"payment_url": digitalResp.Data.Creds.PaymentURL,
+		"payment_url": paymentLink,
 	})
 }
 
