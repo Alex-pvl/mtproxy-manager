@@ -156,7 +156,7 @@ export default function Pricing() {
     }
   };
 
-  const openPaymentLink = (url: string, options?: { stripReferrer?: boolean }) => {
+  const openPaymentLink = (url: string) => {
     if (isMiniApp && window.Telegram?.WebApp?.openLink) {
       // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
       // В Telegram политика no-referrer не требуется.
@@ -240,7 +240,7 @@ export default function Pricing() {
     try {
       if (selectedMethod === 'sbp') {
         const res = await paymentApi.createSbpPayment(plan.id, paymentSource);
-        openPaymentLink(res.data.payment_url, { stripReferrer: true });
+        openPaymentLink(res.data.payment_url);
         return;
       }
 
