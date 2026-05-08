@@ -67,7 +67,7 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 	httpReq.Header.Set("apikey", h.cfg.DigitalPayAPIKey)
 	httpReq.Header.Set("Accept", "application/json")
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		log.Printf("DigitalPay create error: %v", err)
@@ -180,7 +180,7 @@ func (h *PaymentHandler) checkDigitalPayPayment(externalID string, userID int64,
 	req.Header.Set("apikey", h.cfg.DigitalPayAPIKey)
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
