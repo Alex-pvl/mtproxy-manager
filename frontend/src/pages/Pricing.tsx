@@ -163,18 +163,18 @@ export default function Pricing() {
       window.Telegram.WebApp.openLink(url, { try_browser: true });
       return;
     }
-    if (options?.stripReferrer) {
-      // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
-      // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
-      const a = document.createElement('a');
-      a.href = url;
-      a.rel = 'noreferrer noopener';
-      a.referrerPolicy = 'no-referrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
-    }
+    // if (options?.stripReferrer) {
+    //   // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
+    //   // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
+    //   const a = document.createElement('a');
+    //   a.href = url;
+    //   a.rel = 'noreferrer noopener';
+    //   a.referrerPolicy = 'no-referrer';
+    //   document.body.appendChild(a);
+    //   a.click();
+    //   document.body.removeChild(a);
+    //   return;
+    // }
     window.location.href = url;
   };
 
