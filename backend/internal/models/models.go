@@ -68,27 +68,27 @@ type Plan struct {
 }
 
 // Цены в USD по курсу ЦБ РФ ~77 ₽/$ (февраль 2026)
-// Stars: ~$0.02/star; TON: ~$5/TON → 1 nanoTON = 1e-9 TON
+// Stars: ~$0.02/star; TON: ~$2.6/TON (08.05.2026) → 1 nanoTON = 1e-9 TON
 var Plans = []Plan{
 	{
 		ID: "month_1", Name: "1 месяц", DurationDays: 30,
-		Price: "160.00", PriceLabel: "160 ₽", PriceUSDLabel: "~$2.10", OriginalPriceLabel: "200 ₽", DiscountPercent: 20, PerMonth: "160 ₽", MaxProxies: 1,
-		StarsPrice: 160, TonAmount: "1600000000",
+		Price: "200.00", PriceLabel: "200 ₽", PriceUSDLabel: "~$2.60", PerMonth: "200 ₽", MaxProxies: 1,
+		StarsPrice: 200, TonAmount: "1000000000", // 1.0 TON
 	},
 	{
 		ID: "month_3", Name: "3 месяца", DurationDays: 90,
-		Price: "432.00", PriceLabel: "432 ₽", PriceUSDLabel: "~$5.60", OriginalPriceLabel: "540 ₽", DiscountPercent: 20, PerMonth: "144 ₽", MaxProxies: 3,
-		StarsPrice: 400, TonAmount: "2800000000", // 2.8 TON
+		Price: "540.00", PriceLabel: "540 ₽", PriceUSDLabel: "~$7", PerMonth: "180 ₽", MaxProxies: 3,
+		StarsPrice: 500, TonAmount: "2700000000", // 2.7 TON
 	},
 	{
 		ID: "month_6", Name: "6 месяцев", DurationDays: 180,
-		Price: "768.00", PriceLabel: "768 ₽", PriceUSDLabel: "~$10", OriginalPriceLabel: "960 ₽", DiscountPercent: 20, PerMonth: "128 ₽", MaxProxies: 5,
-		StarsPrice: 720, TonAmount: "5600000000", // 5.6 TON
+		Price: "960.00", PriceLabel: "960 ₽", PriceUSDLabel: "~$12.50", PerMonth: "160 ₽", MaxProxies: 5,
+		StarsPrice: 900, TonAmount: "4800000000", // 4.8 TON
 	},
 	{
 		ID: "year_1", Name: "1 год", DurationDays: 365,
-		Price: "1344.00", PriceLabel: "1 344 ₽", PriceUSDLabel: "~$17.50", OriginalPriceLabel: "1 680 ₽", DiscountPercent: 20, PerMonth: "112 ₽", MaxProxies: 10,
-		StarsPrice: 1200, TonAmount: "13600000000",
+		Price: "1680.00", PriceLabel: "1 680 ₽", PriceUSDLabel: "~$21.80", PerMonth: "140 ₽", MaxProxies: 10,
+		StarsPrice: 1500, TonAmount: "8400000000", // 8.4 TON
 	},
 }
 

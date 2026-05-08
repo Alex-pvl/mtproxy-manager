@@ -315,17 +315,6 @@ export default function Pricing() {
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
       </div>
 
-      <div className="max-w-3xl mx-auto mb-6">
-        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-emerald-950/40 dark:to-indigo-950/30 px-4 py-3 text-center">
-          <p className="text-sm sm:text-base font-semibold text-emerald-700 dark:text-emerald-300">
-            Оплата через СБП снова работает
-          </p>
-          <p className="text-xs sm:text-sm text-emerald-700/90 dark:text-emerald-300/90 mt-1">
-            Технические работы завершены — действует скидка 20% на все тарифы
-          </p>
-        </div>
-      </div>
-
       <div className="max-w-xl mx-auto mb-6">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
           {t.payment.selectMethod}
