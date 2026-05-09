@@ -162,6 +162,7 @@ export default function ProductCheckout({ type }: Props) {
     if (recipientInfo && recipientInfo.username !== u) {
       setRecipientInfo(null);
       setRecipientError('');
+      setError('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipient]);
@@ -209,6 +210,7 @@ export default function ProductCheckout({ type }: Props) {
           ? await productApi.starsQuote(quantity, u)
           : await productApi.premiumQuote(quantity, u);
         setQuote(res.data);
+        setError('');
       } catch (e: any) {
         setQuote(null);
         setError(friendlyError(e?.response?.data?.error || '', labels));
