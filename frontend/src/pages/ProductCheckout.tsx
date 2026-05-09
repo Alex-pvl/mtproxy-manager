@@ -75,6 +75,28 @@ function Avatar({ photo, fallback, size = 28 }: { photo?: string; fallback: stri
   );
 }
 
+// Format the price for display in the currency of the selected payment method.
+// Rubles always shown in parens (except SBP, which already pays in RUB).
+function formatMethodPrice(q: ProductQuote, method: PayMethod): string {
+  const rub = q.price_rub;            // already formatted "X ₽"
+  const usd = q.price_usd.replace(/^~/, ''); // "$X.XX"
+  if (method === 'sbp') return rub;
+  if (method === 'ton') {
+    const ton = (Number(q.ton_amount) / 1_000_000_000).toFixed(2);
+    return `${ton} TON (${rub})`;
+  }
+  // cryptobot — billed in USD-equivalent crypto
+  return `${usd} (${rub})`;
+}
+
+// Map raw Fragment SDK / worker error codes to user-friendly text.
+function friendlyError(raw: string, labels: { alreadyPremium: string; failedQuote: string; failedOrder: string }): string {
+  const s = (raw || '').toLowerCase();
+  if (s.includes('already_premium') || s.includes('already premium')) return labels.alreadyPremium;
+  if (s.includes('quote') && s.includes('fail')) return labels.failedQuote;
+  return raw || labels.failedOrder;
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function ProductCheckout({ type }: Props) {
@@ -98,6 +120,11 @@ export default function ProductCheckout({ type }: Props) {
   const recipientInputRef = useRef<HTMLInputElement>(null);
 
   const [quantity, setQuantity] = useState<number>(type === 'stars' ? 50 : 3);
+  // Raw text for the Stars input — lets the user erase the value entirely
+  // before typing a new one. `quantity` stays in sync only when the text
+  // parses to a valid number; sub-50 / empty values block /quote and surface
+  // an inline error on submit.
+  const [starsText, setStarsText] = useState<string>(type === 'stars' ? '50' : '');
   const [premiumOpen, setPremiumOpen] = useState(false);
 
   const [method, setMethod] = useState<PayMethod>('sbp');
@@ -156,7 +183,8 @@ export default function ProductCheckout({ type }: Props) {
   // ─── Quote (debounced; needs both quantity AND a resolved recipient) ───────
   useEffect(() => {
     const u = recipient.trim().replace(/^@/, '');
-    if (!quantity || quantity <= 0 || !u || !recipientInfo?.ok) {
+    const minQty = type === 'stars' ? 50 : 1;
+    if (!quantity || quantity < minQty || !u || !recipientInfo?.ok) {
       setQuote(null);
       return;
     }
@@ -169,7 +197,7 @@ export default function ProductCheckout({ type }: Props) {
         setQuote(res.data);
       } catch (e: any) {
         setQuote(null);
-        setError(e?.response?.data?.error || labels.failedQuote);
+        setError(friendlyError(e?.response?.data?.error || '', labels));
       } finally { setQuoteLoading(false); }
     }, 300);
     return () => clearTimeout(handle);
@@ -188,6 +216,7 @@ export default function ProductCheckout({ type }: Props) {
     setError('');
     const u = recipient.trim().replace(/^@/, '');
     if (!u || u.length < 5) { setError(labels.invalidRecipient); return; }
+    if (type === 'stars' && (!quantity || quantity < 50)) { setError(labels.minStars); return; }
     setProcessing(true);
     try {
       try {
@@ -229,11 +258,11 @@ export default function ProductCheckout({ type }: Props) {
           // eslint-disable-next-line no-await-in-loop
           const s = await productApi.getOrder(order_id);
           if (s.data.status === 'delivered') { setShowSuccess('delivered'); break; }
-          if (s.data.status === 'failed') { setError(s.data.error || labels.failedOrder); setShowSuccess(null); break; }
+          if (s.data.status === 'failed') { setError(friendlyError(s.data.error || '', labels)); setShowSuccess(null); break; }
         } catch { /* ignore */ }
       }
     } catch (e: any) {
-      if (e?.message !== 'Reject request') setError(e?.response?.data?.error || labels.failedOrder);
+      if (e?.message !== 'Reject request') setError(friendlyError(e?.response?.data?.error || '', labels));
     } finally {
       setProcessing(false);
     }
@@ -343,19 +372,20 @@ export default function ProductCheckout({ type }: Props) {
           <div className="spend-pill">
             <span className="spend-pill__icon"><StarIcon color="#f4d03f" /></span>
             <input
-              type="number"
+              type="text"
               inputMode="numeric"
-              min={50}
-              step={1}
-              value={quantity}
+              pattern="[0-9]*"
+              value={starsText}
               onChange={(e) => {
-                const n = Number(e.target.value);
-                if (Number.isFinite(n)) setQuantity(Math.max(50, Math.floor(n)));
+                const raw = e.target.value.replace(/[^0-9]/g, '');
+                setStarsText(raw);
+                const n = raw === '' ? 0 : parseInt(raw, 10);
+                setQuantity(Number.isFinite(n) ? n : 0);
               }}
               placeholder="50"
             />
             <span className="spend-pill__value-right">
-              {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
+              {quoteLoading ? '…' : quote ? formatMethodPrice(quote, method) : ''}
             </span>
           </div>
         ) : (
@@ -369,7 +399,7 @@ export default function ProductCheckout({ type }: Props) {
               <span className="spend-pill__icon"><StarIcon color="#a48bff" /></span>
               <span className="spend-pill__label">{quantity} {labels.monthsShort}</span>
               <span className="spend-pill__value-right">
-                {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
+                {quoteLoading ? '…' : quote ? formatMethodPrice(quote, method) : ''}
               </span>
               <ChevronDown open={premiumOpen} />
             </button>
@@ -390,10 +420,10 @@ export default function ProductCheckout({ type }: Props) {
           </div>
         )}
 
-        {/* Total */}
+        {/* Total — currency of the selected method, RUB in parens */}
         {quote && (
           <p className="text-center text-sm text-[#8b93b3]">
-            {labels.totalLabel}: <span className="text-white font-semibold">{quote.price_rub}</span>
+            {labels.totalLabel}: <span className="text-white font-semibold">{formatMethodPrice(quote, method)}</span>
           </p>
         )}
 
