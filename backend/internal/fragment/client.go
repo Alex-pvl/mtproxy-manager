@@ -46,9 +46,11 @@ type Balance struct {
 }
 
 type UsernameCheck struct {
-	OK       bool   `json:"ok"`
-	Username string `json:"username"`
-	Reason   string `json:"reason,omitempty"`
+	OK          bool   `json:"ok"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name,omitempty"`
+	PhotoURL    string `json:"photo_url,omitempty"`
+	Reason      string `json:"reason,omitempty"`
 }
 
 type PurchaseRequest struct {
@@ -108,10 +110,12 @@ func (c *Client) doJSON(method, path string, body, out interface{}) error {
 	return json.Unmarshal(respBody, out)
 }
 
-// Quote returns the current TON cost for a given product.
-func (c *Client) Quote(productType string, quantity int) (*Quote, error) {
+// Quote returns the current TON cost for a given product. Fragment requires a
+// real recipient to compute price, so callers must pass one.
+func (c *Client) Quote(productType string, quantity int, recipient string) (*Quote, error) {
 	q := &Quote{}
-	path := fmt.Sprintf("/quote?type=%s&quantity=%d", productType, quantity)
+	path := fmt.Sprintf("/quote?type=%s&quantity=%d&recipient=%s",
+		productType, quantity, strings.TrimPrefix(strings.TrimSpace(recipient), "@"))
 	if err := c.doJSON("GET", path, nil, q); err != nil {
 		return nil, err
 	}
@@ -127,11 +131,16 @@ func (c *Client) Balance() (*Balance, error) {
 	return b, nil
 }
 
-// CheckUsername validates a Telegram username can receive Stars/Premium.
-func (c *Client) CheckUsername(username string) (*UsernameCheck, error) {
+// CheckUsername validates a Telegram username can receive Stars/Premium and
+// returns display name + avatar URL when Fragment knows the user.
+func (c *Client) CheckUsername(username, productType string) (*UsernameCheck, error) {
 	username = strings.TrimPrefix(strings.TrimSpace(username), "@")
+	if productType == "" {
+		productType = "stars"
+	}
 	out := &UsernameCheck{}
-	if err := c.doJSON("GET", "/username/check?u="+username, nil, out); err != nil {
+	path := fmt.Sprintf("/username/check?u=%s&type=%s", username, productType)
+	if err := c.doJSON("GET", path, nil, out); err != nil {
 		return nil, err
 	}
 	return out, nil

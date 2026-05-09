@@ -51,11 +51,11 @@ func formatUSD(usd float64) string {
 	return fmt.Sprintf("~$%.2f", usd)
 }
 
-func (h *PaymentHandler) buildQuote(productType string, quantity int) (*quoteResponse, error) {
+func (h *PaymentHandler) buildQuote(productType string, quantity int, recipient string) (*quoteResponse, error) {
 	if h.fragment == nil || !h.fragment.Available() {
 		return nil, errors.New("fragment worker not configured")
 	}
-	q, err := h.fragment.Quote(productType, quantity)
+	q, err := h.fragment.Quote(productType, quantity, recipient)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,11 @@ func (h *PaymentHandler) getQuoteFromQuery(r *http.Request, productType string) 
 	if !validateQuantity(productType, qty) {
 		return nil, http.StatusBadRequest, "unsupported quantity"
 	}
-	q, err := h.buildQuote(productType, qty)
+	recipient := strings.TrimPrefix(strings.TrimSpace(r.URL.Query().Get("recipient")), "@")
+	if recipient == "" {
+		return nil, http.StatusBadRequest, "recipient required"
+	}
+	q, err := h.buildQuote(productType, qty, recipient)
 	if err != nil {
 		return nil, http.StatusServiceUnavailable, err.Error()
 	}
@@ -143,20 +147,23 @@ func (h *PaymentHandler) CheckUsername(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "username required")
 		return
 	}
+	productType := r.URL.Query().Get("type")
 	info := recipientInfo{OK: true, Username: username}
 
-	// Fragment validity (best effort).
+	// Primary source: Fragment worker — returns display name & photo for ANY
+	// public Telegram user (no need for the user to have interacted with our bot).
 	if h.fragment != nil && h.fragment.Available() {
-		if res, err := h.fragment.CheckUsername(username); err == nil {
+		if res, err := h.fragment.CheckUsername(username, productType); err == nil {
 			info.OK = res.OK
 			info.Reason = res.Reason
+			info.DisplayName = res.DisplayName
+			info.PhotoURL = res.PhotoURL
 		}
 	}
 
-	// Best-effort lookup of display name / avatar via Bot API. getChat works for
-	// users who have started a conversation with the bot or are public channels —
-	// for everyone else we silently fall back to username + first-letter avatar.
-	if info.OK && h.cfg.TelegramBotToken != "" {
+	// Fallback: Bot API getChat (only when Fragment didn't enrich). Works only
+	// for users who have started a conversation with the bot.
+	if info.OK && info.DisplayName == "" && info.PhotoURL == "" && h.cfg.TelegramBotToken != "" {
 		if dn, photoFileID := h.fetchTelegramChatInfo(username); dn != "" || photoFileID != "" {
 			info.DisplayName = dn
 			if photoFileID != "" {
@@ -297,7 +304,7 @@ func (h *PaymentHandler) CreateProductOrder(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Pre-flight: check wallet balance covers the cost.
-	q, err := h.fragment.Quote(req.Type, req.Quantity)
+	q, err := h.fragment.Quote(req.Type, req.Quantity, req.Recipient)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "failed to quote: "+err.Error())
 		return
@@ -315,7 +322,7 @@ func (h *PaymentHandler) CreateProductOrder(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Validate recipient via Fragment. Skip silently if check is unavailable.
-	if check, err := h.fragment.CheckUsername(req.Recipient); err == nil && !check.OK {
+	if check, err := h.fragment.CheckUsername(req.Recipient, req.Type); err == nil && !check.OK {
 		reason := check.Reason
 		if reason == "" {
 			reason = "recipient cannot accept this product"

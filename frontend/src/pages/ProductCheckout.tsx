@@ -113,14 +113,14 @@ export default function ProductCheckout({ type }: Props) {
   // ─── Recipient lookup (debounced) ──────────────────────────────────────────
   useEffect(() => {
     const u = recipient.trim().replace(/^@/, '');
-    if (u === ownUsername) {
+    if (u === ownUsername && ownUsername) {
       setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
       return;
     }
     if (u.length < 5) { setRecipientInfo(null); return; }
     const handle = setTimeout(async () => {
       try {
-        const res = await productApi.checkUsername(u);
+        const res = await productApi.checkUsername(u, type);
         setRecipientInfo(res.data);
         if (res.data.ok) setRecipientEditing(false);
       } catch {
@@ -128,17 +128,21 @@ export default function ProductCheckout({ type }: Props) {
       }
     }, 400);
     return () => clearTimeout(handle);
-  }, [recipient, ownUsername, ownDisplayName, ownPhoto]);
+  }, [recipient, ownUsername, ownDisplayName, ownPhoto, type]);
 
-  // ─── Quote (debounced) ─────────────────────────────────────────────────────
+  // ─── Quote (debounced; needs both quantity AND a resolved recipient) ───────
   useEffect(() => {
-    if (!quantity || quantity <= 0) { setQuote(null); return; }
+    const u = recipient.trim().replace(/^@/, '');
+    if (!quantity || quantity <= 0 || !u || !recipientInfo?.ok) {
+      setQuote(null);
+      return;
+    }
     const handle = setTimeout(async () => {
       setQuoteLoading(true);
       try {
         const res = type === 'stars'
-          ? await productApi.starsQuote(quantity)
-          : await productApi.premiumQuote(quantity);
+          ? await productApi.starsQuote(quantity, u)
+          : await productApi.premiumQuote(quantity, u);
         setQuote(res.data);
       } catch (e: any) {
         setQuote(null);
@@ -146,7 +150,7 @@ export default function ProductCheckout({ type }: Props) {
       } finally { setQuoteLoading(false); }
     }, 300);
     return () => clearTimeout(handle);
-  }, [quantity, type, labels.failedQuote]);
+  }, [quantity, type, recipient, recipientInfo?.ok, labels.failedQuote]);
 
   // ─── Methods ───────────────────────────────────────────────────────────────
   const methodList: PaymentMethod[] = useMemo(() => [
@@ -164,7 +168,7 @@ export default function ProductCheckout({ type }: Props) {
     setProcessing(true);
     try {
       try {
-        const check = await productApi.checkUsername(u);
+        const check = await productApi.checkUsername(u, type);
         if (!check.data.ok) {
           setError(check.data.reason || labels.invalidRecipient);
           return;

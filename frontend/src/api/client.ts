@@ -188,12 +188,12 @@ export interface ProductOrderStatus {
 }
 
 export const productApi = {
-  starsQuote: (quantity: number) =>
-    api.get<ProductQuote>('/products/stars/quote', { params: { quantity } }),
-  premiumQuote: (months: number) =>
-    api.get<ProductQuote>('/products/premium/quote', { params: { quantity: months } }),
-  checkUsername: (username: string) =>
-    api.get<UsernameCheck>('/products/username/check', { params: { u: username } }),
+  starsQuote: (quantity: number, recipient: string) =>
+    api.get<ProductQuote>('/products/stars/quote', { params: { quantity, recipient } }),
+  premiumQuote: (months: number, recipient: string) =>
+    api.get<ProductQuote>('/products/premium/quote', { params: { quantity: months, recipient } }),
+  checkUsername: (username: string, type?: 'stars' | 'premium') =>
+    api.get<UsernameCheck>('/products/username/check', { params: { u: username, type } }),
   createOrder: (params: {
     type: ProductType;
     recipient: string;

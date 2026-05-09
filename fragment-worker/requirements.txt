@@ -1,5 +1,4 @@
-aiohttp==3.9.5
-# Unofficial Fragment integration. The library fetches Stars/Premium prices and
-# performs purchases through a TON wallet authenticated against fragment.com.
-# Pin a recent release; the API surface changes often.
-fragment-api==0.4.0 ; python_version >= "3.10"
+aiohttp>=3.9
+# Unofficial Fragment SDK by whicencer — buys Stars/Premium via Fragment.
+# Pulls in tonutils, beautifulsoup4, requests automatically.
+fragment-sdk>=0.2.0
