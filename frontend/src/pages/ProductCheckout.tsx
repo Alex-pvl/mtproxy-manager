@@ -89,6 +89,20 @@ function formatMethodPrice(q: ProductQuote, method: PayMethod): string {
   return `${usd} (${rub})`;
 }
 
+// Compact price for the CTA: "~65 руб" / "~1.23 TON" / "~$1.20".
+function formatCtaPrice(q: ProductQuote, method: PayMethod): string {
+  if (method === 'ton') {
+    const ton = (Number(q.ton_amount) / 1_000_000_000).toFixed(2);
+    return `~${ton} TON`;
+  }
+  if (method === 'cryptobot') {
+    return `~${q.price_usd.replace(/^~/, '')}`;
+  }
+  // sbp — RUB
+  const num = q.price_rub.replace(/[^\d]/g, '');
+  return `~${num} руб`;
+}
+
 // Map raw Fragment SDK / worker error codes to user-friendly text.
 function friendlyError(raw: string, labels: { alreadyPremium: string; failedQuote: string; failedOrder: string }): string {
   const s = (raw || '').toLowerCase();
@@ -274,7 +288,7 @@ export default function ProductCheckout({ type }: Props) {
   const showResolved = !recipientEditing && !!resolvedRecipient && recipient.trim().length > 0;
 
   return (
-    <div className="spend-surface min-h-screen px-4 pt-6 pb-12 sm:pt-8 sm:pb-16 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div className="spend-scope px-1 pt-2 pb-8 sm:pt-4">
       {/* Tab pill */}
       <div className="flex justify-center mb-6">
         <div className="spend-tabs">
@@ -290,8 +304,10 @@ export default function ProductCheckout({ type }: Props) {
 
       {/* Heading */}
       <div className="mx-auto max-w-md mb-6 px-1 text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">{labels.title}</h1>
-        <p className="text-[#8b93b3] text-sm sm:text-base leading-relaxed">{labels.subtitle}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">{labels.title}</h1>
+        {labels.subtitle && (
+          <p className="mt-2 text-[#8b93b3] text-sm sm:text-base leading-relaxed">{labels.subtitle}</p>
+        )}
       </div>
 
       {/* Form */}
@@ -420,13 +436,6 @@ export default function ProductCheckout({ type }: Props) {
           </div>
         )}
 
-        {/* Total — currency of the selected method, RUB in parens */}
-        {quote && (
-          <p className="text-center text-sm text-[#8b93b3]">
-            {labels.totalLabel}: <span className="text-white font-semibold">{formatMethodPrice(quote, method)}</span>
-          </p>
-        )}
-
         {error && (
           <div className="text-sm text-red-300 bg-red-500/10 rounded-2xl px-4 py-3 border border-red-500/20">
             {error}
@@ -439,7 +448,9 @@ export default function ProductCheckout({ type }: Props) {
           disabled={!user || processing || !quote || !recipient}
           className="spend-cta mt-2"
         >
-          {processing ? t.payment.processing : `${labels.buyButton} ${type === 'stars' ? 'Stars' : 'Premium'}`}
+          {processing
+            ? t.payment.processing
+            : `${labels.buyButton} ${type === 'stars' ? 'Stars' : 'Premium'}${quote ? ` (${formatCtaPrice(quote, method)})` : ''}`}
         </button>
 
         <Link to="/" className="text-center text-sm text-[#8b93b3] hover:text-white mt-2">

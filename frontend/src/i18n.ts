@@ -23,8 +23,8 @@ const ru = {
     myServices: 'Мои сервисы',
   },
   showcase: {
-    title: 'Что вам сегодня нужно?',
-    subtitle: 'Выберите услугу — VPN-доступ, Telegram Stars или Premium',
+    title: 'Получите услуги Telegram быстро — без KYC.',
+    subtitle: 'Быстро. Безопасно. Просто.',
     openCard: 'Перейти',
     back: '← На главную',
     fragmentBadge: 'NEW',
@@ -47,7 +47,7 @@ const ru = {
   },
   stars: {
     title: 'Покупка Telegram Stars',
-    subtitle: 'Стоимость рассчитывается по текущему курсу Fragment',
+    subtitle: '',
     recipientTitle: 'Получатель',
     recipientSelf: 'Себе',
     recipientGift: 'Подарок',
@@ -74,7 +74,7 @@ const ru = {
   },
   premium: {
     title: 'Покупка Telegram Premium',
-    subtitle: 'Стоимость рассчитывается по текущему курсу Fragment',
+    subtitle: '',
     recipientTitle: 'Получатель',
     recipientSelf: 'Себе',
     recipientGift: 'Подарок',
@@ -286,8 +286,8 @@ const en = {
     myServices: 'My services',
   },
   showcase: {
-    title: 'What do you need today?',
-    subtitle: 'Pick a service — VPN access, Telegram Stars or Premium',
+    title: 'Get Telegram services fast — no KYC.',
+    subtitle: 'Fast. Secure. Simple.',
     openCard: 'Open',
     back: '← Back to home',
     fragmentBadge: 'NEW',
@@ -310,7 +310,7 @@ const en = {
   },
   stars: {
     title: 'Buy Telegram Stars',
-    subtitle: 'Price is computed from the current Fragment rate',
+    subtitle: '',
     recipientTitle: 'Recipient',
     recipientSelf: 'Myself',
     recipientGift: 'Gift',
@@ -337,7 +337,7 @@ const en = {
   },
   premium: {
     title: 'Buy Telegram Premium',
-    subtitle: 'Price is computed from the current Fragment rate',
+    subtitle: '',
     recipientTitle: 'Recipient',
     recipientSelf: 'Myself',
     recipientGift: 'Gift',

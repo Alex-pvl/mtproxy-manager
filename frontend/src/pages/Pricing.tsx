@@ -449,11 +449,7 @@ export default function Pricing() {
               <button
                 onClick={() => user ? handleBuyPlan(plan) : undefined}
                 disabled={!user || processingPlanId === plan.id}
-                className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation ${
-                  isPopular
-                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                    : 'bg-indigo-50 border border-indigo-200 dark:border-gray-700 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-gray-700 text-indigo-700 dark:text-gray-100'
-                }`}
+                className="spend-cta touch-manipulation"
               >
                 {processingPlanId === plan.id ? t.payment.processing : (sub?.active ? t.pricing.renew : t.pricing.buy)}
               </button>
