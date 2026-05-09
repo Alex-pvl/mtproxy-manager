@@ -43,6 +43,43 @@ func applyMarkupNano(nano int64, markupPct int) int64 {
 	return nano + nano*int64(markupPct)/100
 }
 
+// friendlyFragmentErr converts a worker error into user-facing text. Raw
+// worker messages (e.g. "fragment client unavailable", stack traces from the
+// SDK, "502 Bad Gateway") are noisy and unhelpful — collapse them down to a
+// short set of stable codes the frontend can localise.
+//
+// Returned codes:
+//
+//	recipient_not_found   — username invalid / can't accept Stars/Premium
+//	already_premium       — recipient already has Premium
+//	quote_failed          — Fragment refused to quote
+//	service_unavailable   — worker/network/SDK transport failure
+func friendlyFragmentErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	raw := err.Error()
+	s := strings.ToLower(raw)
+	log.Printf("fragment error: %s", raw)
+	switch {
+	case strings.Contains(s, "already_premium"), strings.Contains(s, "already premium"):
+		return "already_premium"
+	case strings.Contains(s, "recipient not found"),
+		strings.Contains(s, "recipient_not_found"),
+		strings.Contains(s, "cannot accept"),
+		strings.Contains(s, "invalid username"):
+		return "recipient_not_found"
+	case strings.Contains(s, "quote") && (strings.Contains(s, "fail") || strings.Contains(s, "error")):
+		return "quote_failed"
+	case strings.Contains(s, "fragment client unavailable"),
+		strings.Contains(s, "fragment worker not configured"):
+		return "service_unavailable"
+	}
+	// Network/transport errors and unmapped SDK errors all collapse to
+	// service_unavailable — the user can't act on the underlying detail.
+	return "service_unavailable"
+}
+
 func formatRUB(rub float64) string {
 	return fmt.Sprintf("%.0f ₽", math.Ceil(rub))
 }
@@ -94,7 +131,7 @@ func (h *PaymentHandler) getQuoteFromQuery(r *http.Request, productType string) 
 	}
 	q, err := h.buildQuote(productType, qty, recipient)
 	if err != nil {
-		return nil, http.StatusServiceUnavailable, err.Error()
+		return nil, http.StatusServiceUnavailable, friendlyFragmentErr(err)
 	}
 	return q, http.StatusOK, ""
 }
@@ -253,7 +290,7 @@ func (h *PaymentHandler) ServeTelegramPhoto(w http.ResponseWriter, r *http.Reque
 // ─── Order creation (Stars/Premium) ──────────────────────────────────────────
 
 type createProductOrderRequest struct {
-	Type      string `json:"type"`     // "stars" | "premium"
+	Type      string `json:"type"`      // "stars" | "premium"
 	Recipient string `json:"recipient"` // username (no @)
 	Quantity  int    `json:"quantity"`
 	Method    string `json:"method"` // "sbp" | "cryptobot" | "ton"
@@ -280,7 +317,7 @@ func (h *PaymentHandler) CreateProductOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if h.fragment == nil || !h.fragment.Available() {
-		writeError(w, http.StatusServiceUnavailable, "fragment worker not configured")
+		writeError(w, http.StatusServiceUnavailable, "service_unavailable")
 		return
 	}
 
@@ -306,12 +343,13 @@ func (h *PaymentHandler) CreateProductOrder(w http.ResponseWriter, r *http.Reque
 	// Pre-flight: check wallet balance covers the cost.
 	q, err := h.fragment.Quote(req.Type, req.Quantity, req.Recipient)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "failed to quote: "+err.Error())
+		writeError(w, http.StatusBadGateway, friendlyFragmentErr(err))
 		return
 	}
 	balance, err := h.fragment.Balance()
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "failed to read balance: "+err.Error())
+		log.Printf("fragment balance error: %v", err)
+		writeError(w, http.StatusServiceUnavailable, "service_unavailable")
 		return
 	}
 	// Block if balance < cost + safety floor.

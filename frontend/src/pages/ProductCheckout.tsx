@@ -103,12 +103,28 @@ function formatCtaPrice(q: ProductQuote, method: PayMethod): string {
   return `~${num} руб`;
 }
 
-// Map raw Fragment SDK / worker error codes to user-friendly text.
-function friendlyError(raw: string, labels: { alreadyPremium: string; failedQuote: string; failedOrder: string }): string {
-  const s = (raw || '').toLowerCase();
-  if (s.includes('already_premium') || s.includes('already premium')) return labels.alreadyPremium;
-  if (s.includes('quote') && s.includes('fail')) return labels.failedQuote;
-  return raw || labels.failedOrder;
+// Map backend error codes to user-friendly text. The backend collapses raw
+// worker / SDK errors into a small set of stable codes (see
+// friendlyFragmentErr in backend/internal/handlers/fragment.go); anything else
+// falls back to a generic "failed to place order" message — we never surface
+// raw transport errors like "fragment worker 502: ...".
+function friendlyError(
+  raw: string,
+  labels: {
+    alreadyPremium: string;
+    failedQuote: string;
+    failedOrder: string;
+    serviceUnavailable: string;
+    recipientNotFound: string;
+  },
+): string {
+  const s = (raw || '').trim().toLowerCase();
+  if (!s) return labels.failedOrder;
+  if (s === 'already_premium' || s.includes('already premium')) return labels.alreadyPremium;
+  if (s === 'recipient_not_found') return labels.recipientNotFound.replace('{username}', '');
+  if (s === 'quote_failed') return labels.failedQuote;
+  if (s === 'service_unavailable') return labels.serviceUnavailable;
+  return labels.failedOrder;
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────

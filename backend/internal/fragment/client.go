@@ -19,6 +19,21 @@ type Client struct {
 	http    *http.Client
 }
 
+// Error is returned for non-2xx responses from the worker. The Message is the
+// raw worker-side error string (e.g. "recipient not found"); use FriendlyError
+// to map it to user-facing text.
+type Error struct {
+	Status  int
+	Message string
+}
+
+func (e *Error) Error() string { return e.Message }
+
+// IsNotConfigured reports whether the error is the worker-not-configured one.
+func IsNotConfigured(err error) bool {
+	return err != nil && err.Error() == "fragment worker not configured"
+}
+
 func NewClient(baseURL, token string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
@@ -99,10 +114,14 @@ func (c *Client) doJSON(method, path string, body, out interface{}) error {
 			Error string `json:"error"`
 		}
 		_ = json.Unmarshal(respBody, &e)
-		if e.Error == "" {
-			e.Error = string(respBody)
+		msg := strings.TrimSpace(e.Error)
+		if msg == "" {
+			msg = strings.TrimSpace(string(respBody))
 		}
-		return fmt.Errorf("fragment worker %d: %s", resp.StatusCode, e.Error)
+		if msg == "" {
+			msg = http.StatusText(resp.StatusCode)
+		}
+		return &Error{Status: resp.StatusCode, Message: msg}
 	}
 	if out == nil {
 		return nil
