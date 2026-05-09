@@ -59,7 +59,7 @@ export default function Home() {
                 {c.badge}
               </span>
             )}
-            <Sticker name={c.sticker} className="w-20 h-20 sm:w-24 sm:h-24 mb-3" />
+            <Sticker name={c.sticker} className="w-28 h-28 sm:w-36 sm:h-36 mb-3" />
             <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
               {c.title}
             </h3>
