@@ -213,7 +213,7 @@ export default function ProductCheckout({ type }: Props) {
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
-  const heroSrc = type === 'stars' ? '/buy-stars.webp' : '/buy-premium.webp';
+  const heroSrc = type === 'stars' ? '/stickers/buy_stars.webp' : '/stickers/buy_premium.webp';
   const resolvedRecipient = recipientInfo?.ok ? recipientInfo : null;
   const showResolved = !recipientEditing && !!resolvedRecipient && recipient.trim().length > 0;
 

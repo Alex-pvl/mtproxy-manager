@@ -22,14 +22,14 @@ export default function Home() {
     },
     {
       to: '/stars',
-      sticker: 'cipher',
+      sticker: 'buy_stars',
       title: t.showcase.stars.title,
       desc: t.showcase.stars.desc,
       badge: t.showcase.fragmentBadge,
     },
     {
       to: '/premium',
-      sticker: 'no_logs',
+      sticker: 'buy_premium',
       title: t.showcase.premium.title,
       desc: t.showcase.premium.desc,
       badge: t.showcase.fragmentBadge,
