@@ -82,34 +82,45 @@ async def _get_clients():
         return _fragment, _wallet
 
 
-# ─── USD rate cache (TON↔RUB comes from Fragment itself) ─────────────────────
+# ─── TON fiat rate cache ─────────────────────────────────────────────────────
+# Fragment SDK's ctx.ton_rate is USD-per-TON, not RUB. Both rates come from
+# CoinGecko in a single call.
 
 
 @dataclass
-class _UsdCache:
+class _RateCache:
     ton_usd: float = 0.0
+    ton_rub: float = 0.0
     fetched_at: float = 0.0
 
 
-_usd_cache = _UsdCache()
+_rate_cache = _RateCache()
 
 
-async def _ton_usd_rate() -> float:
-    global _usd_cache
-    if time.time() - _usd_cache.fetched_at < USD_RATE_REFRESH_SEC and _usd_cache.ton_usd > 0:
-        return _usd_cache.ton_usd
+async def _ton_fiat_rates() -> tuple[float, float]:
+    """Returns (ton_usd, ton_rub)."""
+    global _rate_cache
+    if time.time() - _rate_cache.fetched_at < USD_RATE_REFRESH_SEC and _rate_cache.ton_usd > 0:
+        return _rate_cache.ton_usd, _rate_cache.ton_rub
     import aiohttp
-    url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
+    url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd,rub"
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as sess:
             async with sess.get(url) as resp:
                 data = await resp.json()
-        rate = float(data.get("the-open-network", {}).get("usd") or 0)
-        if rate > 0:
-            _usd_cache = _UsdCache(ton_usd=rate, fetched_at=time.time())
+        node = data.get("the-open-network", {})
+        usd = float(node.get("usd") or 0)
+        rub = float(node.get("rub") or 0)
+        if usd > 0:
+            _rate_cache = _RateCache(ton_usd=usd, ton_rub=rub, fetched_at=time.time())
     except Exception as e:  # noqa: BLE001
-        log.warning("usd rate fetch failed: %s", e)
-    return _usd_cache.ton_usd
+        log.warning("ton fiat rate fetch failed: %s", e)
+    return _rate_cache.ton_usd, _rate_cache.ton_rub
+
+
+async def _ton_usd_rate() -> float:
+    usd, _ = await _ton_fiat_rates()
+    return usd
 
 
 # ─── Order state (in-memory) ─────────────────────────────────────────────────
@@ -220,8 +231,7 @@ async def quote(request: web.Request):
         # (e.g. "3,065.2674"), so strip them before parsing.
         amount_raw = str(init.data.amount).replace(",", "").strip()
         ton_cost_nano = int(round(float(amount_raw) * NANO))
-        ton_rub_rate = float(client._ctx.ton_rate or 0)
-        ton_usd_rate = await _ton_usd_rate()
+        ton_usd_rate, ton_rub_rate = await _ton_fiat_rates()
         return web.json_response({
             "ton_cost_nano": ton_cost_nano,
             "ton_rub_rate": ton_rub_rate,
