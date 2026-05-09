@@ -47,6 +47,8 @@
 }
 .spend-pill:hover { background: #252a44; }
 .spend-pill:focus-within { border-color: #3aa8fc; }
+.spend-pill--error,
+.spend-pill--error:focus-within { border-color: #fb7185; }
 .spend-pill__icon {
   width: 22px;
   height: 22px;

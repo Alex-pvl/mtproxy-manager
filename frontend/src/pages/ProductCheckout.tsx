@@ -112,10 +112,24 @@ export default function ProductCheckout({ type }: Props) {
 
   // ─── Recipient lookup — fires only on blur / Enter ─────────────────────────
   const [recipientLoading, setRecipientLoading] = useState(false);
+  const [recipientError, setRecipientError] = useState('');
+
+  // Any edit invalidates the previously resolved info — prevents firing /quote
+  // against a stale (resolved) username after the user starts typing a new one.
+  useEffect(() => {
+    const u = recipient.trim().replace(/^@/, '');
+    if (recipientInfo && recipientInfo.username !== u) {
+      setRecipientInfo(null);
+      setRecipientError('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipient]);
+
   const lookupRecipient = async () => {
     const u = recipient.trim().replace(/^@/, '');
-    if (!u || u.length < 5) { setRecipientInfo(null); return; }
+    if (!u || u.length < 5) { setRecipientInfo(null); setRecipientError(''); return; }
     if (recipientInfo?.ok && recipientInfo.username === u) return;
+    setRecipientError('');
     // Own username: resolve locally from Mini App data without hitting the worker.
     if (u === ownUsername && ownUsername) {
       setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
@@ -126,9 +140,14 @@ export default function ProductCheckout({ type }: Props) {
     try {
       const res = await productApi.checkUsername(u, type);
       setRecipientInfo(res.data);
-      if (res.data.ok) setRecipientEditing(false);
+      if (res.data.ok) {
+        setRecipientEditing(false);
+      } else {
+        setRecipientError(labels.recipientNotFound.replace('{username}', u));
+      }
     } catch {
       setRecipientInfo(null);
+      setRecipientError(labels.recipientNotFound.replace('{username}', u));
     } finally {
       setRecipientLoading(false);
     }
@@ -265,44 +284,49 @@ export default function ProductCheckout({ type }: Props) {
             <span className="spend-pill__value-right">@{resolvedRecipient!.username}</span>
           </button>
         ) : (
-          <div className="spend-pill">
-            <span className="spend-pill__icon">@</span>
-            <input
-              ref={recipientInputRef}
-              type="text"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={recipient.replace(/^@/, '')}
-              placeholder={labels.recipientPlaceholder}
-              onChange={(e) => setRecipient(e.target.value.replace(/^@/, '').trim())}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  (e.target as HTMLInputElement).blur();
+          <div>
+            {recipientError && (
+              <p className="text-xs text-rose-400 mb-1.5 px-1">{recipientError}</p>
+            )}
+            <div className={`spend-pill ${recipientError ? 'spend-pill--error' : ''}`}>
+              <span className="spend-pill__icon">@</span>
+              <input
+                ref={recipientInputRef}
+                type="text"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={recipient.replace(/^@/, '')}
+                placeholder={labels.recipientPlaceholder}
+                onChange={(e) => setRecipient(e.target.value.replace(/^@/, '').trim())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                    lookupRecipient();
+                  }
+                }}
+                onBlur={() => {
+                  if (!recipient && ownUsername) {
+                    setRecipient(ownUsername);
+                    return;
+                  }
                   lookupRecipient();
-                }
-              }}
-              onBlur={() => {
-                if (!recipient && ownUsername) {
-                  setRecipient(ownUsername);
-                  return;
-                }
-                lookupRecipient();
-              }}
-            />
-            {recipientLoading && (
-              <span className="spend-pill__value-right">…</span>
-            )}
-            {!recipientLoading && ownUsername && recipient !== ownUsername && (
-              <button
-                type="button"
-                onClick={() => { setRecipient(ownUsername); setRecipientEditing(false); }}
-                className="spend-pill__value-right hover:text-white"
-              >
-                {labels.recipientUseSelf}
-              </button>
-            )}
+                }}
+              />
+              {recipientLoading && (
+                <span className="spend-pill__value-right">…</span>
+              )}
+              {!recipientLoading && ownUsername && recipient !== ownUsername && (
+                <button
+                  type="button"
+                  onClick={() => { setRecipient(ownUsername); setRecipientEditing(false); }}
+                  className="spend-pill__value-right hover:text-white"
+                >
+                  {labels.recipientUseSelf}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
