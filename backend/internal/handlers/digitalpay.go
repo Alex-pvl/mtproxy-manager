@@ -151,19 +151,22 @@ func (h *PaymentHandler) DigitalPayWebhook(w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		plan := models.GetPlan(payment.PlanID)
-		if plan == nil {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if err := h.activateSubscription(payment.UserID, plan, payment.ExternalID); err != nil {
-			log.Printf("DigitalPay webhook activate failed: %v", err)
+		if err := h.fulfillPayment(payment.ExternalID); err != nil {
+			log.Printf("DigitalPay webhook fulfill failed: %v", err)
 		}
 	case 3: // Canceled
 		_ = h.db.UpdatePaymentStatus(externalID, "canceled")
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *PaymentHandler) checkDigitalPayPaymentByID(externalID string) error {
+	var (
+		userID int64
+		plan   *models.Plan
+	)
+	return h.checkDigitalPayPayment(externalID, userID, plan)
 }
 
 func (h *PaymentHandler) checkDigitalPayPayment(externalID string, userID int64, plan *models.Plan) error {
@@ -199,7 +202,9 @@ func (h *PaymentHandler) checkDigitalPayPayment(externalID string, userID int64,
 
 	switch result.Data.Status {
 	case "Completed", "CompletedOnDispute", "Payed":
-		return h.activateSubscription(userID, plan, externalID)
+		_ = userID
+		_ = plan
+		return h.fulfillPayment(externalID)
 	case "Canceled":
 		return h.db.UpdatePaymentStatus(externalID, "canceled")
 	default:

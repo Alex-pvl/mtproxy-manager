@@ -15,6 +15,8 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Referral = lazy(() => import('./pages/Referral'));
 const SbpAgreement = lazy(() => import('./pages/SbpAgreement'));
+const Stars = lazy(() => import('./pages/Stars'));
+const Premium = lazy(() => import('./pages/Premium'));
 
 function PageFallback() {
   return (
@@ -45,6 +47,8 @@ export default function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/proxies" element={<Proxies />} />
                     <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/stars" element={<Stars />} />
+                  <Route path="/premium" element={<Premium />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/referral" element={<Referral />} />
                     <Route path="/legal/sbp" element={<SbpAgreement />} />

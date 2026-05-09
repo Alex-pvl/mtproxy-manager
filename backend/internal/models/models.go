@@ -112,11 +112,46 @@ type Subscription struct {
 }
 
 type Payment struct {
-	ID         int64     `json:"id"`
-	UserID     int64     `json:"user_id"`
-	PlanID     string    `json:"plan_id"`
-	ExternalID string    `json:"external_id"`
-	Amount     string    `json:"amount"`
-	Status     string    `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
+	PlanID      string    `json:"plan_id"`
+	ExternalID  string    `json:"external_id"`
+	Amount      string    `json:"amount"`
+	Status      string    `json:"status"`
+	ProductType string    `json:"product_type"`
+	Metadata    string    `json:"metadata,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
+
+// --- Products: Stars & Premium ---
+
+type ProductType string
+
+const (
+	ProductVPN     ProductType = "vpn"
+	ProductStars   ProductType = "stars"
+	ProductPremium ProductType = "premium"
+)
+
+// FragmentOrder tracks a Stars/Premium delivery via Fragment worker.
+type FragmentOrder struct {
+	ID                int64     `json:"id"`
+	PaymentID         int64     `json:"payment_id"`
+	UserID            int64     `json:"user_id"`
+	Type              string    `json:"type"` // "stars" | "premium"
+	RecipientUsername string    `json:"recipient_username"`
+	Quantity          int       `json:"quantity"` // stars amount, or months for premium
+	Status            string    `json:"status"`   // "pending"|"processing"|"delivered"|"failed"
+	FragmentTxHash    string    `json:"fragment_tx_hash,omitempty"`
+	Error             string    `json:"error,omitempty"`
+	Attempts          int       `json:"attempts"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+// StarsPackages — preset stars amounts shown on the showcase.
+// Final price is computed dynamically from Fragment quote + markup.
+var StarsPackages = []int{50, 100, 250, 500, 1000, 2500, 5000}
+
+// PremiumMonthsOptions — supported gift periods for Telegram Premium.
+var PremiumMonthsOptions = []int{3, 6, 12}

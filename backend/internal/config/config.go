@@ -35,6 +35,14 @@ type Config struct {
 	// TON wallet address for direct TON payments
 	TonWalletAddress string
 
+	// Fragment worker (Python sidecar) for Stars / Premium fulfillment
+	FragmentWorkerURL   string
+	FragmentWorkerToken string
+	StarsMarkupPct      int
+	PremiumMarkupPct    int
+	// Minimum TON balance (in nanoTON) below which orders are blocked.
+	MinTonBalanceNano int64
+
 	// x-ui / 3x-ui panel integration for VLESS link generation
 	XUIEnabled    bool
 	XUIURL        string
@@ -72,6 +80,11 @@ func Load() *Config {
 		TGClientID:           getEnv("TG_CLIENT_ID", ""),
 		TGClientSecret:       getEnv("TG_CLIENT_SECRET", ""),
 		TonWalletAddress:     getEnv("TON_WALLET_ADDRESS", ""),
+		FragmentWorkerURL:    getEnv("FRAGMENT_WORKER_URL", ""),
+		FragmentWorkerToken:  getEnv("FRAGMENT_WORKER_TOKEN", ""),
+		StarsMarkupPct:       getEnvInt("STARS_MARKUP_PCT", 15),
+		PremiumMarkupPct:     getEnvInt("PREMIUM_MARKUP_PCT", 15),
+		MinTonBalanceNano:    int64(getEnvInt("MIN_TON_BALANCE_NANO", 500000000)),
 		XUIEnabled:           xuiURL != "",
 		XUIURL:               xuiURL,
 		XUIPathPrefix:        getEnv("XUI_PATH_PREFIX", ""),

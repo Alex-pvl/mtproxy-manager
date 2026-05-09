@@ -145,4 +145,62 @@ export const paymentApi = {
   getSubscription: () => api.get<Subscription>('/subscription'),
 };
 
+// ─── Telegram Stars / Premium via Fragment ────────────────────────────────────
+
+export type ProductType = 'stars' | 'premium';
+
+export interface ProductQuote {
+  type: ProductType;
+  quantity: number;
+  ton_cost_nano: number;
+  ton_amount: string;
+  price_rub: string;
+  price_usd: string;
+  markup_pct: number;
+}
+
+export interface UsernameCheck {
+  ok: boolean;
+  username: string;
+  reason?: string;
+}
+
+export interface ProductOrderResponse {
+  order_id: number;
+  price_rub: string;
+  price_usd: string;
+  payment_url?: string;
+  // TON-specific
+  address?: string;
+  amount?: string;
+  comment?: string;
+}
+
+export interface ProductOrderStatus {
+  order_id: number;
+  status: 'pending' | 'processing' | 'delivered' | 'failed';
+  type: ProductType;
+  quantity: number;
+  tx_hash?: string;
+  error?: string;
+}
+
+export const productApi = {
+  starsQuote: (quantity: number) =>
+    api.get<ProductQuote>('/products/stars/quote', { params: { quantity } }),
+  premiumQuote: (months: number) =>
+    api.get<ProductQuote>('/products/premium/quote', { params: { quantity: months } }),
+  checkUsername: (username: string) =>
+    api.get<UsernameCheck>('/products/username/check', { params: { u: username } }),
+  createOrder: (params: {
+    type: ProductType;
+    recipient: string;
+    quantity: number;
+    method: 'sbp' | 'cryptobot' | 'ton';
+    source?: 'web' | 'tg';
+  }) => api.post<ProductOrderResponse>('/products/order', params),
+  getOrder: (orderId: number) =>
+    api.get<ProductOrderStatus>(`/products/orders/${orderId}`),
+};
+
 export default api;

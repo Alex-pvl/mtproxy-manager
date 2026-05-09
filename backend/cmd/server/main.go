@@ -120,6 +120,16 @@ func main() {
 			r.Post("/check-pending", paymentHandler.CheckPendingPayments)
 		})
 
+		// Stars / Premium via Fragment
+		r.Route("/products", func(r chi.Router) {
+			r.Use(middleware.AuthRequired(jwtSvc))
+			r.Get("/stars/quote", paymentHandler.GetStarsQuote)
+			r.Get("/premium/quote", paymentHandler.GetPremiumQuote)
+			r.Get("/username/check", paymentHandler.CheckUsername)
+			r.Post("/order", paymentHandler.CreateProductOrder)
+			r.Get("/orders/{id}", paymentHandler.GetOrderStatus)
+		})
+
 		r.With(middleware.AuthRequired(jwtSvc)).Get("/subscription", paymentHandler.GetSubscription)
 		r.With(middleware.AuthRequired(jwtSvc)).Get("/referral", referralHandler.Get)
 	})

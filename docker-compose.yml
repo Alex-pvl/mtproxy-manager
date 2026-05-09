@@ -35,6 +35,30 @@ services:
       - MTG_IMAGE=${MTG_IMAGE:-nineseconds/mtg:2}
       - BASE_URL=${BASE_URL}
       - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - FRAGMENT_WORKER_URL=${FRAGMENT_WORKER_URL:-http://fragment-worker:8080}
+      - FRAGMENT_WORKER_TOKEN=${FRAGMENT_WORKER_TOKEN}
+      - STARS_MARKUP_PCT=${STARS_MARKUP_PCT:-15}
+      - PREMIUM_MARKUP_PCT=${PREMIUM_MARKUP_PCT:-15}
+      - MIN_TON_BALANCE_NANO=${MIN_TON_BALANCE_NANO:-500000000}
+    depends_on:
+      - fragment-worker
+
+  fragment-worker:
+    build:
+      context: ./fragment-worker
+    container_name: fragment-worker
+    restart: unless-stopped
+    networks:
+      - proxy-net
+    env_file:
+      - .env
+    environment:
+      - PORT=8080
+      - FRAGMENT_WORKER_TOKEN=${FRAGMENT_WORKER_TOKEN}
+      - WALLET_MNEMONIC=${WALLET_MNEMONIC}
+      - FRAGMENT_COOKIES=${FRAGMENT_COOKIES}
+      - TG_API_ID=${TG_API_ID}
+      - TG_API_HASH=${TG_API_HASH}
 
 networks:
   proxy-net:

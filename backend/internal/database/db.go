@@ -154,6 +154,34 @@ func (db *DB) migrate() error {
 		}
 	}
 
+	// Products: payments now reference a product_type with optional metadata,
+	// and a separate table tracks Fragment fulfillment for stars/premium.
+	for _, alter := range []string{
+		"ALTER TABLE payments ADD COLUMN IF NOT EXISTS product_type TEXT NOT NULL DEFAULT 'vpn'",
+		"ALTER TABLE payments ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb",
+		`CREATE TABLE IF NOT EXISTS fragment_orders (
+			id BIGSERIAL PRIMARY KEY,
+			payment_id BIGINT NOT NULL UNIQUE,
+			user_id BIGINT NOT NULL,
+			type TEXT NOT NULL,
+			recipient_username TEXT NOT NULL,
+			quantity INTEGER NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			fragment_tx_hash TEXT NOT NULL DEFAULT '',
+			error TEXT NOT NULL DEFAULT '',
+			attempts INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+		"CREATE INDEX IF NOT EXISTS idx_fragment_orders_status ON fragment_orders(status) WHERE status IN ('pending','processing')",
+	} {
+		if _, err := db.conn.Exec(alter); err != nil {
+			return err
+		}
+	}
+
 	return db.ensureAdmin()
 }
 
@@ -461,19 +489,35 @@ func (db *DB) GetUsedPorts() (map[int]bool, error) {
 // --- Payment queries ---
 
 func (db *DB) CreatePayment(p *models.Payment) error {
+	productType := p.ProductType
+	if productType == "" {
+		productType = string(models.ProductVPN)
+	}
+	metadata := p.Metadata
+	if metadata == "" {
+		metadata = "{}"
+	}
 	err := db.conn.QueryRow(
-		`INSERT INTO payments (user_id, plan_id, external_id, amount, status) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
-		p.UserID, p.PlanID, p.ExternalID, p.Amount, p.Status,
+		`INSERT INTO payments (user_id, plan_id, external_id, amount, status, product_type, metadata)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb) RETURNING id, created_at`,
+		p.UserID, p.PlanID, p.ExternalID, p.Amount, p.Status, productType, metadata,
 	).Scan(&p.ID, &p.CreatedAt)
+	if err == nil {
+		p.ProductType = productType
+		p.Metadata = metadata
+	}
 	return err
 }
 
 func (db *DB) GetPaymentByExternalID(externalID string) (*models.Payment, error) {
 	p := &models.Payment{}
 	err := db.conn.QueryRow(
-		`SELECT id, user_id, plan_id, external_id, amount, status, created_at FROM payments WHERE external_id = $1`,
+		`SELECT id, user_id, plan_id, external_id, amount, status,
+			COALESCE(product_type, 'vpn'), COALESCE(metadata::text, '{}'), created_at
+		 FROM payments WHERE external_id = $1`,
 		externalID,
-	).Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status, &p.CreatedAt)
+	).Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status,
+		&p.ProductType, &p.Metadata, &p.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +531,9 @@ func (db *DB) UpdatePaymentStatus(externalID, status string) error {
 
 func (db *DB) GetPendingPaymentsByUser(userID int64) ([]*models.Payment, error) {
 	rows, err := db.conn.Query(
-		`SELECT id, user_id, plan_id, external_id, amount, status, created_at FROM payments WHERE user_id = $1 AND status = 'pending' ORDER BY created_at DESC`,
+		`SELECT id, user_id, plan_id, external_id, amount, status,
+			COALESCE(product_type, 'vpn'), COALESCE(metadata::text, '{}'), created_at
+		 FROM payments WHERE user_id = $1 AND status = 'pending' ORDER BY created_at DESC`,
 		userID,
 	)
 	if err != nil {
@@ -497,10 +543,86 @@ func (db *DB) GetPendingPaymentsByUser(userID int64) ([]*models.Payment, error) 
 	var out []*models.Payment
 	for rows.Next() {
 		p := &models.Payment{}
-		if err := rows.Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status,
+			&p.ProductType, &p.Metadata, &p.CreatedAt); err != nil {
 			continue
 		}
 		out = append(out, p)
+	}
+	return out, nil
+}
+
+// --- Fragment orders ---
+
+func (db *DB) CreateFragmentOrder(o *models.FragmentOrder) error {
+	return db.conn.QueryRow(
+		`INSERT INTO fragment_orders (payment_id, user_id, type, recipient_username, quantity, status)
+		 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at`,
+		o.PaymentID, o.UserID, o.Type, o.RecipientUsername, o.Quantity, o.Status,
+	).Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt)
+}
+
+func (db *DB) GetFragmentOrderByID(id int64) (*models.FragmentOrder, error) {
+	o := &models.FragmentOrder{}
+	err := db.conn.QueryRow(
+		`SELECT id, payment_id, user_id, type, recipient_username, quantity, status,
+			fragment_tx_hash, error, attempts, created_at, updated_at
+		 FROM fragment_orders WHERE id = $1`,
+		id,
+	).Scan(&o.ID, &o.PaymentID, &o.UserID, &o.Type, &o.RecipientUsername, &o.Quantity,
+		&o.Status, &o.FragmentTxHash, &o.Error, &o.Attempts, &o.CreatedAt, &o.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return o, nil
+}
+
+func (db *DB) GetFragmentOrderByPaymentID(paymentID int64) (*models.FragmentOrder, error) {
+	o := &models.FragmentOrder{}
+	err := db.conn.QueryRow(
+		`SELECT id, payment_id, user_id, type, recipient_username, quantity, status,
+			fragment_tx_hash, error, attempts, created_at, updated_at
+		 FROM fragment_orders WHERE payment_id = $1`,
+		paymentID,
+	).Scan(&o.ID, &o.PaymentID, &o.UserID, &o.Type, &o.RecipientUsername, &o.Quantity,
+		&o.Status, &o.FragmentTxHash, &o.Error, &o.Attempts, &o.CreatedAt, &o.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return o, nil
+}
+
+func (db *DB) UpdateFragmentOrderStatus(id int64, status, txHash, errMsg string) error {
+	_, err := db.conn.Exec(
+		`UPDATE fragment_orders SET status = $1, fragment_tx_hash = $2, error = $3,
+			attempts = attempts + 1, updated_at = NOW() WHERE id = $4`,
+		status, txHash, errMsg, id,
+	)
+	return err
+}
+
+func (db *DB) ListPendingFragmentOrders(limit int) ([]*models.FragmentOrder, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := db.conn.Query(
+		`SELECT id, payment_id, user_id, type, recipient_username, quantity, status,
+			fragment_tx_hash, error, attempts, created_at, updated_at
+		 FROM fragment_orders WHERE status IN ('pending','processing') ORDER BY created_at LIMIT $1`,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*models.FragmentOrder
+	for rows.Next() {
+		o := &models.FragmentOrder{}
+		if err := rows.Scan(&o.ID, &o.PaymentID, &o.UserID, &o.Type, &o.RecipientUsername, &o.Quantity,
+			&o.Status, &o.FragmentTxHash, &o.Error, &o.Attempts, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			continue
+		}
+		out = append(out, o)
 	}
 	return out, nil
 }

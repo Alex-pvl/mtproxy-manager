@@ -16,6 +16,7 @@ import (
 
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/database"
+	"mtproxy-manager/internal/fragment"
 	"mtproxy-manager/internal/models"
 	"mtproxy-manager/internal/xui"
 )
@@ -25,11 +26,17 @@ const cryptoPayAPI = "https://pay.crypt.bot/api"
 type PaymentHandler struct {
 	db        *database.DB
 	cfg       *config.Config
-	xuiClient *xui.Client // nil if x-ui integration is disabled
+	xuiClient *xui.Client      // nil if x-ui integration is disabled
+	fragment  *fragment.Client // nil-safe; checked via Available()
 }
 
 func NewPaymentHandler(db *database.DB, cfg *config.Config, xuiClient *xui.Client) *PaymentHandler {
-	return &PaymentHandler{db: db, cfg: cfg, xuiClient: xuiClient}
+	return &PaymentHandler{
+		db:        db,
+		cfg:       cfg,
+		xuiClient: xuiClient,
+		fragment:  fragment.NewClient(cfg.FragmentWorkerURL, cfg.FragmentWorkerToken),
+	}
 }
 
 func (h *PaymentHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
@@ -190,29 +197,9 @@ func (h *PaymentHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var meta struct {
-		UserID string `json:"user_id"`
-		PlanID string `json:"plan_id"`
-	}
-	if err := json.Unmarshal([]byte(update.Payload.Payload), &meta); err != nil {
-		log.Printf("Webhook payload parse error: %v", err)
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	userID, _ := strconv.ParseInt(meta.UserID, 10, 64)
-	planID := meta.PlanID
-
-	plan := models.GetPlan(planID)
-	if plan == nil || userID == 0 {
-		log.Printf("Invalid plan_id=%s or user_id=%d in webhook", planID, userID)
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	externalID := strconv.FormatInt(update.Payload.InvoiceID, 10)
-	if err := h.activateSubscription(userID, plan, externalID); err != nil {
-		log.Printf("Failed to create subscription: %v", err)
+	if err := h.fulfillPayment(externalID); err != nil {
+		log.Printf("CryptoPay webhook fulfill: %v", err)
 	}
 
 	w.WriteHeader(http.StatusOK)

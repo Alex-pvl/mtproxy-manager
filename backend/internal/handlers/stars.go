@@ -247,8 +247,20 @@ func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.activateSubscription(userID, plan, sp.TelegramPaymentChargeID); err != nil {
-			log.Printf("BotWebhook: failed to activate subscription for user %d: %v", userID, err)
+		_ = userID
+		_ = plan
+		// Stars XTR external_id was created earlier as "stars_<userID>_<ms>" — fulfillPayment will look it up.
+		// However the webhook only delivers TelegramPaymentChargeID; we look up via payload metadata instead.
+		// For backwards compatibility, find the latest pending stars payment of this user+plan and fulfill.
+		if pending, err := h.db.GetPendingPaymentsByUser(userID); err == nil {
+			for _, p := range pending {
+				if p.PlanID == plan.ID && strings.HasPrefix(p.ExternalID, "stars_") {
+					if err := h.fulfillPayment(p.ExternalID); err != nil {
+						log.Printf("BotWebhook: fulfill stars payment %s: %v", p.ExternalID, err)
+					}
+					break
+				}
+			}
 		}
 	}
 
@@ -521,27 +533,37 @@ func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Req
 		if p.Status != "pending" {
 			continue
 		}
-		plan := models.GetPlan(p.PlanID)
-		if plan == nil {
-			continue
+		// VPN payments need plan.TonAmount for TON polling. Non-VPN payments
+		// store the nano amount directly in payment.Amount.
+		var tonWantNano string
+		switch models.ProductType(p.ProductType) {
+		case models.ProductStars, models.ProductPremium:
+			tonWantNano = p.Amount
+		default:
+			plan := models.GetPlan(p.PlanID)
+			if plan == nil {
+				continue
+			}
+			tonWantNano = plan.TonAmount
 		}
-		// TON payments: external_id = "stay_{userID}_{planID}"
-		if len(p.ExternalID) >= 5 && p.ExternalID[:5] == "stay_" {
-			if h.cfg.TonWalletAddress != "" {
-				if err := h.checkTonPayment(p.ExternalID, p.UserID, plan); err == nil {
+
+		// TON payments: external_id = "stay_..."
+		if strings.HasPrefix(p.ExternalID, "stay_") {
+			if h.cfg.TonWalletAddress != "" && tonWantNano != "" {
+				if err := h.checkTonPaymentByAmount(p.ExternalID, tonWantNano); err == nil {
 					updated = true
 				}
 			}
 			continue
 		}
-		// Stars: external_id starts with "stars_"
-		if len(p.ExternalID) >= 6 && p.ExternalID[:6] == "stars_" {
-			continue // Stars are handled by BotWebhook
+		// Stars: external_id starts with "stars_" — handled by BotWebhook.
+		if strings.HasPrefix(p.ExternalID, "stars_") {
+			continue
 		}
 		// DigitalPay SBP
-		if len(p.ExternalID) >= 4 && p.ExternalID[:4] == "sbp_" {
+		if strings.HasPrefix(p.ExternalID, "sbp_") {
 			if h.cfg.DigitalPayAPIKey != "" {
-				if err := h.checkDigitalPayPayment(p.ExternalID, p.UserID, plan); err == nil {
+				if err := h.checkDigitalPayPaymentByID(p.ExternalID); err == nil {
 					updated = true
 				}
 			}
@@ -549,7 +571,7 @@ func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Req
 		}
 		// CryptoPay
 		if h.cfg.CryptoBotToken != "" {
-			if err := h.checkCryptoPayInvoice(p.ExternalID, p.UserID, plan); err == nil {
+			if err := h.checkCryptoPayInvoiceByID(p.ExternalID); err == nil {
 				updated = true
 			}
 		}
@@ -558,7 +580,7 @@ func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, map[string]bool{"updated": updated})
 }
 
-func (h *PaymentHandler) checkTonPayment(comment string, userID int64, plan *models.Plan) error {
+func (h *PaymentHandler) checkTonPaymentByAmount(comment, wantAmountNano string) error {
 	url := tonAPIBase + "/accounts/" + h.cfg.TonWalletAddress + "/events?limit=30"
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(url)
@@ -583,7 +605,7 @@ func (h *PaymentHandler) checkTonPayment(comment string, userID int64, plan *mod
 		return err
 	}
 
-	wantAmount, _ := strconv.ParseInt(plan.TonAmount, 10, 64)
+	wantAmount, _ := strconv.ParseInt(wantAmountNano, 10, 64)
 	for _, ev := range data.Events {
 		for _, a := range ev.Actions {
 			if a.Type != "TonTransfer" || a.TonTransfer == nil {
@@ -591,14 +613,14 @@ func (h *PaymentHandler) checkTonPayment(comment string, userID int64, plan *mod
 			}
 			t := a.TonTransfer
 			if t.Comment == comment && t.Amount >= wantAmount {
-				return h.activateSubscription(userID, plan, comment)
+				return h.fulfillPayment(comment)
 			}
 		}
 	}
 	return fmt.Errorf("ton payment not found")
 }
 
-func (h *PaymentHandler) checkCryptoPayInvoice(invoiceID string, userID int64, plan *models.Plan) error {
+func (h *PaymentHandler) checkCryptoPayInvoiceByID(invoiceID string) error {
 	url := fmt.Sprintf("%s/getInvoices?invoice_ids=%s&status=paid", cryptoPayAPI, invoiceID)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Crypto-Pay-API-Token", h.cfg.CryptoBotToken)
@@ -628,7 +650,7 @@ func (h *PaymentHandler) checkCryptoPayInvoice(invoiceID string, userID int64, p
 	for _, item := range result.Result.Items {
 		if item.Status == "paid" {
 			extID := strconv.FormatInt(item.InvoiceID, 10)
-			return h.activateSubscription(userID, plan, extID)
+			return h.fulfillPayment(extID)
 		}
 	}
 
