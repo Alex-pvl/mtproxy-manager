@@ -215,7 +215,9 @@ async def quote(request: web.Request):
         init = _init_request(client, qtype, search.data.recipient_id, qty)
         if not init:
             return web.json_response({"error": init.error or "quote failed"}, status=502)
-        ton_cost_nano = int(init.data.amount)
+        # Fragment returns the price in TON (decimal string, e.g. "0.3087"),
+        # not in nanoTON.
+        ton_cost_nano = int(round(float(init.data.amount) * NANO))
         ton_rub_rate = float(client._ctx.ton_rate or 0)
         ton_usd_rate = await _ton_usd_rate()
         return web.json_response({
