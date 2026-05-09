@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -127,22 +129,118 @@ func (h *PaymentHandler) GetPremiumQuote(w http.ResponseWriter, r *http.Request)
 
 // ─── Username check ──────────────────────────────────────────────────────────
 
+type recipientInfo struct {
+	OK          bool   `json:"ok"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name,omitempty"`
+	PhotoURL    string `json:"photo_url,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+}
+
 func (h *PaymentHandler) CheckUsername(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimPrefix(strings.TrimSpace(r.URL.Query().Get("u")), "@")
 	if username == "" {
 		writeError(w, http.StatusBadRequest, "username required")
 		return
 	}
-	if h.fragment == nil || !h.fragment.Available() {
-		writeError(w, http.StatusServiceUnavailable, "fragment worker not configured")
-		return
+	info := recipientInfo{OK: true, Username: username}
+
+	// Fragment validity (best effort).
+	if h.fragment != nil && h.fragment.Available() {
+		if res, err := h.fragment.CheckUsername(username); err == nil {
+			info.OK = res.OK
+			info.Reason = res.Reason
+		}
 	}
-	res, err := h.fragment.CheckUsername(username)
+
+	// Best-effort lookup of display name / avatar via Bot API. getChat works for
+	// users who have started a conversation with the bot or are public channels —
+	// for everyone else we silently fall back to username + first-letter avatar.
+	if info.OK && h.cfg.TelegramBotToken != "" {
+		if dn, photoFileID := h.fetchTelegramChatInfo(username); dn != "" || photoFileID != "" {
+			info.DisplayName = dn
+			if photoFileID != "" {
+				info.PhotoURL = "/api/tg/photo?file_id=" + url.QueryEscape(photoFileID)
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, info)
+}
+
+func (h *PaymentHandler) fetchTelegramChatInfo(username string) (string, string) {
+	apiURL := fmt.Sprintf("%s%s/getChat?chat_id=%s",
+		telegramBotAPI, h.cfg.TelegramBotToken, url.QueryEscape("@"+username))
+	client := &http.Client{Timeout: 8 * time.Second}
+	resp, err := client.Get(apiURL)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		return "", ""
+	}
+	defer resp.Body.Close()
+	var r struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			FirstName string `json:"first_name"`
+			LastName  string `json:"last_name"`
+			Title     string `json:"title"`
+			Photo     struct {
+				SmallFileID string `json:"small_file_id"`
+			} `json:"photo"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil || !r.OK {
+		return "", ""
+	}
+	name := strings.TrimSpace(r.Result.FirstName + " " + r.Result.LastName)
+	if name == "" {
+		name = r.Result.Title
+	}
+	return name, r.Result.Photo.SmallFileID
+}
+
+// ServeTelegramPhoto proxies a Telegram file (photo) so the bot token never
+// reaches the browser. Cached aggressively because file_paths are stable for
+// hours and photos rarely change.
+func (h *PaymentHandler) ServeTelegramPhoto(w http.ResponseWriter, r *http.Request) {
+	fileID := r.URL.Query().Get("file_id")
+	if fileID == "" || h.cfg.TelegramBotToken == "" {
+		http.NotFound(w, r)
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	getFileURL := fmt.Sprintf("%s%s/getFile?file_id=%s",
+		telegramBotAPI, h.cfg.TelegramBotToken, url.QueryEscape(fileID))
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(getFileURL)
+	if err != nil {
+		http.Error(w, "upstream", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	var fr struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			FilePath string `json:"file_path"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&fr); err != nil || !fr.OK || fr.Result.FilePath == "" {
+		http.NotFound(w, r)
+		return
+	}
+	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s",
+		h.cfg.TelegramBotToken, fr.Result.FilePath)
+	fileResp, err := client.Get(fileURL)
+	if err != nil {
+		http.Error(w, "upstream", http.StatusBadGateway)
+		return
+	}
+	defer fileResp.Body.Close()
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	if ct := fileResp.Header.Get("Content-Type"); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	if _, err := io.Copy(w, fileResp.Body); err != nil {
+		log.Printf("ServeTelegramPhoto copy: %v", err)
+	}
 }
 
 // ─── Order creation (Stars/Premium) ──────────────────────────────────────────

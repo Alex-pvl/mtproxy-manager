@@ -120,6 +120,9 @@ func main() {
 			r.Post("/check-pending", paymentHandler.CheckPendingPayments)
 		})
 
+		// Telegram photo proxy (no auth — proxies bot avatars without exposing token)
+		r.Get("/tg/photo", paymentHandler.ServeTelegramPhoto)
+
 		// Stars / Premium via Fragment
 		r.Route("/products", func(r chi.Router) {
 			r.Use(middleware.AuthRequired(jwtSvc))

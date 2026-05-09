@@ -7,28 +7,30 @@ import {
   productApi,
   type ProductQuote,
   type ProductType,
+  type UsernameCheck,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
 
 type PayMethod = 'sbp' | 'cryptobot' | 'ton';
-
-const STARS_PRESETS = [50, 100, 250, 500, 1000, 2500, 5000];
 const PREMIUM_OPTIONS = [3, 6, 12];
 
 interface Props { type: ProductType }
 
 // ─── Inline icons ────────────────────────────────────────────────────────────
 
-function ChevronDown() {
+function ChevronDown({ open }: { open: boolean }) {
   return (
-    <svg className="spend-pill__chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="spend-pill__chevron"
+      style={{ transform: open ? 'rotate(180deg)' : undefined }}
+      width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    >
       <polyline points="6 9 12 15 18 9" />
     </svg>
   );
 }
-function AtIcon() { return <span className="font-medium">@</span>; }
-function DollarIcon() { return <span className="font-medium">$</span>; }
 function StarIcon({ color = 'currentColor' }: { color?: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill={color} aria-hidden>
@@ -50,23 +52,26 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-// ─── Pill button (a click-to-expand selector) ────────────────────────────────
-
-interface PillButtonProps {
-  icon: React.ReactNode;
-  label: React.ReactNode;
-  valueRight?: React.ReactNode;
-  open?: boolean;
-  onClick?: () => void;
+// Deterministic accent color from username for the fallback avatar.
+function accentFromString(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
+  const palette = ['#3aa8fc', '#a48bff', '#34d399', '#f59e0b', '#fb7185', '#22d3ee', '#facc15'];
+  return palette[Math.abs(h) % palette.length];
 }
-function PillButton({ icon, label, valueRight, open, onClick }: PillButtonProps) {
+
+function Avatar({ photo, fallback, size = 28 }: { photo?: string; fallback: string; size?: number }) {
+  if (photo) {
+    return <img src={photo} alt="" className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />;
+  }
+  const ch = fallback.replace(/^@/, '').slice(0, 1).toUpperCase() || '?';
   return (
-    <button type="button" onClick={onClick} aria-expanded={open ? 'true' : 'false'} className="spend-pill">
-      <span className="spend-pill__icon">{icon}</span>
-      <span className="spend-pill__label">{label}</span>
-      {valueRight !== undefined && <span className="spend-pill__value-right">{valueRight}</span>}
-      <ChevronDown />
-    </button>
+    <span
+      className="rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+      style={{ width: size, height: size, background: accentFromString(fallback), color: '#fff' }}
+    >
+      {ch}
+    </span>
   );
 }
 
@@ -79,16 +84,23 @@ export default function ProductCheckout({ type }: Props) {
   const wallet = useTonWallet();
 
   const isMiniApp = !!window.Telegram?.WebApp?.initData;
-  const ownUsername = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || undefined;
+  const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  const ownUsername = tgUser?.username || undefined;
+  const ownDisplayName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ') || ownUsername;
+  const ownPhoto = tgUser?.photo_url || undefined;
 
+  // ─── Form state ────────────────────────────────────────────────────────────
   const [recipient, setRecipient] = useState<string>(ownUsername || '');
-  const [recipientEditing, setRecipientEditing] = useState(false);
-  const [quantity, setQuantity] = useState<number>(type === 'stars' ? 100 : 3);
-  const [customQty, setCustomQty] = useState('');
-  const [method, setMethod] = useState<PayMethod>('sbp');
+  const [recipientEditing, setRecipientEditing] = useState<boolean>(!ownUsername);
+  const [recipientInfo, setRecipientInfo] = useState<UsernameCheck | null>(
+    ownUsername ? { ok: true, username: ownUsername, display_name: ownDisplayName, photo_url: ownPhoto } : null,
+  );
+  const recipientInputRef = useRef<HTMLInputElement>(null);
 
-  const [methodOpen, setMethodOpen] = useState(false);
-  const [amountOpen, setAmountOpen] = useState(false);
+  const [quantity, setQuantity] = useState<number>(type === 'stars' ? 50 : 3);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+
+  const [method, setMethod] = useState<PayMethod>('sbp');
 
   const [quote, setQuote] = useState<ProductQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -98,7 +110,27 @@ export default function ProductCheckout({ type }: Props) {
 
   const labels = type === 'stars' ? t.stars : t.premium;
 
-  // Debounced quote
+  // ─── Recipient lookup (debounced) ──────────────────────────────────────────
+  useEffect(() => {
+    const u = recipient.trim().replace(/^@/, '');
+    if (u === ownUsername) {
+      setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
+      return;
+    }
+    if (u.length < 5) { setRecipientInfo(null); return; }
+    const handle = setTimeout(async () => {
+      try {
+        const res = await productApi.checkUsername(u);
+        setRecipientInfo(res.data);
+        if (res.data.ok) setRecipientEditing(false);
+      } catch {
+        setRecipientInfo(null);
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [recipient, ownUsername, ownDisplayName, ownPhoto]);
+
+  // ─── Quote (debounced) ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!quantity || quantity <= 0) { setQuote(null); return; }
     const handle = setTimeout(async () => {
@@ -116,28 +148,23 @@ export default function ProductCheckout({ type }: Props) {
     return () => clearTimeout(handle);
   }, [quantity, type, labels.failedQuote]);
 
-  // ─── Method picker ─────────────────────────────────────────────────────────
-  const methods: { id: PayMethod; label: string; desc: string; disabled?: boolean }[] = useMemo(() => [
-    { id: 'sbp', label: t.payment.sbp, desc: t.payment.sbpDesc },
-    { id: 'cryptobot', label: t.payment.cryptobot, desc: t.payment.cryptobotDesc },
-    { id: 'ton', label: t.payment.ton, desc: wallet ? t.payment.tonDesc : t.payment.tonNotConnected },
+  // ─── Methods ───────────────────────────────────────────────────────────────
+  const methodList: PaymentMethod[] = useMemo(() => [
+    { id: 'sbp', label: 'RUB (СБП)', icon: '/sbp.jpg' },
+    { id: 'ton', label: 'TON', icon: '/toncoin.jpg', disabled: !wallet, badge: !wallet ? undefined : undefined },
+    { id: 'cryptobot', label: t.payment.cryptobotOther ?? 'Другая криптовалюта', icon: '/cryptobot.jpg' },
   ], [t.payment, wallet]);
-  const selectedMethod = methods.find((m) => m.id === method);
-
-  // ─── Recipient avatar (Mini App only — gives photo URL) ────────────────────
-  const ownPhoto = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
-  const showSelfChip = !!ownUsername && !recipientEditing && recipient === ownUsername;
-  const recipientInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Buy ───────────────────────────────────────────────────────────────────
   const handleBuy = async () => {
     if (!user || processing) return;
     setError('');
-    if (!recipient || recipient.length < 5) { setError(labels.invalidRecipient); return; }
+    const u = recipient.trim().replace(/^@/, '');
+    if (!u || u.length < 5) { setError(labels.invalidRecipient); return; }
     setProcessing(true);
     try {
       try {
-        const check = await productApi.checkUsername(recipient);
+        const check = await productApi.checkUsername(u);
         if (!check.data.ok) {
           setError(check.data.reason || labels.invalidRecipient);
           return;
@@ -145,7 +172,7 @@ export default function ProductCheckout({ type }: Props) {
       } catch { /* worker may be down — backend will revalidate */ }
 
       const res = await productApi.createOrder({
-        type, recipient, quantity, method,
+        type, recipient: u, quantity, method,
         source: isMiniApp ? 'tg' : 'web',
       });
       const { order_id, payment_url, address, amount, comment } = res.data;
@@ -186,52 +213,52 @@ export default function ProductCheckout({ type }: Props) {
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
-  const amountLabel = type === 'stars'
-    ? `${quantity.toLocaleString('ru-RU')} ⭐`
-    : `${quantity} ${labels.monthsShort}`;
+  const heroSrc = type === 'stars' ? '/buy-stars.webp' : '/buy-premium.webp';
+  const resolvedRecipient = recipientInfo?.ok ? recipientInfo : null;
+  const showResolved = !recipientEditing && !!resolvedRecipient && recipient.trim().length > 0;
 
   return (
-    <div className="spend-surface min-h-screen px-4 pt-6 pb-12 sm:pt-10 sm:pb-16 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div className="spend-surface min-h-screen px-4 pt-6 pb-12 sm:pt-8 sm:pb-16 -mx-4 sm:-mx-6 lg:-mx-8">
       {/* Tab pill */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-6">
         <div className="spend-tabs">
-          <Link to="/stars" className={`spend-tab ${type === 'stars' ? 'spend-tab--active' : ''}`}>
-            Stars
-          </Link>
-          <Link to="/premium" className={`spend-tab ${type === 'premium' ? 'spend-tab--active' : ''}`}>
-            Premium
-          </Link>
+          <Link to="/stars" className={`spend-tab ${type === 'stars' ? 'spend-tab--active' : ''}`}>Stars</Link>
+          <Link to="/premium" className={`spend-tab ${type === 'premium' ? 'spend-tab--active' : ''}`}>Premium</Link>
         </div>
       </div>
 
+      {/* Hero gif */}
+      <div className="flex justify-center mb-4">
+        <img src={heroSrc} alt="" className="w-32 h-32 sm:w-40 sm:h-40 object-contain" />
+      </div>
+
       {/* Heading */}
-      <div className="mx-auto max-w-md mb-6 px-1">
+      <div className="mx-auto max-w-md mb-6 px-1 text-center">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">{labels.title}</h1>
         <p className="text-[#8b93b3] text-sm sm:text-base leading-relaxed">{labels.subtitle}</p>
       </div>
 
       {/* Form */}
       <div className="mx-auto max-w-md flex flex-col gap-3">
-        {/* Recipient */}
-        {showSelfChip ? (
+        {/* Recipient — resolved chip OR editable input */}
+        {showResolved ? (
           <button
             type="button"
-            onClick={() => { setRecipientEditing(true); setRecipient(''); setTimeout(() => recipientInputRef.current?.focus(), 0); }}
+            onClick={() => {
+              setRecipientEditing(true);
+              setTimeout(() => recipientInputRef.current?.focus(), 0);
+            }}
             className="spend-pill"
           >
-            {ownPhoto ? (
-              <img src={ownPhoto} alt="" className="w-7 h-7 rounded-full object-cover" />
-            ) : (
-              <span className="w-7 h-7 rounded-full bg-[#3aa8fc] flex items-center justify-center text-xs font-semibold">
-                {ownUsername!.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            <span className="spend-pill__label">{ownUsername}</span>
-            <span className="spend-pill__value-right">{labels.recipientChange}</span>
+            <Avatar photo={resolvedRecipient!.photo_url} fallback={resolvedRecipient!.username} />
+            <span className="spend-pill__label truncate">
+              {resolvedRecipient!.display_name || `@${resolvedRecipient!.username}`}
+            </span>
+            <span className="spend-pill__value-right">@{resolvedRecipient!.username}</span>
           </button>
         ) : (
           <div className="spend-pill">
-            <span className="spend-pill__icon"><AtIcon /></span>
+            <span className="spend-pill__icon">@</span>
             <input
               ref={recipientInputRef}
               type="text"
@@ -241,7 +268,12 @@ export default function ProductCheckout({ type }: Props) {
               value={recipient.replace(/^@/, '')}
               placeholder={labels.recipientPlaceholder}
               onChange={(e) => setRecipient(e.target.value.replace(/^@/, '').trim())}
-              onBlur={() => { if (ownUsername && !recipient) { setRecipient(ownUsername); setRecipientEditing(false); } }}
+              onBlur={() => {
+                if (recipientInfo?.ok) setRecipientEditing(false);
+                if (!recipient && ownUsername) {
+                  setRecipient(ownUsername);
+                }
+              }}
             />
             {ownUsername && recipient !== ownUsername && (
               <button
@@ -256,85 +288,68 @@ export default function ProductCheckout({ type }: Props) {
         )}
 
         {/* Method */}
-        <div>
-          <PillButton
-            icon={<DollarIcon />}
-            label={selectedMethod ? selectedMethod.label : <span className="spend-pill__placeholder">{t.payment.selectMethod}</span>}
-            open={methodOpen}
-            onClick={() => { setMethodOpen((v) => !v); setAmountOpen(false); }}
-          />
-          {methodOpen && (
-            <div className="spend-sheet">
-              {methods.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => { setMethod(m.id); setMethodOpen(false); }}
-                  className={`spend-sheet__item ${method === m.id ? 'spend-sheet__item--active' : ''}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium">{m.label}</div>
-                    <div className="spend-sheet__item-desc">{m.desc}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <PaymentMethodPicker
+          methods={methodList}
+          value={method}
+          onChange={(v) => setMethod(v as PayMethod)}
+          placeholder={t.payment.selectMethod}
+        />
 
-        {/* Amount / Duration */}
-        <div>
-          <PillButton
-            icon={type === 'stars' ? <StarIcon color="#f4d03f" /> : <StarIcon color="#a48bff" />}
-            label={amountLabel}
-            valueRight={
-              quoteLoading
-                ? '…'
-                : quote ? <>≈{quote.price_usd.replace(/^~/, '')}</> : undefined
-            }
-            open={amountOpen}
-            onClick={() => { setAmountOpen((v) => !v); setMethodOpen(false); }}
-          />
-          {amountOpen && (
-            <div className="spend-sheet">
-              {(type === 'stars' ? STARS_PRESETS : PREMIUM_OPTIONS).map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => { setQuantity(q); setCustomQty(''); setAmountOpen(false); }}
-                  className={`spend-sheet__item ${quantity === q && !customQty ? 'spend-sheet__item--active' : ''}`}
-                >
-                  <span className="flex-1">
-                    {type === 'stars' ? `${q.toLocaleString('ru-RU')} ⭐` : `${q} ${labels.monthsShort}`}
-                  </span>
-                </button>
-              ))}
-              {type === 'stars' && (
-                <div className="px-2 pt-1">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={50}
-                    step={50}
-                    value={customQty}
-                    placeholder={labels.customPlaceholder}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setCustomQty(v);
-                      const n = Number(v);
-                      if (Number.isFinite(n) && n >= 50) setQuantity(Math.floor(n));
-                    }}
-                    className="w-full bg-[#252a44] rounded-2xl px-4 py-3 text-sm text-white placeholder-[#8b93b3] focus:outline-none focus:ring-2 focus:ring-[#3aa8fc]"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Amount (Stars: simple input; Premium: dropdown 3/6/12) */}
+        {type === 'stars' ? (
+          <div className="spend-pill">
+            <span className="spend-pill__icon"><StarIcon color="#f4d03f" /></span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={50}
+              step={1}
+              value={quantity}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (Number.isFinite(n)) setQuantity(Math.max(50, Math.floor(n)));
+              }}
+              placeholder="50"
+            />
+            <span className="spend-pill__value-right">
+              {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
+            </span>
+          </div>
+        ) : (
+          <div>
+            <button
+              type="button"
+              className="spend-pill"
+              aria-expanded={premiumOpen ? 'true' : 'false'}
+              onClick={() => setPremiumOpen((v) => !v)}
+            >
+              <span className="spend-pill__icon"><StarIcon color="#a48bff" /></span>
+              <span className="spend-pill__label">{quantity} {labels.monthsShort}</span>
+              <span className="spend-pill__value-right">
+                {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
+              </span>
+              <ChevronDown open={premiumOpen} />
+            </button>
+            {premiumOpen && (
+              <div className="spend-sheet">
+                {PREMIUM_OPTIONS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => { setQuantity(q); setPremiumOpen(false); }}
+                    className={`spend-sheet__item ${quantity === q ? 'spend-sheet__item--active' : ''}`}
+                  >
+                    <span className="flex-1">{q} {labels.monthsShort}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Total summary line — small, like under-input hint */}
-        {quote && !amountOpen && !methodOpen && (
-          <p className="text-center text-sm text-[#8b93b3] -mt-1">
+        {/* Total */}
+        {quote && (
+          <p className="text-center text-sm text-[#8b93b3]">
             {labels.totalLabel}: <span className="text-white font-semibold">{quote.price_rub}</span>
           </p>
         )}

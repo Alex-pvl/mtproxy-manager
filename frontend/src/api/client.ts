@@ -162,6 +162,8 @@ export interface ProductQuote {
 export interface UsernameCheck {
   ok: boolean;
   username: string;
+  display_name?: string;
+  photo_url?: string;
   reason?: string;
 }
 

@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import Sticker from '../components/Sticker';
+import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
 
 const POPULAR_PLAN = 'year_1';
 
@@ -52,20 +53,6 @@ function CheckCircleIcon() {
   );
 }
 
-function ChevronDownIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={`w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
-
 type PayMethod = 'cryptobot' | 'stars' | 'ton' | 'sbp';
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -87,50 +74,24 @@ export default function Pricing() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
-  const [methodMenuOpen, setMethodMenuOpen] = useState(false);
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const sub = user?.subscription;
   const isMiniApp = !!(window.Telegram?.WebApp?.initData);
 
-  const methods: { id: PayMethod; icon: React.ReactNode; label: string; desc: string; disabled?: boolean; badge?: string }[] = [
-    {
-      id: 'sbp',
-      icon: (
-        <PaymentIconFrame outlined>
-          <SbpPayIcon className="w-10 h-10" />
-        </PaymentIconFrame>
-      ),
-      label: t.payment.sbp,
-      desc: t.payment.sbpDesc,
-    },
+  const methods: PaymentMethod[] = [
+    { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)' },
+    { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'TON' },
+    { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
     {
       id: 'stars',
-      icon: (
-        <PaymentIconFrame outlined>
-          <StarsPayIcon className="w-10 h-10" />
-        </PaymentIconFrame>
-      ),
+      icon: '/stars.jpg',
       label: t.payment.stars,
-      desc: t.payment.starsDesc,
       disabled: !isMiniApp,
-      badge: !isMiniApp ? 'Только в TG' : undefined,
-    },
-    {
-      id: 'cryptobot',
-      icon: <CryptoBotIcon className="w-10 h-10" />,
-      label: t.payment.cryptobot,
-      desc: t.payment.cryptobotDesc,
-    },
-    {
-      id: 'ton',
-      icon: <TonPayIcon className="w-10 h-10" />,
-      label: t.payment.ton,
-      desc: wallet ? t.payment.tonDesc : t.payment.tonNotConnected,
+      badge: !isMiniApp ? 'TG' : undefined,
     },
   ];
-  const selectedMethodMeta = methods.find((m) => m.id === selectedMethod) ?? methods[0];
 
   const formatTon = (nano: string) => {
     const n = Number(nano);
@@ -344,57 +305,13 @@ export default function Pricing() {
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
           {t.payment.selectMethod}
         </p>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setMethodMenuOpen((v) => !v)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-left"
-          >
-            <span className="shrink-0">{selectedMethodMeta.icon}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">{selectedMethodMeta.label}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{selectedMethodMeta.desc}</p>
-            </div>
-            <ChevronDownIcon open={methodMenuOpen} />
-          </button>
-
-          {methodMenuOpen && (
-            <div className="absolute z-30 mt-2 w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-2 space-y-1">
-              {methods.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  disabled={m.disabled}
-                  onClick={() => {
-                    if (!m.disabled) {
-                      setSelectedMethod(m.id);
-                      setMethodMenuOpen(false);
-                    }
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
-                    m.id === selectedMethod
-                      ? 'bg-indigo-50 dark:bg-indigo-500/15'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                  } ${m.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <span className="shrink-0">{m.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{m.label}</span>
-                      {m.badge && (
-                        <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 py-0.5 rounded">
-                          {m.badge}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {selectedMethod === 'sbp' && !selectedMethodMeta.disabled && (
+        <PaymentMethodPicker
+          methods={methods}
+          value={selectedMethod}
+          onChange={(v) => setSelectedMethod(v as PayMethod)}
+          placeholder={t.payment.selectMethod}
+        />
+        {selectedMethod === 'sbp' && (
           <p className="mt-3 text-center">
             <Link
               to="/legal/sbp"
