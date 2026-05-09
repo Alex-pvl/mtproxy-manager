@@ -110,21 +110,18 @@ export default function ProductCheckout({ type }: Props) {
 
   const labels = type === 'stars' ? t.stars : t.premium;
 
-  // ─── Recipient lookup (only on blur / Enter — not on every keystroke) ──────
-  // Auto-resolve own username instantly without hitting the worker.
-  useEffect(() => {
-    const u = recipient.trim().replace(/^@/, '');
-    if (u === ownUsername && ownUsername) {
-      setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
-    }
-  }, [recipient, ownUsername, ownDisplayName, ownPhoto]);
-
+  // ─── Recipient lookup — fires only on blur / Enter ─────────────────────────
   const [recipientLoading, setRecipientLoading] = useState(false);
   const lookupRecipient = async () => {
     const u = recipient.trim().replace(/^@/, '');
     if (!u || u.length < 5) { setRecipientInfo(null); return; }
-    if (u === ownUsername && ownUsername) return; // already resolved by effect above
-    if (recipientInfo?.ok && recipientInfo.username === u) return; // already resolved
+    if (recipientInfo?.ok && recipientInfo.username === u) return;
+    // Own username: resolve locally from Mini App data without hitting the worker.
+    if (u === ownUsername && ownUsername) {
+      setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
+      setRecipientEditing(false);
+      return;
+    }
     setRecipientLoading(true);
     try {
       const res = await productApi.checkUsername(u, type);
