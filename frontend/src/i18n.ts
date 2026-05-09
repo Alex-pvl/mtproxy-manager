@@ -40,6 +40,10 @@ const ru = {
       title: 'Telegram Premium',
       desc: 'Подписка на 3, 6 или 12 месяцев',
     },
+    starsPremium: {
+      title: 'Telegram Stars & Premium',
+      desc: 'Покупка звёзд и подписка Premium через Fragment',
+    },
   },
   stars: {
     title: 'Покупка Telegram Stars',
@@ -292,6 +296,10 @@ const en = {
     premium: {
       title: 'Telegram Premium',
       desc: 'Subscription for 3, 6 or 12 months',
+    },
+    starsPremium: {
+      title: 'Telegram Stars & Premium',
+      desc: 'Stars and Premium subscriptions via Fragment',
     },
   },
   stars: {

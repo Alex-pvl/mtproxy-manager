@@ -23,15 +23,8 @@ export default function Home() {
     {
       to: '/stars',
       sticker: 'buy_stars',
-      title: t.showcase.stars.title,
-      desc: t.showcase.stars.desc,
-      badge: t.showcase.fragmentBadge,
-    },
-    {
-      to: '/premium',
-      sticker: 'buy_premium',
-      title: t.showcase.premium.title,
-      desc: t.showcase.premium.desc,
+      title: t.showcase.starsPremium.title,
+      desc: t.showcase.starsPremium.desc,
       badge: t.showcase.fragmentBadge,
     },
   ];
@@ -47,7 +40,7 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-3xl mx-auto">
         {cards.map((c) => (
           <Link
             key={c.to}

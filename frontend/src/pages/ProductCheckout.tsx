@@ -110,25 +110,32 @@ export default function ProductCheckout({ type }: Props) {
 
   const labels = type === 'stars' ? t.stars : t.premium;
 
-  // ─── Recipient lookup (debounced) ──────────────────────────────────────────
+  // ─── Recipient lookup (only on blur / Enter — not on every keystroke) ──────
+  // Auto-resolve own username instantly without hitting the worker.
   useEffect(() => {
     const u = recipient.trim().replace(/^@/, '');
     if (u === ownUsername && ownUsername) {
       setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
-      return;
     }
-    if (u.length < 5) { setRecipientInfo(null); return; }
-    const handle = setTimeout(async () => {
-      try {
-        const res = await productApi.checkUsername(u, type);
-        setRecipientInfo(res.data);
-        if (res.data.ok) setRecipientEditing(false);
-      } catch {
-        setRecipientInfo(null);
-      }
-    }, 400);
-    return () => clearTimeout(handle);
-  }, [recipient, ownUsername, ownDisplayName, ownPhoto, type]);
+  }, [recipient, ownUsername, ownDisplayName, ownPhoto]);
+
+  const [recipientLoading, setRecipientLoading] = useState(false);
+  const lookupRecipient = async () => {
+    const u = recipient.trim().replace(/^@/, '');
+    if (!u || u.length < 5) { setRecipientInfo(null); return; }
+    if (u === ownUsername && ownUsername) return; // already resolved by effect above
+    if (recipientInfo?.ok && recipientInfo.username === u) return; // already resolved
+    setRecipientLoading(true);
+    try {
+      const res = await productApi.checkUsername(u, type);
+      setRecipientInfo(res.data);
+      if (res.data.ok) setRecipientEditing(false);
+    } catch {
+      setRecipientInfo(null);
+    } finally {
+      setRecipientLoading(false);
+    }
+  };
 
   // ─── Quote (debounced; needs both quantity AND a resolved recipient) ───────
   useEffect(() => {
@@ -272,14 +279,25 @@ export default function ProductCheckout({ type }: Props) {
               value={recipient.replace(/^@/, '')}
               placeholder={labels.recipientPlaceholder}
               onChange={(e) => setRecipient(e.target.value.replace(/^@/, '').trim())}
-              onBlur={() => {
-                if (recipientInfo?.ok) setRecipientEditing(false);
-                if (!recipient && ownUsername) {
-                  setRecipient(ownUsername);
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  (e.target as HTMLInputElement).blur();
+                  lookupRecipient();
                 }
               }}
+              onBlur={() => {
+                if (!recipient && ownUsername) {
+                  setRecipient(ownUsername);
+                  return;
+                }
+                lookupRecipient();
+              }}
             />
-            {ownUsername && recipient !== ownUsername && (
+            {recipientLoading && (
+              <span className="spend-pill__value-right">…</span>
+            )}
+            {!recipientLoading && ownUsername && recipient !== ownUsername && (
               <button
                 type="button"
                 onClick={() => { setRecipient(ownUsername); setRecipientEditing(false); }}
