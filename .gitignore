@@ -20,3 +20,5 @@ frontend/package-lock.json
 # Python bytecode
 __pycache__/
 *.pyc
+
+.claude/

@@ -307,7 +307,7 @@ const en = {
     },
     starsPremium: {
       title: 'Telegram Stars & Premium',
-      desc: 'Stars and Premium subscriptions via Fragment',
+      desc: 'Stars and Premium subscriptions',
     },
   },
   stars: {
