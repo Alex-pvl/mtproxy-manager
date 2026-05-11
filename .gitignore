@@ -16,3 +16,7 @@ backend/server
 frontend/dist
 frontend/node_modules
 frontend/package-lock.json
+
+# Python bytecode
+__pycache__/
+*.pyc

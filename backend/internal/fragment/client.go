@@ -61,11 +61,12 @@ type Balance struct {
 }
 
 type UsernameCheck struct {
-	OK          bool   `json:"ok"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name,omitempty"`
-	PhotoURL    string `json:"photo_url,omitempty"`
-	Reason      string `json:"reason,omitempty"`
+	OK             bool   `json:"ok"`
+	Username       string `json:"username"`
+	DisplayName    string `json:"display_name,omitempty"`
+	PhotoURL       string `json:"photo_url,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	AlreadyPremium bool   `json:"already_premium,omitempty"`
 }
 
 type PurchaseRequest struct {

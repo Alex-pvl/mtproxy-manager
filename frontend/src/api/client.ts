@@ -165,6 +165,7 @@ export interface UsernameCheck {
   display_name?: string;
   photo_url?: string;
   reason?: string;
+  already_premium?: boolean;
 }
 
 export interface ProductOrderResponse {

@@ -211,11 +211,13 @@ export default function ProductCheckout({ type }: Props) {
     }
   };
 
+  const alreadyPremium = type === 'premium' && !!recipientInfo?.already_premium;
+
   // ─── Quote (debounced; needs both quantity AND a resolved recipient) ───────
   useEffect(() => {
     const u = recipient.trim().replace(/^@/, '');
     const minQty = type === 'stars' ? 50 : 1;
-    if (!quantity || quantity < minQty || !u || !recipientInfo?.ok) {
+    if (!quantity || quantity < minQty || !u || !recipientInfo?.ok || alreadyPremium) {
       setQuote(null);
       return;
     }
@@ -233,7 +235,7 @@ export default function ProductCheckout({ type }: Props) {
       } finally { setQuoteLoading(false); }
     }, 300);
     return () => clearTimeout(handle);
-  }, [quantity, type, recipient, recipientInfo?.ok, labels.failedQuote]);
+  }, [quantity, type, recipient, recipientInfo?.ok, alreadyPremium, labels.failedQuote]);
 
   // ─── Methods ───────────────────────────────────────────────────────────────
   const methodList: PaymentMethod[] = useMemo(() => [
@@ -454,7 +456,13 @@ export default function ProductCheckout({ type }: Props) {
           </div>
         )}
 
-        {error && (
+        {alreadyPremium && (
+          <div className="text-sm text-red-300 bg-red-500/10 rounded-2xl px-4 py-3 border border-red-500/20">
+            {labels.alreadyPremium}
+          </div>
+        )}
+
+        {error && !alreadyPremium && (
           <div className="text-sm text-red-300 bg-red-500/10 rounded-2xl px-4 py-3 border border-red-500/20">
             {error}
           </div>
@@ -463,7 +471,7 @@ export default function ProductCheckout({ type }: Props) {
         <button
           type="button"
           onClick={handleBuy}
-          disabled={!user || processing || !quote || !recipient}
+          disabled={!user || processing || !quote || !recipient || alreadyPremium}
           className="spend-cta mt-2"
         >
           {processing

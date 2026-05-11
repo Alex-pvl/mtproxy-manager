@@ -182,6 +182,17 @@ def _get_link(client, qtype: str, account: dict, req_id: str):
     return api.get_gift_premium_link(account, req_id)
 
 
+def _is_already_premium(msg: str) -> bool:
+    """Fragment's explicit wording for already-Premium recipients is
+    'This account is already subscribed to Telegram Premium.' on the
+    premium endpoint. We match it conservatively — only on combinations
+    that almost certainly mean already-Premium and not some other 4xx."""
+    s = (msg or "").lower()
+    if "premium" not in s:
+        return False
+    return any(k in s for k in ("already", "subscribed", "subscriber"))
+
+
 # ─── Handlers ────────────────────────────────────────────────────────────────
 
 
@@ -257,15 +268,42 @@ async def username_check(request: web.Request):
 
     try:
         res = _search_recipient(client, qtype, u)
-        if not res:
-            return web.json_response({"ok": False, "username": u, "reason": res.error or "user not found"})
-        d = res.data
-        return web.json_response({
-            "ok": True,
-            "username": u,
-            "display_name": d.name or "",
-            "photo_url": d.photo_url or "",
-        })
+        if res:
+            d = res.data
+            return web.json_response({
+                "ok": True,
+                "username": u,
+                "display_name": d.name or "",
+                "photo_url": d.photo_url or "",
+            })
+
+        reason = res.error or "user not found"
+
+        # On the premium tab, Fragment uses a specific wording to mark
+        # already-Premium recipients ("This account is already subscribed to
+        # Telegram Premium."). That's a positive existence proof — surface
+        # ok=true with already_premium=true so the UI can show a clean
+        # "already has Premium" banner instead of "not found". The
+        # display_name / photo come from a second stars-side search, which
+        # works for the same recipient.
+        if qtype == "premium" and _is_already_premium(reason):
+            name, photo = "", ""
+            try:
+                sres = client.stars.search_stars_recipient(u)
+                if sres:
+                    name = sres.data.name or ""
+                    photo = sres.data.photo_url or ""
+            except Exception as e:  # noqa: BLE001
+                log.warning("stars enrichment for already-premium %s failed: %s", u, e)
+            return web.json_response({
+                "ok": True,
+                "username": u,
+                "display_name": name,
+                "photo_url": photo,
+                "already_premium": True,
+            })
+
+        return web.json_response({"ok": False, "username": u, "reason": reason})
     except Exception as e:  # noqa: BLE001
         log.exception("username check error")
         return web.json_response({"ok": False, "username": u, "reason": str(e)})

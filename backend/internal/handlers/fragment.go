@@ -61,8 +61,14 @@ func friendlyFragmentErr(err error) string {
 	raw := err.Error()
 	s := strings.ToLower(raw)
 	log.Printf("fragment error: %s", raw)
+	hasPremium := strings.Contains(s, "premium")
 	switch {
-	case strings.Contains(s, "already_premium"), strings.Contains(s, "already premium"):
+	// Fragment's explicit "This account is already subscribed to Telegram
+	// Premium." plus older / SDK-prefixed variants.
+	case strings.Contains(s, "already_premium"),
+		hasPremium && strings.Contains(s, "already"),
+		hasPremium && strings.Contains(s, "subscribed"),
+		hasPremium && strings.Contains(s, "subscriber"):
 		return "already_premium"
 	case strings.Contains(s, "recipient not found"),
 		strings.Contains(s, "recipient_not_found"),
@@ -171,11 +177,12 @@ func (h *PaymentHandler) GetPremiumQuote(w http.ResponseWriter, r *http.Request)
 // ─── Username check ──────────────────────────────────────────────────────────
 
 type recipientInfo struct {
-	OK          bool   `json:"ok"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name,omitempty"`
-	PhotoURL    string `json:"photo_url,omitempty"`
-	Reason      string `json:"reason,omitempty"`
+	OK             bool   `json:"ok"`
+	Username       string `json:"username"`
+	DisplayName    string `json:"display_name,omitempty"`
+	PhotoURL       string `json:"photo_url,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	AlreadyPremium bool   `json:"already_premium,omitempty"`
 }
 
 func (h *PaymentHandler) CheckUsername(w http.ResponseWriter, r *http.Request) {
@@ -195,6 +202,7 @@ func (h *PaymentHandler) CheckUsername(w http.ResponseWriter, r *http.Request) {
 			info.Reason = res.Reason
 			info.DisplayName = res.DisplayName
 			info.PhotoURL = res.PhotoURL
+			info.AlreadyPremium = res.AlreadyPremium
 		}
 	}
 
