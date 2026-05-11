@@ -42,7 +42,7 @@ const ru = {
     },
     starsPremium: {
       title: 'Telegram Stars & Premium',
-      desc: 'Покупка звёзд и подписка Premium',
+      desc: 'Покупка звёзд и подписки Premium',
     },
   },
   stars: {
