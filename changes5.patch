@@ -1,0 +1,1392 @@
+diff --git a/frontend/src/i18n.ts b/frontend/src/i18n.ts
+index 871ef39..2c5092b 100644
+--- a/frontend/src/i18n.ts
++++ b/frontend/src/i18n.ts
+@@ -23,11 +23,11 @@ const ru = {
+     myServices: 'Мои сервисы',
+   },
+   showcase: {
+-    title: 'Что вам сегодня нужно?',
+-    subtitle: 'Выберите услугу — VPN-доступ, Telegram Stars или Premium',
++    title: 'Сервисы',
++    subtitle: 'VPN и прокси, Telegram Stars и Premium',
+     openCard: 'Перейти',
+     back: '← На главную',
+-    fragmentBadge: 'Fragment',
++    newBadge: 'NEW',
+     vpn: {
+       title: 'Stay VPN & Proxy',
+       desc: 'MTProxy, SOCKS5 и VPN — полный доступ к интернету',
+@@ -40,10 +40,6 @@ const ru = {
+       title: 'Telegram Premium',
+       desc: 'Подписка на 3, 6 или 12 месяцев',
+     },
+-    starsPremium: {
+-      title: 'Telegram Stars & Premium',
+-      desc: 'Покупка звёзд и подписка Premium через Fragment',
+-    },
+   },
+   stars: {
+     title: 'Покупка Telegram Stars',
+@@ -52,10 +48,6 @@ const ru = {
+     recipientSelf: 'Себе',
+     recipientGift: 'Подарок',
+     recipientHint: 'Введите username получателя в Telegram (без @)',
+-    recipientPlaceholder: 'Введите Telegram @username',
+-    recipientChange: 'Изменить',
+-    recipientUseSelf: 'Себе',
+-    recipientNotFound: 'Пользователь @{username} не найден',
+     quantityTitle: 'Количество звёзд',
+     monthsTitle: '',
+     monthsShort: '',
+@@ -77,10 +69,6 @@ const ru = {
+     recipientSelf: 'Себе',
+     recipientGift: 'Подарок',
+     recipientHint: 'Введите username получателя в Telegram (без @)',
+-    recipientPlaceholder: 'Введите Telegram @username',
+-    recipientChange: 'Изменить',
+-    recipientUseSelf: 'Себе',
+-    recipientNotFound: 'Пользователь @{username} не найден',
+     quantityTitle: '',
+     monthsTitle: 'Период подписки',
+     monthsShort: 'мес',
+@@ -94,6 +82,8 @@ const ru = {
+     deliveredDesc: 'Подписка отправлена получателю.',
+     processingTitle: 'Заказ принят',
+     processingDesc: 'Premium будет активирован в течение нескольких минут.',
++    alreadyPremium:
++      'У получателя уже есть Telegram Premium. Укажите другой username или попробуйте позже.',
+   },
+   proxies: {
+     title: 'Мои сервисы',
+@@ -148,6 +138,9 @@ const ru = {
+     featureSpeed: 'Быстрая сеть',
+     featureSpeedDesc: 'Серверы имеют скорость соединения до 1 Гбит/с.',
+     loading: 'Загрузка...',
++    plansPickLabel: 'Тарифы',
++    plansPickSubtitle: 'Выберите подходящий период подписки',
++    totalLabel: 'Итого',
+   },
+   referral: {
+     title: 'Приглашайте друзей — получайте бонусные дни',
+@@ -197,11 +190,9 @@ const ru = {
+     selectMethod: 'Способ оплаты',
+     cryptobot: 'CryptoBot',
+     cryptobotDesc: 'Криптовалюта (USDT, BTC и др.)',
+-    cryptobotOther: 'Другая криптовалюта',
+-    sbpLabel: 'RUB (СБП)',
+-    tonLabel: 'TON',
+     stars: 'Звёзды Telegram',
+     starsDesc: 'Оплата звёздами TG',
++    starsOnlyMiniApp: 'Только в TG',
+     sbp: 'СБП',
+     sbpDesc: 'Оплата по QR через СБП',
+     sbpUnavailable: 'Временно недоступно',
+@@ -282,11 +273,11 @@ const en = {
+     myServices: 'My services',
+   },
+   showcase: {
+-    title: 'What do you need today?',
+-    subtitle: 'Pick a service — VPN access, Telegram Stars or Premium',
++    title: 'Services',
++    subtitle: 'VPN & proxy, Telegram Stars and Premium',
+     openCard: 'Open',
+     back: '← Back to home',
+-    fragmentBadge: 'Fragment',
++    newBadge: 'NEW',
+     vpn: {
+       title: 'Stay VPN & Proxy',
+       desc: 'MTProxy, SOCKS5 and VPN — full internet access',
+@@ -299,10 +290,6 @@ const en = {
+       title: 'Telegram Premium',
+       desc: 'Subscription for 3, 6 or 12 months',
+     },
+-    starsPremium: {
+-      title: 'Telegram Stars & Premium',
+-      desc: 'Stars and Premium subscriptions via Fragment',
+-    },
+   },
+   stars: {
+     title: 'Buy Telegram Stars',
+@@ -311,10 +298,6 @@ const en = {
+     recipientSelf: 'Myself',
+     recipientGift: 'Gift',
+     recipientHint: "Recipient's Telegram username (without @)",
+-    recipientPlaceholder: 'Enter Telegram @username',
+-    recipientChange: 'Change',
+-    recipientUseSelf: 'Use mine',
+-    recipientNotFound: '@{username} not found',
+     quantityTitle: 'Stars amount',
+     monthsTitle: '',
+     monthsShort: '',
+@@ -336,10 +319,6 @@ const en = {
+     recipientSelf: 'Myself',
+     recipientGift: 'Gift',
+     recipientHint: "Recipient's Telegram username (without @)",
+-    recipientPlaceholder: 'Enter Telegram @username',
+-    recipientChange: 'Change',
+-    recipientUseSelf: 'Use mine',
+-    recipientNotFound: '@{username} not found',
+     quantityTitle: '',
+     monthsTitle: 'Subscription period',
+     monthsShort: 'mo',
+@@ -353,6 +332,8 @@ const en = {
+     deliveredDesc: 'Subscription delivered to recipient.',
+     processingTitle: 'Order accepted',
+     processingDesc: 'Premium will be activated within a few minutes.',
++    alreadyPremium:
++      'This recipient already has Telegram Premium. Try another username or try again later.',
+   },
+   proxies: {
+     title: 'My services',
+@@ -407,6 +388,9 @@ const en = {
+     featureSpeed: 'Fast network',
+     featureSpeedDesc: 'Servers with connection speeds up to 1 Gbit/s.',
+     loading: 'Loading...',
++    plansPickLabel: 'Plans',
++    plansPickSubtitle: 'Choose a subscription period',
++    totalLabel: 'Total',
+   },
+   referral: {
+     title: 'Invite friends — get bonus days',
+@@ -456,11 +440,9 @@ const en = {
+     selectMethod: 'Payment method',
+     cryptobot: 'CryptoBot',
+     cryptobotDesc: 'Crypto (USDT, BTC, etc.)',
+-    cryptobotOther: 'Other crypto',
+-    sbpLabel: 'RUB (SBP)',
+-    tonLabel: 'TON',
+     stars: 'Telegram Stars',
+     starsDesc: 'Pay with TG Stars',
++    starsOnlyMiniApp: 'TG only',
+     sbp: 'SBP',
+     sbpDesc: 'Pay by QR via Faster Payments',
+     sbpUnavailable: 'Temporarily unavailable',
+diff --git a/frontend/src/pages/Home.tsx b/frontend/src/pages/Home.tsx
+index c7bc2ed..c5af95d 100644
+--- a/frontend/src/pages/Home.tsx
++++ b/frontend/src/pages/Home.tsx
+@@ -22,10 +22,17 @@ export default function Home() {
+     },
+     {
+       to: '/stars',
+-      sticker: 'buy_stars',
+-      title: t.showcase.starsPremium.title,
+-      desc: t.showcase.starsPremium.desc,
+-      badge: t.showcase.fragmentBadge,
++      sticker: 'cipher',
++      title: t.showcase.stars.title,
++      desc: t.showcase.stars.desc,
++      badge: t.showcase.newBadge,
++    },
++    {
++      to: '/premium',
++      sticker: 'no_logs',
++      title: t.showcase.premium.title,
++      desc: t.showcase.premium.desc,
++      badge: t.showcase.newBadge,
+     },
+   ];
+ 
+@@ -40,7 +47,7 @@ export default function Home() {
+         </p>
+       </div>
+ 
+-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-3xl mx-auto">
++      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-4xl mx-auto">
+         {cards.map((c) => (
+           <Link
+             key={c.to}
+@@ -52,7 +59,7 @@ export default function Home() {
+                 {c.badge}
+               </span>
+             )}
+-            <Sticker name={c.sticker} className="w-28 h-28 sm:w-36 sm:h-36 mb-3" />
++            <Sticker name={c.sticker} className="w-20 h-20 sm:w-24 sm:h-24 mb-3" />
+             <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+               {c.title}
+             </h3>
+diff --git a/frontend/src/pages/Pricing.tsx b/frontend/src/pages/Pricing.tsx
+index ee0889a..0c8cf93 100644
+--- a/frontend/src/pages/Pricing.tsx
++++ b/frontend/src/pages/Pricing.tsx
+@@ -1,4 +1,4 @@
+-import { useState, useEffect } from 'react';
++import { useState, useEffect, useMemo } from 'react';
+ import { beginCell } from '@ton/core';
+ import { paymentApi } from '../api/client';
+ import type { Plan } from '../api/client';
+@@ -7,44 +7,9 @@ import { useLanguage } from '../context/LanguageContext';
+ import { Link } from 'react-router-dom';
+ import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
+ import Sticker from '../components/Sticker';
+-import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
+ 
+ const POPULAR_PLAN = 'year_1';
+ 
+-// ─── Payment method icons ─────────────────────────────────────────────────────
+-
+-function CryptoBotIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/cryptobot.jpg" alt="CryptoBot" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function StarsPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/stars.jpg" alt="Telegram Stars" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/toncoin.jpg" alt="TON" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/sbp.jpg" alt="SBP" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function PaymentIconFrame({
+-  children,
+-  outlined = false,
+-}: {
+-  children: React.ReactNode;
+-  outlined?: boolean;
+-}) {
+-  return (
+-    <span
+-      className={`shrink-0 rounded-xl ${outlined ? 'ring-1 ring-gray-200 dark:ring-gray-700' : ''}`}
+-    >
+-      {children}
+-    </span>
+-  );
+-}
+-
+ function CheckCircleIcon() {
+   return (
+     <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+@@ -63,8 +28,6 @@ function bytesToBase64(bytes: Uint8Array): string {
+   return btoa(binary);
+ }
+ 
+-// ─── Main page ────────────────────────────────────────────────────────────────
+-
+ export default function Pricing() {
+   const { user, refreshUser } = useAuth();
+   const { t } = useLanguage();
+@@ -74,24 +37,28 @@ export default function Pricing() {
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState('');
+   const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
+-  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
++  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
++  const [processingCheckout, setProcessingCheckout] = useState(false);
+   const [showSuccess, setShowSuccess] = useState(false);
+ 
+   const sub = user?.subscription;
+   const isMiniApp = !!(window.Telegram?.WebApp?.initData);
+ 
+-  const methods: PaymentMethod[] = [
+-    { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)' },
+-    { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'TON' },
+-    { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
+-    {
+-      id: 'stars',
+-      icon: '/stars.jpg',
+-      label: t.payment.stars,
+-      disabled: !isMiniApp,
+-      badge: !isMiniApp ? 'TG' : undefined,
+-    },
+-  ];
++  const methods: { id: PayMethod; label: string; desc: string; disabled?: boolean; badge?: string }[] = useMemo(
++    () => [
++      { id: 'sbp', label: t.payment.sbp, desc: t.payment.sbpDesc },
++      {
++        id: 'stars',
++        label: t.payment.stars,
++        desc: t.payment.starsDesc,
++        disabled: !isMiniApp,
++        badge: !isMiniApp ? t.payment.starsOnlyMiniApp : undefined,
++      },
++      { id: 'cryptobot', label: t.payment.cryptobot, desc: t.payment.cryptobotDesc },
++      { id: 'ton', label: t.payment.ton, desc: wallet ? t.payment.tonDesc : t.payment.tonNotConnected },
++    ],
++    [t.payment, isMiniApp, wallet],
++  );
+ 
+   const formatTon = (nano: string) => {
+     const n = Number(nano);
+@@ -119,33 +86,28 @@ export default function Pricing() {
+ 
+   const openPaymentLink = (url: string) => {
+     if (isMiniApp && window.Telegram?.WebApp?.openLink) {
+-      // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
+-      // В Telegram политика no-referrer не требуется.
+       window.Telegram.WebApp.openLink(url, { try_browser: true });
+       return;
+     }
+-    // if (options?.stripReferrer) {
+-    //   // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
+-    //   // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
+-    //   const a = document.createElement('a');
+-    //   a.href = url;
+-    //   a.rel = 'noreferrer noopener';
+-    //   a.referrerPolicy = 'no-referrer';
+-    //   document.body.appendChild(a);
+-    //   a.click();
+-    //   document.body.removeChild(a);
+-    //   return;
+-    // }
+     window.location.href = url;
+   };
+ 
+   useEffect(() => {
+-    paymentApi.listPlans()
++    paymentApi
++      .listPlans()
+       .then((res) => setPlans(res.data))
+       .catch(() => setError(t.pricing.failedLoad))
+       .finally(() => setLoading(false));
+   }, [t.pricing.failedLoad]);
+ 
++  useEffect(() => {
++    if (!plans.length) return;
++    setSelectedPlanId((prev) => {
++      if (prev && plans.some((p) => p.id === prev)) return prev;
++      return plans.find((p) => p.id === POPULAR_PLAN)?.id ?? plans[0].id;
++    });
++  }, [plans]);
++
+   useEffect(() => {
+     const params = new URLSearchParams(window.location.search);
+     const hasLegacyPaymentFlag = params.has('payment');
+@@ -168,8 +130,6 @@ export default function Pricing() {
+ 
+         await refreshUser();
+ 
+-        // Fallback for race conditions: webhook may activate subscription
+-        // a little later than checkPendingPayments returns.
+         if (!res.data?.updated) {
+           try {
+             const subRes = await paymentApi.getSubscription();
+@@ -192,10 +152,12 @@ export default function Pricing() {
+       });
+   }, [refreshUser]);
+ 
++  const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
++
+   const handleBuyPlan = async (plan: Plan) => {
+-    if (!user || processingPlanId) return;
++    if (!user || processingCheckout) return;
+     setError('');
+-    setProcessingPlanId(plan.id);
++    setProcessingCheckout(true);
+     const paymentSource: 'web' | 'tg' = isMiniApp ? 'tg' : 'web';
+ 
+     try {
+@@ -218,7 +180,7 @@ export default function Pricing() {
+         }
+         const res = await paymentApi.createStarsPayment(plan.id);
+         window.Telegram!.WebApp!.openInvoice(res.data.invoice_link, (status) => {
+-          setProcessingPlanId(null);
++          setProcessingCheckout(false);
+           if (status === 'paid') {
+             setShowSuccess(true);
+             refreshUser();
+@@ -229,7 +191,6 @@ export default function Pricing() {
+         return;
+       }
+ 
+-      // TON
+       if (!wallet) {
+         tonConnectUI.openModal();
+         return;
+@@ -249,9 +210,8 @@ export default function Pricing() {
+         ],
+       });
+       setShowSuccess(true);
+-      setProcessingPlanId(null);
+ 
+-      for (let i = 0; i < 12; i++) {
++      for (let i = 0; i < 12; i += 1) {
+         await new Promise((r) => setTimeout(r, 5000));
+         try {
+           await paymentApi.checkPendingPayments();
+@@ -262,13 +222,12 @@ export default function Pricing() {
+           // ignore transient polling errors
+         }
+       }
+-      return;
+     } catch (err: any) {
+       if (err?.message !== 'Reject request') {
+         setError(err.response?.data?.error || t.pricing.failedPayment);
+       }
+     } finally {
+-      setProcessingPlanId(null);
++      setProcessingCheckout(false);
+     }
+   };
+ 
+@@ -301,26 +260,165 @@ export default function Pricing() {
+         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
+       </div>
+ 
+-      <div className="max-w-xl mx-auto mb-6">
+-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+-          {t.payment.selectMethod}
+-        </p>
+-        <PaymentMethodPicker
+-          methods={methods}
+-          value={selectedMethod}
+-          onChange={(v) => setSelectedMethod(v as PayMethod)}
+-          placeholder={t.payment.selectMethod}
+-        />
+-        {selectedMethod === 'sbp' && (
+-          <p className="mt-3 text-center">
+-            <Link
+-              to="/legal/sbp"
+-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+-            >
+-              {t.payment.sbpAgreementShort}
+-            </Link>
++      <div className="max-w-xl mx-auto space-y-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 mb-8">
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
++            {t.payment.selectMethod}
+           </p>
++          <div className="space-y-1.5">
++            {methods.map((m) => (
++              <button
++                key={m.id}
++                type="button"
++                disabled={m.disabled}
++                onClick={() => !m.disabled && setSelectedMethod(m.id)}
++                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
++                  m.id === selectedMethod
++                    ? 'bg-indigo-50 dark:bg-indigo-500/15 ring-1 ring-indigo-500/40'
++                    : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
++                } ${m.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
++              >
++                <div className="flex-1 min-w-0">
++                  <div className="flex items-center gap-2 flex-wrap">
++                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{m.label}</p>
++                    {m.badge && (
++                      <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 py-0.5 rounded">
++                        {m.badge}
++                      </span>
++                    )}
++                  </div>
++                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.desc}</p>
++                </div>
++              </button>
++            ))}
++          </div>
++          {selectedMethod === 'sbp' && (
++            <p className="mt-3 text-center">
++              <Link to="/legal/sbp" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
++                {t.payment.sbpAgreementShort}
++              </Link>
++            </p>
++          )}
++        </div>
++
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
++            {t.pricing.plansPickLabel}
++          </p>
++          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t.pricing.plansPickSubtitle}</p>
++
++          {sub?.active && (
++            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2.5 mb-4 text-sm text-emerald-700 dark:text-emerald-300">
++              <span className="text-emerald-600 dark:text-emerald-400 font-medium">{t.pricing.activeSubscription}</span>{' '}
++              <span className="font-semibold text-gray-900 dark:text-white">
++                {(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}
++              </span>
++              {sub.expires_at && (
++                <span className="text-gray-600 dark:text-gray-400 ml-1">
++                  {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString(undefined)}
++                </span>
++              )}
++            </div>
++          )}
++
++          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
++            {plans.map((plan) => {
++              const isPopular = plan.id === POPULAR_PLAN;
++              return (
++                <button
++                  key={plan.id}
++                  type="button"
++                  onClick={() => setSelectedPlanId(plan.id)}
++                  className={`text-sm font-medium rounded-xl px-3 py-2.5 transition-colors text-center leading-tight ${
++                    selectedPlanId === plan.id
++                      ? 'bg-indigo-600 text-white'
++                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
++                  }`}
++                >
++                  <span className="block">{t.pricing.planNames[plan.id] ?? plan.name}</span>
++                  {isPopular && (
++                    <span
++                      className={`block text-[10px] font-normal mt-0.5 ${
++                        selectedPlanId === plan.id ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'
++                      }`}
++                    >
++                      {t.pricing.popular}
++                    </span>
++                  )}
++                </button>
++              );
++            })}
++          </div>
++        </div>
++
++        {selectedPlan && (
++          <>
++            <div className="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
++              <span className="text-sm text-gray-500 dark:text-gray-400">{t.pricing.totalLabel}</span>
++              {(() => {
++                const { main, secondary } = getDisplayPrice(selectedPlan);
++                return (
++                  <div className="flex items-baseline gap-2 flex-wrap justify-end">
++                    <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{main}</span>
++                    {secondary && (
++                      <span className="text-sm font-normal text-gray-400 dark:text-gray-500">({secondary})</span>
++                    )}
++                  </div>
++                );
++              })()}
++            </div>
++
++            {selectedMethod === 'sbp' && (
++              <>
++                {selectedPlan.discount_percent != null && selectedPlan.discount_percent > 0 && (
++                  <div className="flex items-center gap-2 flex-wrap -mt-2">
++                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
++                      −{selectedPlan.discount_percent}%
++                    </span>
++                    {selectedPlan.original_price_label && (
++                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">
++                        {selectedPlan.original_price_label}
++                      </span>
++                    )}
++                  </div>
++                )}
++                <p className="text-sm text-gray-500 dark:text-gray-400">
++                  {selectedPlan.per_month}
++                  {t.pricing.perMonth}
++                </p>
++              </>
++            )}
++
++            <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
++              <li className="flex items-center gap-2">
++                <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
++                {t.pricing.proxy(selectedPlan.max_proxies)}
++              </li>
++            </ul>
++          </>
++        )}
++
++        {error && (
++          <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded-xl px-3 py-2 flex items-start justify-between gap-2">
++            <span>{error}</span>
++            <button
++              type="button"
++              onClick={() => setError('')}
++              className="shrink-0 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white"
++            >
++              &times;
++            </button>
++          </div>
+         )}
++
++        <button
++          type="button"
++          onClick={() => selectedPlan && user && handleBuyPlan(selectedPlan)}
++          disabled={!user || !selectedPlan || processingCheckout}
++          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
++        >
++          {processingCheckout ? t.payment.processing : sub?.active ? t.pricing.renew : t.pricing.buy}
++        </button>
+       </div>
+ 
+       <div className="mb-8">
+@@ -350,118 +448,6 @@ export default function Pricing() {
+         </div>
+       </div>
+ 
+-      {sub?.active && (
+-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
+-          <p className="text-emerald-600 dark:text-emerald-400 text-sm">
+-            {t.pricing.activeSubscription}{' '}
+-            <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
+-            {sub.expires_at && (
+-              <span className="text-emerald-500 ml-2">
+-                {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString('ru-RU')}
+-              </span>
+-            )}
+-          </p>
+-        </div>
+-      )}
+-
+-      {error && (
+-        <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded px-3 py-2 mb-6 text-center">
+-          {error}
+-          <button onClick={() => setError('')} className="ml-2 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white">&times;</button>
+-        </div>
+-      )}
+-
+-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+-        {plans.map((plan) => {
+-          const isPopular = plan.id === POPULAR_PLAN;
+-          return (
+-            <div
+-              key={plan.id}
+-              className={`relative bg-white dark:bg-gray-900 border rounded-lg p-5 flex flex-col ${
+-                isPopular
+-                  ? 'border-indigo-500 ring-1 ring-indigo-500/50'
+-                  : 'border-gray-200 dark:border-gray-800'
+-              }`}
+-            >
+-              {isPopular && (
+-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-medium px-3 py-0.5 rounded-full">
+-                  {t.pricing.popular}
+-                </span>
+-              )}
+-
+-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
+-
+-              <div className="mb-4">
+-                {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
+-                  <div className="mb-1.5 flex items-center gap-2">
+-                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
+-                      Скидка {plan.discount_percent}%
+-                    </span>
+-                    {plan.original_price_label && (
+-                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
+-                    )}
+-                  </div>
+-                )}
+-
+-                {(() => {
+-                  const { main, secondary } = getDisplayPrice(plan);
+-                  return (
+-                    <div className="flex items-baseline gap-2 flex-wrap">
+-                      <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{main}</span>
+-                      {secondary && (
+-                        <span className="text-base text-gray-400 dark:text-gray-500">({secondary})</span>
+-                      )}
+-                    </div>
+-                  );
+-                })()}
+-
+-              </div>
+-
+-              {selectedMethod === 'sbp' && (
+-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+-                  {plan.per_month}{t.pricing.perMonth}
+-                </p>
+-              )}
+-
+-              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2 mb-4 flex-1">
+-                <li className="flex items-center gap-2">
+-                  <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
+-                  {t.pricing.proxy(plan.max_proxies)}
+-                </li>
+-              </ul>
+-
+-              {/* Payment methods hint */}
+-              <div className="flex items-center gap-1.5 mb-3">
+-                <PaymentIconFrame outlined>
+-                  <SbpPayIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-                <PaymentIconFrame outlined>
+-                  <StarsPayIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-                <PaymentIconFrame>
+-                  <CryptoBotIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-                <PaymentIconFrame>
+-                  <TonPayIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-              </div>
+-
+-              <button
+-                onClick={() => user ? handleBuyPlan(plan) : undefined}
+-                disabled={!user || processingPlanId === plan.id}
+-                className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation ${
+-                  isPopular
+-                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+-                    : 'bg-indigo-50 border border-indigo-200 dark:border-gray-700 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-gray-700 text-indigo-700 dark:text-gray-100'
+-                }`}
+-              >
+-                {processingPlanId === plan.id ? t.payment.processing : (sub?.active ? t.pricing.renew : t.pricing.buy)}
+-              </button>
+-            </div>
+-          );
+-        })}
+-      </div>
+-
+       <div className="mt-8 text-center">
+         <Link to="/proxies" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+           {t.pricing.back}
+diff --git a/frontend/src/pages/ProductCheckout.tsx b/frontend/src/pages/ProductCheckout.tsx
+index 8951451..c95a0c8 100644
+--- a/frontend/src/pages/ProductCheckout.tsx
++++ b/frontend/src/pages/ProductCheckout.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useMemo, useRef, useState } from 'react';
++import { useEffect, useMemo, useState } from 'react';
+ import { Link } from 'react-router-dom';
+ import { beginCell } from '@ton/core';
+ import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
+@@ -7,40 +7,23 @@ import {
+   productApi,
+   type ProductQuote,
+   type ProductType,
+-  type UsernameCheck,
+ } from '../api/client';
+ import { useAuth } from '../context/AuthContext';
+ import { useLanguage } from '../context/LanguageContext';
+-import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
++import RecipientPicker from '../components/RecipientPicker';
+ 
+ type PayMethod = 'sbp' | 'cryptobot' | 'ton';
+-const PREMIUM_OPTIONS = [3, 6, 12];
+-
+-interface Props { type: ProductType }
+ 
+-// ─── Inline icons ────────────────────────────────────────────────────────────
++const STARS_PRESETS = [50, 100, 250, 500, 1000, 2500, 5000];
++const PREMIUM_OPTIONS = [3, 6, 12];
+ 
+-function ChevronDown({ open }: { open: boolean }) {
+-  return (
+-    <svg className="spend-pill__chevron"
+-      style={{ transform: open ? 'rotate(180deg)' : undefined }}
+-      width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+-    >
+-      <polyline points="6 9 12 15 18 9" />
+-    </svg>
+-  );
+-}
+-function StarIcon({ color = 'currentColor' }: { color?: string }) {
+-  return (
+-    <svg width="20" height="20" viewBox="0 0 24 24" fill={color} aria-hidden>
+-      <path d="M12 2.5l2.95 6 6.6.96-4.78 4.66 1.13 6.58L12 17.6l-5.9 3.1L7.23 14.1 2.45 9.46l6.6-.96L12 2.5z" />
+-    </svg>
+-  );
++interface Props {
++  type: ProductType;
+ }
++
+ function CheckCircleIcon() {
+   return (
+-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3aa8fc" strokeWidth="1.5">
++    <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+     </svg>
+   );
+@@ -48,35 +31,18 @@ function CheckCircleIcon() {
+ 
+ function bytesToBase64(bytes: Uint8Array): string {
+   let binary = '';
+-  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
++  for (let i = 0; i < bytes.length; i += 1) {
++    binary += String.fromCharCode(bytes[i]);
++  }
+   return btoa(binary);
+ }
+ 
+-// Deterministic accent color from username for the fallback avatar.
+-function accentFromString(s: string): string {
+-  let h = 0;
+-  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) & 0xffffffff;
+-  const palette = ['#3aa8fc', '#a48bff', '#34d399', '#f59e0b', '#fb7185', '#22d3ee', '#facc15'];
+-  return palette[Math.abs(h) % palette.length];
+-}
+-
+-function Avatar({ photo, fallback, size = 28 }: { photo?: string; fallback: string; size?: number }) {
+-  if (photo) {
+-    return <img src={photo} alt="" className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />;
+-  }
+-  const ch = fallback.replace(/^@/, '').slice(0, 1).toUpperCase() || '?';
+-  return (
+-    <span
+-      className="rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+-      style={{ width: size, height: size, background: accentFromString(fallback), color: '#fff' }}
+-    >
+-      {ch}
+-    </span>
+-  );
++function mapProductErrorMessage(raw: string | undefined, productType: ProductType, premiumAlready: string): string {
++  if (!raw) return '';
++  if (productType === 'premium' && raw === 'already_premium') return premiumAlready;
++  return raw;
+ }
+ 
+-// ─── Page ────────────────────────────────────────────────────────────────────
+-
+ export default function ProductCheckout({ type }: Props) {
+   const { user } = useAuth();
+   const { t } = useLanguage();
+@@ -84,24 +50,16 @@ export default function ProductCheckout({ type }: Props) {
+   const wallet = useTonWallet();
+ 
+   const isMiniApp = !!window.Telegram?.WebApp?.initData;
+-  const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+-  const ownUsername = tgUser?.username || undefined;
+-  const ownDisplayName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ') || ownUsername;
+-  const ownPhoto = tgUser?.photo_url || undefined;
++  const ownUsername =
++    window.Telegram?.WebApp?.initDataUnsafe?.user?.username || undefined;
+ 
+   // ─── Form state ────────────────────────────────────────────────────────────
+-  const [recipient, setRecipient] = useState<string>(ownUsername || '');
+-  const [recipientEditing, setRecipientEditing] = useState<boolean>(!ownUsername);
+-  const [recipientInfo, setRecipientInfo] = useState<UsernameCheck | null>(
+-    ownUsername ? { ok: true, username: ownUsername, display_name: ownDisplayName, photo_url: ownPhoto } : null,
++  const [quantity, setQuantity] = useState<number>(
++    type === 'stars' ? 100 : 3,
+   );
+-  const recipientInputRef = useRef<HTMLInputElement>(null);
+-
+-  const [quantity, setQuantity] = useState<number>(type === 'stars' ? 50 : 3);
+-  const [premiumOpen, setPremiumOpen] = useState(false);
+-
++  const [customQty, setCustomQty] = useState<string>('');
++  const [recipient, setRecipient] = useState<string>(ownUsername || '');
+   const [method, setMethod] = useState<PayMethod>('sbp');
+-
+   const [quote, setQuote] = useState<ProductQuote | null>(null);
+   const [quoteLoading, setQuoteLoading] = useState(false);
+   const [error, setError] = useState('');
+@@ -110,106 +68,83 @@ export default function ProductCheckout({ type }: Props) {
+ 
+   const labels = type === 'stars' ? t.stars : t.premium;
+ 
+-  // ─── Recipient lookup — fires only on blur / Enter ─────────────────────────
+-  const [recipientLoading, setRecipientLoading] = useState(false);
+-  const [recipientError, setRecipientError] = useState('');
+-
+-  // Any edit invalidates the previously resolved info — prevents firing /quote
+-  // against a stale (resolved) username after the user starts typing a new one.
++  // ─── Quote (debounced) ─────────────────────────────────────────────────────
+   useEffect(() => {
+-    const u = recipient.trim().replace(/^@/, '');
+-    if (recipientInfo && recipientInfo.username !== u) {
+-      setRecipientInfo(null);
+-      setRecipientError('');
+-    }
+-    // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [recipient]);
+-
+-  const lookupRecipient = async () => {
+-    const u = recipient.trim().replace(/^@/, '');
+-    if (!u || u.length < 5) { setRecipientInfo(null); setRecipientError(''); return; }
+-    if (recipientInfo?.ok && recipientInfo.username === u) return;
+-    setRecipientError('');
+-    // Own username: resolve locally from Mini App data without hitting the worker.
+-    if (u === ownUsername && ownUsername) {
+-      setRecipientInfo({ ok: true, username: u, display_name: ownDisplayName, photo_url: ownPhoto });
+-      setRecipientEditing(false);
+-      return;
+-    }
+-    setRecipientLoading(true);
+-    try {
+-      const res = await productApi.checkUsername(u, type);
+-      setRecipientInfo(res.data);
+-      if (res.data.ok) {
+-        setRecipientEditing(false);
+-      } else {
+-        setRecipientError(labels.recipientNotFound.replace('{username}', u));
+-      }
+-    } catch {
+-      setRecipientInfo(null);
+-      setRecipientError(labels.recipientNotFound.replace('{username}', u));
+-    } finally {
+-      setRecipientLoading(false);
+-    }
+-  };
+-
+-  // ─── Quote (debounced; needs both quantity AND a resolved recipient) ───────
+-  useEffect(() => {
+-    const u = recipient.trim().replace(/^@/, '');
+-    if (!quantity || quantity <= 0 || !u || !recipientInfo?.ok) {
++    if (!quantity || quantity <= 0) {
+       setQuote(null);
+       return;
+     }
+     const handle = setTimeout(async () => {
+       setQuoteLoading(true);
+       try {
+-        const res = type === 'stars'
+-          ? await productApi.starsQuote(quantity, u)
+-          : await productApi.premiumQuote(quantity, u);
++        const res =
++          type === 'stars'
++            ? await productApi.starsQuote(quantity)
++            : await productApi.premiumQuote(quantity);
+         setQuote(res.data);
+       } catch (e: any) {
+         setQuote(null);
+-        setError(e?.response?.data?.error || labels.failedQuote);
+-      } finally { setQuoteLoading(false); }
++        const errRaw = e?.response?.data?.error;
++        setError(mapProductErrorMessage(errRaw, type, t.premium.alreadyPremium) || labels.failedQuote);
++      } finally {
++        setQuoteLoading(false);
++      }
+     }, 300);
+     return () => clearTimeout(handle);
+-  }, [quantity, type, recipient, recipientInfo?.ok, labels.failedQuote]);
+-
+-  // ─── Methods ───────────────────────────────────────────────────────────────
+-  const methodList: PaymentMethod[] = useMemo(() => [
+-    { id: 'sbp', label: 'RUB (СБП)', icon: '/sbp.jpg' },
+-    { id: 'ton', label: 'TON', icon: '/toncoin.jpg', disabled: !wallet, badge: !wallet ? undefined : undefined },
+-    { id: 'cryptobot', label: t.payment.cryptobotOther ?? 'Другая криптовалюта', icon: '/cryptobot.jpg' },
+-  ], [t.payment, wallet]);
++  }, [quantity, type, labels.failedQuote]);
+ 
+   // ─── Buy ───────────────────────────────────────────────────────────────────
+   const handleBuy = async () => {
+     if (!user || processing) return;
+     setError('');
+-    const u = recipient.trim().replace(/^@/, '');
+-    if (!u || u.length < 5) { setError(labels.invalidRecipient); return; }
++    if (!recipient || recipient.length < 5) {
++      setError(labels.invalidRecipient);
++      return;
++    }
+     setProcessing(true);
+     try {
++      // Fragment-side username check before charging the user.
+       try {
+-        const check = await productApi.checkUsername(u, type);
++        const check = await productApi.checkUsername(recipient);
+         if (!check.data.ok) {
+-          setError(check.data.reason || labels.invalidRecipient);
++          const reason = check.data.reason;
++          setError(
++            mapProductErrorMessage(reason, type, t.premium.alreadyPremium) || labels.invalidRecipient,
++          );
+           return;
+         }
+-      } catch { /* worker may be down — backend will revalidate */ }
++      } catch {
++        // worker may be unreachable; let backend revalidate
++      }
+ 
+       const res = await productApi.createOrder({
+-        type, recipient: u, quantity, method,
++        type,
++        recipient,
++        quantity,
++        method,
+         source: isMiniApp ? 'tg' : 'web',
+       });
+       const { order_id, payment_url, address, amount, comment } = res.data;
+ 
+       if (method === 'ton') {
+-        if (!wallet) { tonConnectUI.openModal(); return; }
+-        const cell = beginCell().storeUint(0, 32).storeStringTail(comment!).endCell();
++        if (!wallet) {
++          tonConnectUI.openModal();
++          return;
++        }
++        const commentCell = beginCell()
++          .storeUint(0, 32)
++          .storeStringTail(comment!)
++          .endCell();
++        const payloadB64 = bytesToBase64(commentCell.toBoc());
+         await tonConnectUI.sendTransaction({
+           validUntil: Math.floor(Date.now() / 1000) + 600,
+-          messages: [{ address: address!, amount: amount!, payload: bytesToBase64(cell.toBoc()) }],
++          messages: [
++            {
++              address: address!,
++              amount: amount!,
++              payload: payloadB64,
++            },
++          ],
+         });
+       } else if (payment_url) {
+         if (isMiniApp && window.Telegram?.WebApp?.openLink) {
+@@ -220,185 +155,191 @@ export default function ProductCheckout({ type }: Props) {
+         }
+       }
+ 
++      // Poll order status (up to ~3 minutes).
+       setShowSuccess('pending');
+       for (let i = 0; i < 36; i += 1) {
+         // eslint-disable-next-line no-await-in-loop
+         await new Promise((r) => setTimeout(r, 5000));
+-        try { await paymentApi.checkPendingPayments(); } catch { /* ignore */ }
++        try {
++          // eslint-disable-next-line no-await-in-loop
++          await paymentApi.checkPendingPayments();
++        } catch {
++          // ignore transient errors — order status is the source of truth
++        }
+         try {
+           // eslint-disable-next-line no-await-in-loop
+           const s = await productApi.getOrder(order_id);
+-          if (s.data.status === 'delivered') { setShowSuccess('delivered'); break; }
+-          if (s.data.status === 'failed') { setError(s.data.error || labels.failedOrder); setShowSuccess(null); break; }
+-        } catch { /* ignore */ }
++          if (s.data.status === 'delivered') {
++            setShowSuccess('delivered');
++            break;
++          }
++          if (s.data.status === 'failed') {
++            setError(
++              mapProductErrorMessage(s.data.error, type, t.premium.alreadyPremium) || labels.failedOrder,
++            );
++            setShowSuccess(null);
++            break;
++          }
++        } catch {
++          // ignore
++        }
+       }
+     } catch (e: any) {
+-      if (e?.message !== 'Reject request') setError(e?.response?.data?.error || labels.failedOrder);
++      if (e?.message !== 'Reject request') {
++        const errRaw = e?.response?.data?.error;
++        setError(mapProductErrorMessage(errRaw, type, t.premium.alreadyPremium) || labels.failedOrder);
++      }
+     } finally {
+       setProcessing(false);
+     }
+   };
+ 
+-  // ─── Render ────────────────────────────────────────────────────────────────
+-  const heroSrc = type === 'stars' ? '/stickers/buy_stars.webp' : '/stickers/buy_premium.webp';
+-  const resolvedRecipient = recipientInfo?.ok ? recipientInfo : null;
+-  const showResolved = !recipientEditing && !!resolvedRecipient && recipient.trim().length > 0;
++  // ─── UI ────────────────────────────────────────────────────────────────────
++  const presets = type === 'stars' ? STARS_PRESETS : PREMIUM_OPTIONS;
++
++  const methods: { id: PayMethod; label: string; desc: string; disabled?: boolean }[] = useMemo(() => [
++    { id: 'sbp', label: t.payment.sbp, desc: t.payment.sbpDesc },
++    { id: 'cryptobot', label: t.payment.cryptobot, desc: t.payment.cryptobotDesc },
++    { id: 'ton', label: t.payment.ton, desc: wallet ? t.payment.tonDesc : t.payment.tonNotConnected },
++  ], [t.payment, wallet]);
+ 
+   return (
+-    <div className="spend-surface min-h-screen px-4 pt-6 pb-12 sm:pt-8 sm:pb-16 -mx-4 sm:-mx-6 lg:-mx-8">
+-      {/* Tab pill */}
+-      <div className="flex justify-center mb-6">
+-        <div className="spend-tabs">
+-          <Link to="/stars" className={`spend-tab ${type === 'stars' ? 'spend-tab--active' : ''}`}>Stars</Link>
+-          <Link to="/premium" className={`spend-tab ${type === 'premium' ? 'spend-tab--active' : ''}`}>Premium</Link>
++    <div className="max-w-xl mx-auto">
++      {showSuccess && (
++        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
++          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuccess(null)} />
++          <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm p-8 flex flex-col items-center text-center shadow-xl">
++            <CheckCircleIcon />
++            <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-3 mb-2">
++              {showSuccess === 'delivered' ? labels.deliveredTitle : labels.processingTitle}
++            </h2>
++            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
++              {showSuccess === 'delivered' ? labels.deliveredDesc : labels.processingDesc}
++            </p>
++            <button
++              type="button"
++              onClick={() => setShowSuccess(null)}
++              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
++            >
++              {t.payment.ok}
++            </button>
++          </div>
+         </div>
+-      </div>
++      )}
+ 
+-      {/* Hero gif */}
+-      <div className="flex justify-center mb-4">
+-        <img src={heroSrc} alt="" className="w-32 h-32 sm:w-40 sm:h-40 object-contain" />
++      <div className="text-center mb-6">
++        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
++          {labels.title}
++        </h1>
++        <p className="text-sm text-gray-500 dark:text-gray-400">{labels.subtitle}</p>
+       </div>
+ 
+-      {/* Heading */}
+-      <div className="mx-auto max-w-md mb-6 px-1 text-center">
+-        <h1 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">{labels.title}</h1>
+-        <p className="text-[#8b93b3] text-sm sm:text-base leading-relaxed">{labels.subtitle}</p>
+-      </div>
++      <div className="space-y-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
++        {/* Recipient */}
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
++            {labels.recipientTitle}
++          </p>
++          <RecipientPicker
++            value={recipient}
++            onChange={setRecipient}
++            ownUsername={ownUsername}
++            selfLabel={labels.recipientSelf}
++            giftLabel={labels.recipientGift}
++            placeholder="username"
++            hint={labels.recipientHint}
++          />
++        </div>
+ 
+-      {/* Form */}
+-      <div className="mx-auto max-w-md flex flex-col gap-3">
+-        {/* Recipient — resolved chip OR editable input */}
+-        {showResolved ? (
+-          <button
+-            type="button"
+-            onClick={() => {
+-              setRecipientEditing(true);
+-              setTimeout(() => recipientInputRef.current?.focus(), 0);
+-            }}
+-            className="spend-pill"
+-          >
+-            <Avatar photo={resolvedRecipient!.photo_url} fallback={resolvedRecipient!.username} />
+-            <span className="spend-pill__label truncate">
+-              {resolvedRecipient!.display_name || `@${resolvedRecipient!.username}`}
+-            </span>
+-            <span className="spend-pill__value-right">@{resolvedRecipient!.username}</span>
+-          </button>
+-        ) : (
+-          <div>
+-            {recipientError && (
+-              <p className="text-xs text-rose-400 mb-1.5 px-1">{recipientError}</p>
+-            )}
+-            <div className={`spend-pill ${recipientError ? 'spend-pill--error' : ''}`}>
+-              <span className="spend-pill__icon">@</span>
+-              <input
+-                ref={recipientInputRef}
+-                type="text"
+-                autoCapitalize="none"
+-                autoCorrect="off"
+-                spellCheck={false}
+-                value={recipient.replace(/^@/, '')}
+-                placeholder={labels.recipientPlaceholder}
+-                onChange={(e) => setRecipient(e.target.value.replace(/^@/, '').trim())}
+-                onKeyDown={(e) => {
+-                  if (e.key === 'Enter') {
+-                    e.preventDefault();
+-                    (e.target as HTMLInputElement).blur();
+-                    lookupRecipient();
+-                  }
++        {/* Quantity */}
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
++            {type === 'stars' ? labels.quantityTitle : labels.monthsTitle}
++          </p>
++          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
++            {presets.map((q) => (
++              <button
++                key={q}
++                type="button"
++                onClick={() => {
++                  setQuantity(q);
++                  setCustomQty('');
+                 }}
+-                onBlur={() => {
+-                  if (!recipient && ownUsername) {
+-                    setRecipient(ownUsername);
+-                    return;
+-                  }
+-                  lookupRecipient();
++                className={`text-sm font-medium rounded-xl px-3 py-2 transition-colors ${
++                  quantity === q && !customQty
++                    ? 'bg-indigo-600 text-white'
++                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
++                }`}
++              >
++                {type === 'stars' ? `${q.toLocaleString('ru-RU')} ⭐` : `${q} ${labels.monthsShort}`}
++              </button>
++            ))}
++          </div>
++          {type === 'stars' && (
++            <div className="mt-2">
++              <input
++                type="number"
++                min={50}
++                step={50}
++                inputMode="numeric"
++                value={customQty}
++                onChange={(e) => {
++                  const v = e.target.value;
++                  setCustomQty(v);
++                  const n = Number(v);
++                  if (Number.isFinite(n) && n >= 50) setQuantity(Math.floor(n));
+                 }}
++                placeholder={labels.customPlaceholder}
++                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+               />
+-              {recipientLoading && (
+-                <span className="spend-pill__value-right">…</span>
+-              )}
+-              {!recipientLoading && ownUsername && recipient !== ownUsername && (
+-                <button
+-                  type="button"
+-                  onClick={() => { setRecipient(ownUsername); setRecipientEditing(false); }}
+-                  className="spend-pill__value-right hover:text-white"
+-                >
+-                  {labels.recipientUseSelf}
+-                </button>
+-              )}
+             </div>
+-          </div>
+-        )}
+-
+-        {/* Method */}
+-        <PaymentMethodPicker
+-          methods={methodList}
+-          value={method}
+-          onChange={(v) => setMethod(v as PayMethod)}
+-          placeholder={t.payment.selectMethod}
+-        />
++          )}
++        </div>
+ 
+-        {/* Amount (Stars: simple input; Premium: dropdown 3/6/12) */}
+-        {type === 'stars' ? (
+-          <div className="spend-pill">
+-            <span className="spend-pill__icon"><StarIcon color="#f4d03f" /></span>
+-            <input
+-              type="number"
+-              inputMode="numeric"
+-              min={50}
+-              step={1}
+-              value={quantity}
+-              onChange={(e) => {
+-                const n = Number(e.target.value);
+-                if (Number.isFinite(n)) setQuantity(Math.max(50, Math.floor(n)));
+-              }}
+-              placeholder="50"
+-            />
+-            <span className="spend-pill__value-right">
+-              {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
++        {/* Price */}
++        <div className="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
++          <span className="text-sm text-gray-500 dark:text-gray-400">{labels.totalLabel}</span>
++          {quoteLoading ? (
++            <span className="text-sm text-gray-400">…</span>
++          ) : quote ? (
++            <span className="text-2xl font-extrabold text-gray-900 dark:text-white">
++              {quote.price_rub}
++              <span className="ml-2 text-sm font-normal text-gray-400">({quote.price_usd})</span>
+             </span>
+-          </div>
+-        ) : (
+-          <div>
+-            <button
+-              type="button"
+-              className="spend-pill"
+-              aria-expanded={premiumOpen ? 'true' : 'false'}
+-              onClick={() => setPremiumOpen((v) => !v)}
+-            >
+-              <span className="spend-pill__icon"><StarIcon color="#a48bff" /></span>
+-              <span className="spend-pill__label">{quantity} {labels.monthsShort}</span>
+-              <span className="spend-pill__value-right">
+-                {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
+-              </span>
+-              <ChevronDown open={premiumOpen} />
+-            </button>
+-            {premiumOpen && (
+-              <div className="spend-sheet">
+-                {PREMIUM_OPTIONS.map((q) => (
+-                  <button
+-                    key={q}
+-                    type="button"
+-                    onClick={() => { setQuantity(q); setPremiumOpen(false); }}
+-                    className={`spend-sheet__item ${quantity === q ? 'spend-sheet__item--active' : ''}`}
+-                  >
+-                    <span className="flex-1">{q} {labels.monthsShort}</span>
+-                  </button>
+-                ))}
+-              </div>
+-            )}
+-          </div>
+-        )}
++          ) : (
++            <span className="text-sm text-gray-400">—</span>
++          )}
++        </div>
+ 
+-        {/* Total */}
+-        {quote && (
+-          <p className="text-center text-sm text-[#8b93b3]">
+-            {labels.totalLabel}: <span className="text-white font-semibold">{quote.price_rub}</span>
++        {/* Method */}
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
++            {t.payment.selectMethod}
+           </p>
+-        )}
++          <div className="space-y-1.5">
++            {methods.map((m) => (
++              <button
++                key={m.id}
++                type="button"
++                disabled={m.disabled}
++                onClick={() => setMethod(m.id)}
++                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
++                  m.id === method
++                    ? 'bg-indigo-50 dark:bg-indigo-500/15 ring-1 ring-indigo-500/40'
++                    : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
++                } ${m.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
++              >
++                <div className="flex-1 min-w-0">
++                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{m.label}</p>
++                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.desc}</p>
++                </div>
++              </button>
++            ))}
++          </div>
++        </div>
+ 
+         {error && (
+-          <div className="text-sm text-red-300 bg-red-500/10 rounded-2xl px-4 py-3 border border-red-500/20">
++          <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded-xl px-3 py-2">
+             {error}
+           </div>
+         )}
+@@ -407,34 +348,17 @@ export default function ProductCheckout({ type }: Props) {
+           type="button"
+           onClick={handleBuy}
+           disabled={!user || processing || !quote || !recipient}
+-          className="spend-cta mt-2"
++          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
+         >
+-          {processing ? t.payment.processing : `${labels.buyButton} ${type === 'stars' ? 'Stars' : 'Premium'}`}
++          {processing ? t.payment.processing : labels.buyButton}
+         </button>
++      </div>
+ 
+-        <Link to="/" className="text-center text-sm text-[#8b93b3] hover:text-white mt-2">
++      <div className="mt-6 text-center">
++        <Link to="/" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+           {t.showcase.back}
+         </Link>
+       </div>
+-
+-      {/* Success modal */}
+-      {showSuccess && (
+-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+-          <div className="absolute inset-0 bg-black/70" onClick={() => setShowSuccess(null)} />
+-          <div className="relative w-full max-w-sm rounded-3xl p-7 flex flex-col items-center text-center" style={{ background: '#1e2337' }}>
+-            <CheckCircleIcon />
+-            <h2 className="text-lg font-bold mt-3 mb-2">
+-              {showSuccess === 'delivered' ? labels.deliveredTitle : labels.processingTitle}
+-            </h2>
+-            <p className="text-sm text-[#8b93b3] mb-6">
+-              {showSuccess === 'delivered' ? labels.deliveredDesc : labels.processingDesc}
+-            </p>
+-            <button type="button" onClick={() => setShowSuccess(null)} className="spend-cta">
+-              {t.payment.ok}
+-            </button>
+-          </div>
+-        </div>
+-      )}
+     </div>
+   );
+ }

@@ -1,0 +1,362 @@
+diff --git a/frontend/src/i18n.ts b/frontend/src/i18n.ts
+index 871ef39..c4bbffb 100644
+--- a/frontend/src/i18n.ts
++++ b/frontend/src/i18n.ts
+@@ -60,6 +60,7 @@ const ru = {
+     monthsTitle: '',
+     monthsShort: '',
+     customPlaceholder: 'Своё количество (от 50)',
++    minStarsWarning: 'Минимум 50 звёзд',
+     totalLabel: 'Итого',
+     buyButton: 'Купить',
+     invalidRecipient: 'Некорректный username',
+@@ -319,6 +320,7 @@ const en = {
+     monthsTitle: '',
+     monthsShort: '',
+     customPlaceholder: 'Custom amount (min 50)',
++    minStarsWarning: 'Minimum 50 stars',
+     totalLabel: 'Total',
+     buyButton: 'Buy',
+     invalidRecipient: 'Invalid username',
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index 30d2bd4..bc7e5bb 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -19,33 +19,30 @@
+   }
+ }
+ 
+-/* Force a dedicated dark surface for /stars and /premium regardless of theme toggle. */
++/* Product checkout (/stars, /premium): matches main layout; no full-bleed dark slab. */
+ .spend-surface {
+-  background: #12172c;
+-  color: #fff;
+   font-family: Inter, -apple-system, system-ui, sans-serif;
+   min-height: 100%;
+ }
+ .spend-surface input::placeholder {
+-  color: #8b93b3;
++  @apply text-gray-500 dark:text-[#8b93b3];
+ }
+ .spend-pill {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   width: 100%;
+-  background: #1e2337;
++  @apply bg-gray-100 dark:bg-[#1e2337] text-gray-900 dark:text-white;
+   border: 1px solid transparent;
+   border-radius: 9999px;
+   padding: 14px 20px;
+-  color: #fff;
+   font-size: 16px;
+   line-height: 22px;
+   text-align: left;
+   cursor: pointer;
+   transition: border-color 0.15s ease, background 0.15s ease;
+ }
+-.spend-pill:hover { background: #252a44; }
++.spend-pill:hover { @apply bg-gray-200 dark:bg-[#252a44]; }
+ .spend-pill:focus-within { border-color: #3aa8fc; }
+ .spend-pill--error,
+ .spend-pill--error:focus-within { border-color: #fb7185; }
+@@ -55,20 +52,20 @@
+   display: flex;
+   align-items: center;
+   justify-content: center;
+-  color: #8b93b3;
++  @apply text-gray-500 dark:text-[#8b93b3];
+   flex-shrink: 0;
+ }
+ .spend-pill__label { flex: 1; min-width: 0; }
+-.spend-pill__placeholder { color: #8b93b3; }
+-.spend-pill__value-right { color: #8b93b3; font-size: 14px; }
+-.spend-pill__chevron { color: #8b93b3; flex-shrink: 0; transition: transform 0.2s ease; }
++.spend-pill__placeholder { @apply text-gray-500 dark:text-[#8b93b3]; }
++.spend-pill__value-right { @apply text-gray-500 dark:text-[#8b93b3]; font-size: 14px; }
++.spend-pill__chevron { @apply text-gray-500 dark:text-[#8b93b3]; flex-shrink: 0; transition: transform 0.2s ease; }
+ .spend-pill[aria-expanded="true"] .spend-pill__chevron { transform: rotate(180deg); }
+ .spend-pill input {
+   flex: 1;
+   background: transparent;
+   border: 0;
+   outline: 0;
+-  color: #fff;
++  @apply text-gray-900 dark:text-white;
+   font-size: 16px;
+   font-family: inherit;
+   min-width: 0;
+@@ -89,7 +86,7 @@
+ .spend-cta:disabled { opacity: 0.5; cursor: not-allowed; }
+ .spend-tabs {
+   display: inline-flex;
+-  background: #1e2337;
++  @apply bg-gray-100 dark:bg-[#1e2337];
+   border-radius: 9999px;
+   padding: 6px;
+ }
+@@ -98,13 +95,13 @@
+   border-radius: 9999px;
+   font-size: 15px;
+   font-weight: 500;
+-  color: #fff;
++  @apply text-gray-800 dark:text-white;
+   text-decoration: none;
+   transition: background 0.15s ease, color 0.15s ease;
+ }
+-.spend-tab--active { background: #fff; color: #12172c; font-weight: 600; }
++.spend-tab--active { @apply bg-gray-900 text-white dark:bg-white dark:text-[#12172c]; font-weight: 600; }
+ .spend-sheet {
+-  background: #1e2337;
++  @apply bg-gray-100 dark:bg-[#1e2337];
+   border-radius: 24px;
+   padding: 12px;
+   margin-top: 8px;
+@@ -117,7 +114,7 @@
+   gap: 10px;
+   padding: 12px 14px;
+   border-radius: 16px;
+-  color: #fff;
++  @apply text-gray-900 dark:text-white;
+   font-size: 15px;
+   background: transparent;
+   border: 0;
+@@ -126,6 +123,6 @@
+   width: 100%;
+   transition: background 0.15s ease;
+ }
+-.spend-sheet__item:hover { background: #252a44; }
++.spend-sheet__item:hover { @apply bg-gray-200 dark:bg-[#252a44]; }
+ .spend-sheet__item--active { background: #07acff1a; color: #3aa8fc; }
+-.spend-sheet__item-desc { color: #8b93b3; font-size: 12px; line-height: 16px; }
++.spend-sheet__item-desc { @apply text-gray-500 dark:text-[#8b93b3]; font-size: 12px; line-height: 16px; }
+diff --git a/frontend/src/pages/ProductCheckout.tsx b/frontend/src/pages/ProductCheckout.tsx
+index 8951451..18a0699 100644
+--- a/frontend/src/pages/ProductCheckout.tsx
++++ b/frontend/src/pages/ProductCheckout.tsx
+@@ -18,6 +18,22 @@ const PREMIUM_OPTIONS = [3, 6, 12];
+ 
+ interface Props { type: ProductType }
+ 
++/** Amount next to stars/months control: RUB for SBP/CryptoBot, TON for wallet. */
++function quoteSideLabel(quote: ProductQuote, method: PayMethod): string {
++  if (method === 'ton') {
++    const nano = Number(quote.ton_amount);
++    if (!Number.isFinite(nano) || nano <= 0) return '';
++    const ton = nano / 1e9;
++    const s = ton >= 1 ? ton.toFixed(3) : ton.toFixed(4);
++    return `≈${s} TON`;
++  }
++  return quote.price_rub;
++}
++
++function quoteTotalPrimary(quote: ProductQuote, method: PayMethod): string {
++  return method === 'ton' ? quoteSideLabel(quote, 'ton') : quote.price_rub;
++}
++
+ // ─── Inline icons ────────────────────────────────────────────────────────────
+ 
+ function ChevronDown({ open }: { open: boolean }) {
+@@ -97,9 +113,26 @@ export default function ProductCheckout({ type }: Props) {
+   );
+   const recipientInputRef = useRef<HTMLInputElement>(null);
+ 
+-  const [quantity, setQuantity] = useState<number>(type === 'stars' ? 50 : 3);
++  const [starsInput, setStarsInput] = useState('50');
++  const [premiumMonths, setPremiumMonths] = useState(3);
+   const [premiumOpen, setPremiumOpen] = useState(false);
+ 
++  const starsParsed = useMemo(() => {
++    const t = starsInput.trim();
++    if (t === '') return undefined;
++    if (!/^\d+$/.test(t)) return undefined;
++    return parseInt(t, 10);
++  }, [starsInput]);
++
++  const quantity = type === 'stars'
++    ? (starsParsed !== undefined && starsParsed >= 50 ? starsParsed : 0)
++    : premiumMonths;
++
++  const starsTooLow = type === 'stars'
++    && starsInput.trim() !== ''
++    && starsParsed !== undefined
++    && starsParsed < 50;
++
+   const [method, setMethod] = useState<PayMethod>('sbp');
+ 
+   const [quote, setQuote] = useState<ProductQuote | null>(null);
+@@ -188,6 +221,13 @@ export default function ProductCheckout({ type }: Props) {
+     setError('');
+     const u = recipient.trim().replace(/^@/, '');
+     if (!u || u.length < 5) { setError(labels.invalidRecipient); return; }
++    if (type === 'stars') {
++      if (starsParsed === undefined || starsParsed < 50) {
++        setError(t.stars.minStarsWarning);
++        return;
++      }
++    }
++    const orderQty = type === 'stars' ? starsParsed! : premiumMonths;
+     setProcessing(true);
+     try {
+       try {
+@@ -199,7 +239,7 @@ export default function ProductCheckout({ type }: Props) {
+       } catch { /* worker may be down — backend will revalidate */ }
+ 
+       const res = await productApi.createOrder({
+-        type, recipient: u, quantity, method,
++        type, recipient: u, quantity: orderQty, method,
+         source: isMiniApp ? 'tg' : 'web',
+       });
+       const { order_id, payment_url, address, amount, comment } = res.data;
+@@ -245,7 +285,7 @@ export default function ProductCheckout({ type }: Props) {
+   const showResolved = !recipientEditing && !!resolvedRecipient && recipient.trim().length > 0;
+ 
+   return (
+-    <div className="spend-surface min-h-screen px-4 pt-6 pb-12 sm:pt-8 sm:pb-16 -mx-4 sm:-mx-6 lg:-mx-8">
++    <div className="spend-surface min-h-screen pt-6 pb-12 sm:pt-8 sm:pb-16">
+       {/* Tab pill */}
+       <div className="flex justify-center mb-6">
+         <div className="spend-tabs">
+@@ -261,8 +301,8 @@ export default function ProductCheckout({ type }: Props) {
+ 
+       {/* Heading */}
+       <div className="mx-auto max-w-md mb-6 px-1 text-center">
+-        <h1 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">{labels.title}</h1>
+-        <p className="text-[#8b93b3] text-sm sm:text-base leading-relaxed">{labels.subtitle}</p>
++        <h1 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight text-gray-900 dark:text-white">{labels.title}</h1>
++        <p className="text-gray-500 dark:text-[#8b93b3] text-sm sm:text-base leading-relaxed">{labels.subtitle}</p>
+       </div>
+ 
+       {/* Form */}
+@@ -321,7 +361,7 @@ export default function ProductCheckout({ type }: Props) {
+                 <button
+                   type="button"
+                   onClick={() => { setRecipient(ownUsername); setRecipientEditing(false); }}
+-                  className="spend-pill__value-right hover:text-white"
++                  className="spend-pill__value-right hover:text-gray-900 dark:hover:text-white"
+                 >
+                   {labels.recipientUseSelf}
+                 </button>
+@@ -340,23 +380,27 @@ export default function ProductCheckout({ type }: Props) {
+ 
+         {/* Amount (Stars: simple input; Premium: dropdown 3/6/12) */}
+         {type === 'stars' ? (
+-          <div className="spend-pill">
+-            <span className="spend-pill__icon"><StarIcon color="#f4d03f" /></span>
+-            <input
+-              type="number"
+-              inputMode="numeric"
+-              min={50}
+-              step={1}
+-              value={quantity}
+-              onChange={(e) => {
+-                const n = Number(e.target.value);
+-                if (Number.isFinite(n)) setQuantity(Math.max(50, Math.floor(n)));
+-              }}
+-              placeholder="50"
+-            />
+-            <span className="spend-pill__value-right">
+-              {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
+-            </span>
++          <div>
++            {starsTooLow && (
++              <p className="text-xs text-rose-400 mb-1.5 px-1">{t.stars.minStarsWarning}</p>
++            )}
++            <div className={`spend-pill ${starsTooLow ? 'spend-pill--error' : ''}`}>
++              <span className="spend-pill__icon"><StarIcon color="#f4d03f" /></span>
++              <input
++                type="text"
++                inputMode="numeric"
++                autoComplete="off"
++                value={starsInput}
++                onChange={(e) => {
++                  const v = e.target.value;
++                  if (v === '' || /^\d+$/.test(v)) setStarsInput(v);
++                }}
++                placeholder="50"
++              />
++              <span className="spend-pill__value-right">
++                {quoteLoading ? '…' : quote ? quoteSideLabel(quote, method) : ''}
++              </span>
++            </div>
+           </div>
+         ) : (
+           <div>
+@@ -367,9 +411,9 @@ export default function ProductCheckout({ type }: Props) {
+               onClick={() => setPremiumOpen((v) => !v)}
+             >
+               <span className="spend-pill__icon"><StarIcon color="#a48bff" /></span>
+-              <span className="spend-pill__label">{quantity} {labels.monthsShort}</span>
++              <span className="spend-pill__label">{premiumMonths} {labels.monthsShort}</span>
+               <span className="spend-pill__value-right">
+-                {quoteLoading ? '…' : quote ? `≈${quote.price_usd.replace(/^~/, '')}` : ''}
++                {quoteLoading ? '…' : quote ? quoteSideLabel(quote, method) : ''}
+               </span>
+               <ChevronDown open={premiumOpen} />
+             </button>
+@@ -379,8 +423,8 @@ export default function ProductCheckout({ type }: Props) {
+                   <button
+                     key={q}
+                     type="button"
+-                    onClick={() => { setQuantity(q); setPremiumOpen(false); }}
+-                    className={`spend-sheet__item ${quantity === q ? 'spend-sheet__item--active' : ''}`}
++                    onClick={() => { setPremiumMonths(q); setPremiumOpen(false); }}
++                    className={`spend-sheet__item ${premiumMonths === q ? 'spend-sheet__item--active' : ''}`}
+                   >
+                     <span className="flex-1">{q} {labels.monthsShort}</span>
+                   </button>
+@@ -392,8 +436,14 @@ export default function ProductCheckout({ type }: Props) {
+ 
+         {/* Total */}
+         {quote && (
+-          <p className="text-center text-sm text-[#8b93b3]">
+-            {labels.totalLabel}: <span className="text-white font-semibold">{quote.price_rub}</span>
++          <p className="text-center text-sm text-gray-500 dark:text-[#8b93b3]">
++            {labels.totalLabel}:{' '}
++            <span className="text-gray-900 dark:text-white font-semibold">
++              {quoteTotalPrimary(quote, method)}
++            </span>
++            {method === 'ton' && (
++              <span className="text-gray-500 dark:text-gray-400"> ({quote.price_rub})</span>
++            )}
+           </p>
+         )}
+ 
+@@ -406,13 +456,19 @@ export default function ProductCheckout({ type }: Props) {
+         <button
+           type="button"
+           onClick={handleBuy}
+-          disabled={!user || processing || !quote || !recipient}
++          disabled={
++            !user
++            || processing
++            || !quote
++            || !recipient
++            || (type === 'stars' && (starsParsed === undefined || starsParsed < 50))
++          }
+           className="spend-cta mt-2"
+         >
+           {processing ? t.payment.processing : `${labels.buyButton} ${type === 'stars' ? 'Stars' : 'Premium'}`}
+         </button>
+ 
+-        <Link to="/" className="text-center text-sm text-[#8b93b3] hover:text-white mt-2">
++        <Link to="/" className="text-center text-sm text-gray-500 dark:text-[#8b93b3] hover:text-gray-900 dark:hover:text-white mt-2">
+           {t.showcase.back}
+         </Link>
+       </div>
+@@ -421,12 +477,12 @@ export default function ProductCheckout({ type }: Props) {
+       {showSuccess && (
+         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/70" onClick={() => setShowSuccess(null)} />
+-          <div className="relative w-full max-w-sm rounded-3xl p-7 flex flex-col items-center text-center" style={{ background: '#1e2337' }}>
++          <div className="relative w-full max-w-sm rounded-3xl p-7 flex flex-col items-center text-center bg-white dark:bg-[#1e2337] border border-gray-200 dark:border-white/10">
+             <CheckCircleIcon />
+-            <h2 className="text-lg font-bold mt-3 mb-2">
++            <h2 className="text-lg font-bold mt-3 mb-2 text-gray-900 dark:text-white">
+               {showSuccess === 'delivered' ? labels.deliveredTitle : labels.processingTitle}
+             </h2>
+-            <p className="text-sm text-[#8b93b3] mb-6">
++            <p className="text-sm text-gray-500 dark:text-[#8b93b3] mb-6">
+               {showSuccess === 'delivered' ? labels.deliveredDesc : labels.processingDesc}
+             </p>
+             <button type="button" onClick={() => setShowSuccess(null)} className="spend-cta">

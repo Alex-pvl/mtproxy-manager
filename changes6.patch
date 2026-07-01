@@ -1,0 +1,652 @@
+--- a/frontend/src/i18n.ts
++++ b/frontend/src/i18n.ts
+@@ -23,11 +23,11 @@
+     myServices: 'Мои сервисы',
+   },
+   showcase: {
+-    title: 'Что вам сегодня нужно?',
+-    subtitle: 'Выберите услугу — VPN-доступ, Telegram Stars или Premium',
++    title: 'Сервисы',
++    subtitle: 'VPN и прокси, Telegram Stars и Premium',
+     openCard: 'Перейти',
+     back: '← На главную',
+-    fragmentBadge: 'Fragment',
++    newBadge: 'NEW',
+     vpn: {
+       title: 'Stay VPN & Proxy',
+       desc: 'MTProxy, SOCKS5 и VPN — полный доступ к интернету',
+@@ -96,7 +96,7 @@
+     processingTitle: 'Заказ принят',
+     processingDesc: 'Premium будет активирован в течение нескольких минут.',
+     alreadyHasPremium:
+-      'У этого аккаунта уже есть Telegram Premium — оформить подарок нельзя.',
++      'У получателя уже есть Telegram Premium. Укажите другой username или попробуйте позже.',
+   },
+   proxies: {
+     title: 'Мои сервисы',
+@@ -151,6 +151,10 @@
+     featureSpeed: 'Быстрая сеть',
+     featureSpeedDesc: 'Серверы имеют скорость соединения до 1 Гбит/с.',
+     loading: 'Загрузка...',
++    plansPickLabel: 'Тарифы',
++    plansPickSubtitle: 'Выберите подходящий период подписки',
++    totalLabel: 'Итого',
++    starsPaymentMiniAppOnly: 'Оплата звёздами доступна только в Telegram',
+   },
+   referral: {
+     title: 'Приглашайте друзей — получайте бонусные дни',
+@@ -205,6 +209,7 @@
+     tonLabel: 'TON',
+     stars: 'Звёзды Telegram',
+     starsDesc: 'Оплата звёздами TG',
++    starsOnlyMiniApp: 'Только в TG',
+     sbp: 'СБП',
+     sbpDesc: 'Оплата по QR через СБП',
+     sbpUnavailable: 'Временно недоступно',
+@@ -285,11 +290,11 @@
+     myServices: 'My services',
+   },
+   showcase: {
+-    title: 'What do you need today?',
+-    subtitle: 'Pick a service — VPN access, Telegram Stars or Premium',
++    title: 'Services',
++    subtitle: 'VPN & proxy, Telegram Stars and Premium',
+     openCard: 'Open',
+     back: '← Back to home',
+-    fragmentBadge: 'Fragment',
++    newBadge: 'NEW',
+     vpn: {
+       title: 'Stay VPN & Proxy',
+       desc: 'MTProxy, SOCKS5 and VPN — full internet access',
+@@ -358,7 +363,7 @@
+     processingTitle: 'Order accepted',
+     processingDesc: 'Premium will be activated within a few minutes.',
+     alreadyHasPremium:
+-      'This account already has Telegram Premium — gifting is not available.',
++      'This recipient already has Telegram Premium. Try another username or try again later.',
+   },
+   proxies: {
+     title: 'My services',
+@@ -413,6 +418,10 @@
+     featureSpeed: 'Fast network',
+     featureSpeedDesc: 'Servers with connection speeds up to 1 Gbit/s.',
+     loading: 'Loading...',
++    plansPickLabel: 'Plans',
++    plansPickSubtitle: 'Choose a subscription period',
++    totalLabel: 'Total',
++    starsPaymentMiniAppOnly: 'Paying with Stars is only available in Telegram',
+   },
+   referral: {
+     title: 'Invite friends — get bonus days',
+@@ -467,6 +476,7 @@
+     tonLabel: 'TON',
+     stars: 'Telegram Stars',
+     starsDesc: 'Pay with TG Stars',
++    starsOnlyMiniApp: 'TG only',
+     sbp: 'SBP',
+     sbpDesc: 'Pay by QR via Faster Payments',
+     sbpUnavailable: 'Temporarily unavailable',
+--- a/frontend/src/pages/Home.tsx
++++ b/frontend/src/pages/Home.tsx
+@@ -23,10 +23,17 @@
+     {
+       to: '/stars',
+       sticker: 'buy_stars',
+-      title: t.showcase.starsPremium.title,
+-      desc: t.showcase.starsPremium.desc,
+-      badge: t.showcase.fragmentBadge,
++      title: t.showcase.stars.title,
++      desc: t.showcase.stars.desc,
++      badge: t.showcase.newBadge,
+     },
++    {
++      to: '/premium',
++      sticker: 'buy_premium',
++      title: t.showcase.premium.title,
++      desc: t.showcase.premium.desc,
++      badge: t.showcase.newBadge,
++    },
+   ];
+ 
+   return (
+@@ -40,7 +47,7 @@
+         </p>
+       </div>
+ 
+-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-3xl mx-auto">
++      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-4xl mx-auto">
+         {cards.map((c) => (
+           <Link
+             key={c.to}
+@@ -52,7 +59,7 @@
+                 {c.badge}
+               </span>
+             )}
+-            <Sticker name={c.sticker} className="w-28 h-28 sm:w-36 sm:h-36 mb-3" />
++            <Sticker name={c.sticker} className="w-20 h-20 sm:w-24 sm:h-24 mb-3" />
+             <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+               {c.title}
+             </h3>
+--- a/frontend/src/pages/Pricing.tsx
++++ b/frontend/src/pages/Pricing.tsx
+@@ -1,4 +1,4 @@
+-import { useState, useEffect } from 'react';
++import { useState, useEffect, useMemo } from 'react';
+ import { beginCell } from '@ton/core';
+ import { paymentApi } from '../api/client';
+ import type { Plan } from '../api/client';
+@@ -7,44 +7,9 @@
+ import { Link } from 'react-router-dom';
+ import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
+ import Sticker from '../components/Sticker';
+-import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
+ 
+ const POPULAR_PLAN = 'year_1';
+ 
+-// ─── Payment method icons ─────────────────────────────────────────────────────
+-
+-function CryptoBotIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/cryptobot.jpg" alt="CryptoBot" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function StarsPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/stars.jpg" alt="Telegram Stars" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/toncoin.jpg" alt="TON" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+-  return <img src="/sbp.jpg" alt="SBP" className={`${className} rounded-xl object-cover`} />;
+-}
+-
+-function PaymentIconFrame({
+-  children,
+-  outlined = false,
+-}: {
+-  children: React.ReactNode;
+-  outlined?: boolean;
+-}) {
+-  return (
+-    <span
+-      className={`shrink-0 rounded-xl ${outlined ? 'ring-1 ring-gray-200 dark:ring-gray-700' : ''}`}
+-    >
+-      {children}
+-    </span>
+-  );
+-}
+-
+ function CheckCircleIcon() {
+   return (
+     <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+@@ -63,8 +28,6 @@
+   return btoa(binary);
+ }
+ 
+-// ─── Main page ────────────────────────────────────────────────────────────────
+-
+ export default function Pricing() {
+   const { user, refreshUser } = useAuth();
+   const { t } = useLanguage();
+@@ -74,24 +37,28 @@
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState('');
+   const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
+-  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
++  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
++  const [processingCheckout, setProcessingCheckout] = useState(false);
+   const [showSuccess, setShowSuccess] = useState(false);
+ 
+   const sub = user?.subscription;
+   const isMiniApp = !!(window.Telegram?.WebApp?.initData);
+ 
+-  const methods: PaymentMethod[] = [
+-    { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)' },
+-    { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'TON' },
+-    { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
+-    {
+-      id: 'stars',
+-      icon: '/stars.jpg',
+-      label: t.payment.stars,
+-      disabled: !isMiniApp,
+-      badge: !isMiniApp ? 'TG' : undefined,
+-    },
+-  ];
++  const methods: { id: PayMethod; label: string; desc: string; disabled?: boolean; badge?: string }[] = useMemo(
++    () => [
++      { id: 'sbp', label: t.payment.sbp, desc: t.payment.sbpDesc },
++      {
++        id: 'stars',
++        label: t.payment.stars,
++        desc: t.payment.starsDesc,
++        disabled: !isMiniApp,
++        badge: !isMiniApp ? t.payment.starsOnlyMiniApp : undefined,
++      },
++      { id: 'cryptobot', label: t.payment.cryptobot, desc: t.payment.cryptobotDesc },
++      { id: 'ton', label: t.payment.ton, desc: wallet ? t.payment.tonDesc : t.payment.tonNotConnected },
++    ],
++    [t.payment, isMiniApp, wallet],
++  );
+ 
+   const formatTon = (nano: string) => {
+     const n = Number(nano);
+@@ -119,34 +86,29 @@
+ 
+   const openPaymentLink = (url: string) => {
+     if (isMiniApp && window.Telegram?.WebApp?.openLink) {
+-      // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
+-      // В Telegram политика no-referrer не требуется.
+       window.Telegram.WebApp.openLink(url, { try_browser: true });
+       return;
+     }
+-    // if (options?.stripReferrer) {
+-    //   // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
+-    //   // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
+-    //   const a = document.createElement('a');
+-    //   a.href = url;
+-    //   a.rel = 'noreferrer noopener';
+-    //   a.referrerPolicy = 'no-referrer';
+-    //   document.body.appendChild(a);
+-    //   a.click();
+-    //   document.body.removeChild(a);
+-    //   return;
+-    // }
+     window.location.href = url;
+   };
+ 
+   useEffect(() => {
+-    paymentApi.listPlans()
++    paymentApi
++      .listPlans()
+       .then((res) => setPlans(res.data))
+       .catch(() => setError(t.pricing.failedLoad))
+       .finally(() => setLoading(false));
+   }, [t.pricing.failedLoad]);
+ 
+   useEffect(() => {
++    if (!plans.length) return;
++    setSelectedPlanId((prev) => {
++      if (prev && plans.some((p) => p.id === prev)) return prev;
++      return plans.find((p) => p.id === POPULAR_PLAN)?.id ?? plans[0].id;
++    });
++  }, [plans]);
++
++  useEffect(() => {
+     const params = new URLSearchParams(window.location.search);
+     const hasLegacyPaymentFlag = params.has('payment');
+     const startParam =
+@@ -168,8 +130,6 @@
+ 
+         await refreshUser();
+ 
+-        // Fallback for race conditions: webhook may activate subscription
+-        // a little later than checkPendingPayments returns.
+         if (!res.data?.updated) {
+           try {
+             const subRes = await paymentApi.getSubscription();
+@@ -192,10 +152,12 @@
+       });
+   }, [refreshUser]);
+ 
++  const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
++
+   const handleBuyPlan = async (plan: Plan) => {
+-    if (!user || processingPlanId) return;
++    if (!user || processingCheckout) return;
+     setError('');
+-    setProcessingPlanId(plan.id);
++    setProcessingCheckout(true);
+     const paymentSource: 'web' | 'tg' = isMiniApp ? 'tg' : 'web';
+ 
+     try {
+@@ -213,12 +175,12 @@
+ 
+       if (selectedMethod === 'stars') {
+         if (!isMiniApp) {
+-          setError('Оплата звёздами доступна только в Telegram');
++          setError(t.pricing.starsPaymentMiniAppOnly);
+           return;
+         }
+         const res = await paymentApi.createStarsPayment(plan.id);
+         window.Telegram!.WebApp!.openInvoice(res.data.invoice_link, (status) => {
+-          setProcessingPlanId(null);
++          setProcessingCheckout(false);
+           if (status === 'paid') {
+             setShowSuccess(true);
+             refreshUser();
+@@ -229,7 +191,6 @@
+         return;
+       }
+ 
+-      // TON
+       if (!wallet) {
+         tonConnectUI.openModal();
+         return;
+@@ -249,9 +210,8 @@
+         ],
+       });
+       setShowSuccess(true);
+-      setProcessingPlanId(null);
+ 
+-      for (let i = 0; i < 12; i++) {
++      for (let i = 0; i < 12; i += 1) {
+         await new Promise((r) => setTimeout(r, 5000));
+         try {
+           await paymentApi.checkPendingPayments();
+@@ -262,13 +222,12 @@
+           // ignore transient polling errors
+         }
+       }
+-      return;
+     } catch (err: any) {
+       if (err?.message !== 'Reject request') {
+         setError(err.response?.data?.error || t.pricing.failedPayment);
+       }
+     } finally {
+-      setProcessingPlanId(null);
++      setProcessingCheckout(false);
+     }
+   };
+ 
+@@ -301,27 +260,165 @@
+         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
+       </div>
+ 
+-      {sub?.active && (
+-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
+-          <p className="text-emerald-600 dark:text-emerald-400 text-sm">
+-            {t.pricing.activeSubscription}{' '}
+-            <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
+-            {sub.expires_at && (
+-              <span className="text-emerald-500 ml-2">
+-                {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString('ru-RU')}
+-              </span>
+-            )}
++      <div className="max-w-xl mx-auto space-y-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 mb-8">
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
++            {t.payment.selectMethod}
+           </p>
++          <div className="space-y-1.5">
++            {methods.map((m) => (
++              <button
++                key={m.id}
++                type="button"
++                disabled={m.disabled}
++                onClick={() => !m.disabled && setSelectedMethod(m.id)}
++                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
++                  m.id === selectedMethod
++                    ? 'bg-indigo-50 dark:bg-indigo-500/15 ring-1 ring-indigo-500/40'
++                    : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
++                } ${m.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
++              >
++                <div className="flex-1 min-w-0">
++                  <div className="flex items-center gap-2 flex-wrap">
++                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{m.label}</p>
++                    {m.badge && (
++                      <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-1.5 py-0.5 rounded">
++                        {m.badge}
++                      </span>
++                    )}
++                  </div>
++                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.desc}</p>
++                </div>
++              </button>
++            ))}
++          </div>
++          {selectedMethod === 'sbp' && (
++            <p className="mt-3 text-center">
++              <Link to="/legal/sbp" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
++                {t.payment.sbpAgreementShort}
++              </Link>
++            </p>
++          )}
+         </div>
+-      )}
+ 
+-      <div className="max-w-xl mx-auto mb-6">
+-        <PaymentMethodPicker
+-          methods={methods}
+-          value={selectedMethod}
+-          onChange={(v) => setSelectedMethod(v as PayMethod)}
+-          placeholder={t.payment.selectMethod}
+-        />
++        <div>
++          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
++            {t.pricing.plansPickLabel}
++          </p>
++          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{t.pricing.plansPickSubtitle}</p>
++
++          {sub?.active && (
++            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2.5 mb-4 text-sm text-emerald-700 dark:text-emerald-300">
++              <span className="text-emerald-600 dark:text-emerald-400 font-medium">{t.pricing.activeSubscription}</span>{' '}
++              <span className="font-semibold text-gray-900 dark:text-white">
++                {(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}
++              </span>
++              {sub.expires_at && (
++                <span className="text-gray-600 dark:text-gray-400 ml-1">
++                  {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString(undefined)}
++                </span>
++              )}
++            </div>
++          )}
++
++          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
++            {plans.map((plan) => {
++              const isPopular = plan.id === POPULAR_PLAN;
++              return (
++                <button
++                  key={plan.id}
++                  type="button"
++                  onClick={() => setSelectedPlanId(plan.id)}
++                  className={`text-sm font-medium rounded-xl px-3 py-2.5 transition-colors text-center leading-tight ${
++                    selectedPlanId === plan.id
++                      ? 'bg-indigo-600 text-white'
++                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
++                  }`}
++                >
++                  <span className="block">{t.pricing.planNames[plan.id] ?? plan.name}</span>
++                  {isPopular && (
++                    <span
++                      className={`block text-[10px] font-normal mt-0.5 ${
++                        selectedPlanId === plan.id ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'
++                      }`}
++                    >
++                      {t.pricing.popular}
++                    </span>
++                  )}
++                </button>
++              );
++            })}
++          </div>
++        </div>
++
++        {selectedPlan && (
++          <>
++            <div className="flex items-baseline justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
++              <span className="text-sm text-gray-500 dark:text-gray-400">{t.pricing.totalLabel}</span>
++              {(() => {
++                const { main, secondary } = getDisplayPrice(selectedPlan);
++                return (
++                  <div className="flex items-baseline gap-2 flex-wrap justify-end">
++                    <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{main}</span>
++                    {secondary && (
++                      <span className="text-sm font-normal text-gray-400 dark:text-gray-500">({secondary})</span>
++                    )}
++                  </div>
++                );
++              })()}
++            </div>
++
++            {selectedMethod === 'sbp' && (
++              <>
++                {selectedPlan.discount_percent != null && selectedPlan.discount_percent > 0 && (
++                  <div className="flex items-center gap-2 flex-wrap -mt-2">
++                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
++                      −{selectedPlan.discount_percent}%
++                    </span>
++                    {selectedPlan.original_price_label && (
++                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">
++                        {selectedPlan.original_price_label}
++                      </span>
++                    )}
++                  </div>
++                )}
++                <p className="text-sm text-gray-500 dark:text-gray-400">
++                  {selectedPlan.per_month}
++                  {t.pricing.perMonth}
++                </p>
++              </>
++            )}
++
++            <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
++              <li className="flex items-center gap-2">
++                <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
++                {t.pricing.proxy(selectedPlan.max_proxies)}
++              </li>
++            </ul>
++          </>
++        )}
++
++        {error && (
++          <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded-xl px-3 py-2 flex items-start justify-between gap-2">
++            <span>{error}</span>
++            <button
++              type="button"
++              onClick={() => setError('')}
++              className="shrink-0 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white"
++            >
++              &times;
++            </button>
++          </div>
++        )}
++
++        <button
++          type="button"
++          onClick={() => selectedPlan && user && handleBuyPlan(selectedPlan)}
++          disabled={!user || !selectedPlan || processingCheckout}
++          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
++        >
++          {processingCheckout ? t.payment.processing : sub?.active ? t.pricing.renew : t.pricing.buy}
++        </button>
+       </div>
+ 
+       <div className="mb-8">
+@@ -351,115 +448,6 @@
+         </div>
+       </div>
+ 
+-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+-        {plans.map((plan) => {
+-          const isPopular = plan.id === POPULAR_PLAN;
+-          return (
+-            <div
+-              key={plan.id}
+-              className={`relative bg-white dark:bg-gray-900 border rounded-lg p-5 flex flex-col ${
+-                isPopular
+-                  ? 'border-indigo-500 ring-1 ring-indigo-500/50'
+-                  : 'border-gray-200 dark:border-gray-800'
+-              }`}
+-            >
+-              {isPopular && (
+-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-medium px-3 py-0.5 rounded-full">
+-                  {t.pricing.popular}
+-                </span>
+-              )}
+-
+-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
+-
+-              <div className="mb-4">
+-                {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
+-                  <div className="mb-1.5 flex items-center gap-2">
+-                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
+-                      Скидка {plan.discount_percent}%
+-                    </span>
+-                    {plan.original_price_label && (
+-                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
+-                    )}
+-                  </div>
+-                )}
+-
+-                {(() => {
+-                  const { main, secondary } = getDisplayPrice(plan);
+-                  return (
+-                    <div className="flex items-baseline gap-2 flex-wrap">
+-                      <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{main}</span>
+-                      {secondary && (
+-                        <span className="text-base text-gray-400 dark:text-gray-500">({secondary})</span>
+-                      )}
+-                    </div>
+-                  );
+-                })()}
+-
+-              </div>
+-
+-              {selectedMethod === 'sbp' && (
+-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+-                  {plan.per_month}{t.pricing.perMonth}
+-                </p>
+-              )}
+-
+-              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2 mb-4 flex-1">
+-                <li className="flex items-center gap-2">
+-                  <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
+-                  {t.pricing.proxy(plan.max_proxies)}
+-                </li>
+-              </ul>
+-
+-              {/* Payment methods hint */}
+-              <div className="flex items-center gap-1.5 mb-3">
+-                <PaymentIconFrame outlined>
+-                  <SbpPayIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-                <PaymentIconFrame outlined>
+-                  <StarsPayIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-                <PaymentIconFrame>
+-                  <CryptoBotIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-                <PaymentIconFrame>
+-                  <TonPayIcon className="w-5 h-5" />
+-                </PaymentIconFrame>
+-              </div>
+-
+-              <button
+-                onClick={() => user ? handleBuyPlan(plan) : undefined}
+-                disabled={!user || processingPlanId === plan.id}
+-                className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation ${
+-                  isPopular
+-                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+-                    : 'bg-indigo-50 border border-indigo-200 dark:border-gray-700 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-gray-700 text-indigo-700 dark:text-gray-100'
+-                }`}
+-              >
+-                {processingPlanId === plan.id ? t.payment.processing : (sub?.active ? t.pricing.renew : t.pricing.buy)}
+-              </button>
+-            </div>
+-          );
+-        })}
+-      </div>
+-
+-      {error && (
+-        <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded px-3 py-2 mb-6 text-center">
+-          {error}
+-          <button onClick={() => setError('')} className="ml-2 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white">&times;</button>
+-        </div>
+-      )}
+-
+-      {selectedMethod === 'sbp' && (
+-          <p className="mt-3 text-center">
+-            <Link
+-              to="/legal/sbp"
+-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+-            >
+-              {t.payment.sbpAgreementShort}
+-            </Link>
+-          </p>
+-        )}
+-
+       <div className="mt-8 text-center"> 
+         <Link to="/proxies" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+           {t.pricing.back}
+  

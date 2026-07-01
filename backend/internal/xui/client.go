@@ -289,13 +289,9 @@ func (c *Client) BuildLink(uuid, serverIP, remark string) string {
 	case "reality":
 		params.Set("security", "reality")
 		if ss.RealitySettings != nil {
-			params.Set("pbk", ss.RealitySettings.Settings.PublicKey)
+			params.Set("pbk", "KGtP7JJDbRi-wDmYBij4gsTQmh4jKTCK5Jw57fdET3E")
 
-			fp := ss.RealitySettings.Settings.Fingerprint
-			if fp == "" {
-				fp = "chrome"
-			}
-			params.Set("fp", fp)
+			params.Set("fp", "firefox")
 
 			sni := ss.RealitySettings.Settings.ServerName
 			if sni == "" && len(ss.RealitySettings.ServerNames) > 0 {
