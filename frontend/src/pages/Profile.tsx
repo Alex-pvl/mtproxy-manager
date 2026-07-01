@@ -264,7 +264,7 @@ export default function Profile() {
       {/* ── Wallet section ── */}
       <ListSection>
         <ListRow
-          icon={<img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />}
+          icon={<img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover" />}
           label={t.profile.wallet}
           sublabel={wallet ? shortWalletAddress(toFriendlyAddress(wallet.account.address)) : undefined}
           onClick={handleWalletTap}

@@ -22,7 +22,7 @@ function StarsPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
 }
 
 function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/toncoin.jpg" alt="TON" className={`${className} rounded-xl object-cover`} />;
+  return <img src="/toncoin.jpg" alt="GRAM" className={`${className} rounded-xl object-cover`} />;
 }
 
 function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
@@ -82,7 +82,7 @@ export default function Pricing() {
 
   const methods: PaymentMethod[] = [
     { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)', badge: t.payment.sbpUnavailable },
-    { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'TON' },
+    { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'GRAM' },
     { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
     {
       id: 'stars',
@@ -98,7 +98,7 @@ export default function Pricing() {
     if (!Number.isFinite(n)) return nano;
     const ton = n / 1_000_000_000;
     const str = ton.toFixed(2).replace(/\.?0+$/, '');
-    return `${str} TON`;
+    return `${str} GRAM`;
   };
 
   const getDisplayPrice = (plan: Plan): { main: string; secondary?: string } => {

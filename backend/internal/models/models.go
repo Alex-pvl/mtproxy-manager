@@ -67,28 +67,29 @@ type Plan struct {
 	TonAmount string `json:"ton_amount,omitempty"`
 }
 
-// Цены в USD по курсу ЦБ РФ ~77 ₽/$ (февраль 2026)
-// Stars: ~$0.02/star; TON: ~$2.6/TON (08.05.2026) → 1 nanoTON = 1e-9 TON
+// Цены в USD по курсу ЦБ РФ ~78 ₽/$ (июль 2026)
+// Stars: ~$0.02/star; GRAM (ex-TON): ~$1.56, ₽/$ ~78 → ~121.7 ₽/GRAM (01.07.2026)
+// TonAmount в nanoGRAM (1 GRAM = 1e9); суммы = рублёвая цена ÷ 121.7
 var Plans = []Plan{
 	{
 		ID: "month_1", Name: "1 месяц", DurationDays: 30,
 		Price: "200.00", PriceLabel: "200 ₽", PriceUSDLabel: "~$2.60", PerMonth: "200 ₽", MaxProxies: 1,
-		StarsPrice: 200, TonAmount: "1000000000", // 1.0 TON
+		StarsPrice: 200, TonAmount: "1640000000", // 1.64 GRAM (~200 ₽)
 	},
 	{
 		ID: "month_3", Name: "3 месяца", DurationDays: 90,
 		Price: "540.00", PriceLabel: "540 ₽", PriceUSDLabel: "~$7", PerMonth: "180 ₽", MaxProxies: 3,
-		StarsPrice: 500, TonAmount: "2700000000", // 2.7 TON
+		StarsPrice: 500, TonAmount: "4440000000", // 4.44 GRAM (~540 ₽)
 	},
 	{
 		ID: "month_6", Name: "6 месяцев", DurationDays: 180,
 		Price: "960.00", PriceLabel: "960 ₽", PriceUSDLabel: "~$12.50", PerMonth: "160 ₽", MaxProxies: 5,
-		StarsPrice: 900, TonAmount: "4800000000", // 4.8 TON
+		StarsPrice: 900, TonAmount: "7890000000", // 7.89 GRAM (~960 ₽)
 	},
 	{
 		ID: "year_1", Name: "1 год", DurationDays: 365,
 		Price: "1680.00", PriceLabel: "1 680 ₽", PriceUSDLabel: "~$21.80", PerMonth: "140 ₽", MaxProxies: 10,
-		StarsPrice: 1500, TonAmount: "8400000000", // 8.4 TON
+		StarsPrice: 1500, TonAmount: "13810000000", // 13.81 GRAM (~1680 ₽)
 	},
 }
 

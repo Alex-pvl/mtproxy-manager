@@ -265,18 +265,18 @@ export default function Layout() {
             <button
               type="button"
               onClick={openTonWalletActions}
-              aria-label="TON wallet"
+              aria-label="GRAM wallet"
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
                   ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
               }`}
             >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
+              <img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover shrink-0" />
               <span className="tabular-nums whitespace-nowrap">
                 {wallet
-                  ? (tonBalance !== null ? `${tonBalance} TON` : '...')
-                  : 'TON'}
+                  ? (tonBalance !== null ? `${tonBalance} GRAM` : '...')
+                  : 'GRAM'}
               </span>
             </button>
           </div>
@@ -396,18 +396,18 @@ export default function Layout() {
             <button
               type="button"
               onClick={openTonWalletActions}
-              aria-label="TON wallet"
+              aria-label="GRAM wallet"
               className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
                   ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 hover:bg-sky-500/25 dark:hover:bg-sky-500/25'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
+              <img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover shrink-0" />
               <span className="tabular-nums whitespace-nowrap">
                 {wallet
-                  ? (tonBalance !== null ? `${tonBalance} TON` : '...')
-                  : 'TON'}
+                  ? (tonBalance !== null ? `${tonBalance} GRAM` : '...')
+                  : 'GRAM'}
               </span>
             </button>
 
@@ -416,14 +416,14 @@ export default function Layout() {
             <button
               type="button"
               onClick={openTonWalletActions}
-              aria-label="TON wallet"
+              aria-label="GRAM wallet"
               className={`md:hidden flex items-center justify-center w-9 h-9 rounded-full transition-colors touch-manipulation shrink-0 ${
                 wallet
                   ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
               }`}
             >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />
+              <img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover" />
             </button>
 
             {user ? (
