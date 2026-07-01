@@ -7,26 +7,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { BlurredLink } from '../components/BlurredLink';
 import TelegramLoginButton from '../components/TelegramLoginButton';
 
-function WifiIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12.55a11 11 0 0 1 14.08 0" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M1.42 9a16 16 0 0 1 21.16 0" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-      <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function MobileIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-      <line x1="12" y1="18" x2="12.01" y2="18" strokeLinecap="round" strokeWidth={3} />
-    </svg>
-  );
-}
-
 function ShieldIcon({ className = '' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -67,36 +47,12 @@ export default function Proxies() {
     setCreateLoading(true);
     setError('');
     try {
-      await proxyApi.create('google.com', undefined);
+      await proxyApi.create();
       await fetchProxies();
     } catch (err: any) {
       setError(err.response?.data?.error || t.proxies.failedCreate);
     } finally {
       setCreateLoading(false);
-    }
-  };
-
-  const handleStart = async (id: number) => {
-    setActionLoading(id);
-    try {
-      await proxyApi.start(id);
-      await fetchProxies();
-    } catch (err: any) {
-      setError(err.response?.data?.error || t.proxies.failedStart);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleStop = async (id: number) => {
-    setActionLoading(id);
-    try {
-      await proxyApi.stop(id);
-      await fetchProxies();
-    } catch (err: any) {
-      setError(err.response?.data?.error || t.proxies.failedStop);
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -201,122 +157,23 @@ export default function Proxies() {
               key={proxy.id}
               className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 overflow-hidden min-w-0"
             >
-              {/* Card header: status + actions */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <span
-                  className={`text-xs px-2 py-0.5 rounded font-medium ${
-                    proxy.status === 'running'
-                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                      : proxy.status === 'stopped'
-                      ? 'bg-gray-500/15 text-gray-500 dark:text-gray-400'
-                      : 'bg-red-500/15 text-red-500 dark:text-red-400'
-                  }`}
+              <div className="flex items-center justify-end mb-3">
+                <button
+                  onClick={() => handleDelete(proxy.id)}
+                  disabled={actionLoading === proxy.id}
+                  className="text-xs bg-red-600/10 hover:bg-red-600/20 text-red-500 dark:text-red-400 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
                 >
-                  {proxy.status}
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  {proxy.status === 'running' ? (
-                    <button
-                      onClick={() => handleStop(proxy.id)}
-                      disabled={actionLoading === proxy.id}
-                      className="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
-                    >
-                      {t.proxies.stop}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleStart(proxy.id)}
-                      disabled={actionLoading === proxy.id}
-                      className="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
-                    >
-                      {t.proxies.start}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(proxy.id)}
-                    disabled={actionLoading === proxy.id}
-                    className="text-xs bg-red-600/10 hover:bg-red-600/20 text-red-500 dark:text-red-400 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
-                  >
-                    {t.proxies.delete}
-                  </button>
-                </div>
+                  {t.proxies.delete}
+                </button>
               </div>
 
-              {/* MTProto link */}
-              {proxy.link && (
-                <div className="mt-2 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <WifiIcon className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
-                      <div>
-                        <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">MTProto</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <a
-                        href={proxy.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors py-1 touch-manipulation"
-                      >
-                        {t.proxies.open}
-                      </a>
-                      <button
-                        onClick={() => copyToClipboard(proxy.link!, `link-${proxy.id}`)}
-                        className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap transition-colors py-1 touch-manipulation"
-                      >
-                        {copied === `link-${proxy.id}` ? t.proxies.copied : t.proxies.copy}
-                      </button>
-                    </div>
-                  </div>
-                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
-                    <BlurredLink text={proxy.link} type="mtproxy" />
-                  </code>
-                </div>
-              )}
-
-              {/* SOCKS5 link */}
-              {proxy.link_socks5 && (
-                <div className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <MobileIcon className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                      <div>
-                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">SOCKS5</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <a
-                        href={proxy.link_socks5}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-emerald-500 dark:text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors py-1 touch-manipulation"
-                      >
-                        {t.proxies.open}
-                      </a>
-                      <button
-                        onClick={() => copyToClipboard(proxy.link_socks5!, `link-socks5-${proxy.id}`)}
-                        className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap transition-colors py-1 touch-manipulation"
-                      >
-                        {copied === `link-socks5-${proxy.id}` ? t.proxies.copied : t.proxies.copy}
-                      </button>
-                    </div>
-                  </div>
-                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
-                    <BlurredLink text={proxy.link_socks5} type="socks5" />
-                  </code>
-                </div>
-              )}
-
-              {/* VLESS link */}
+              {/* VPN (VLESS) link */}
               {proxy.link_vless && (
                 <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <ShieldIcon className="w-4 h-4 text-violet-500 dark:text-violet-400 shrink-0" />
-                      <div>
-                        <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.vlessLabel}</span>
-                      </div>
+                      <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.vlessLabel}</span>
                     </div>
                     <button
                       onClick={() => copyToClipboard(proxy.link_vless!, `link-vless-${proxy.id}`)}
@@ -328,6 +185,7 @@ export default function Proxies() {
                   <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
                     <BlurredLink text={proxy.link_vless} type="vless" />
                   </code>
+                  <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">{t.proxies.vlessHint}</p>
                 </div>
               )}
             </div>

@@ -99,10 +99,7 @@ export const referralApi = {
 
 export const proxyApi = {
   list: () => api.get<Proxy[]>('/proxies'),
-  create: (domain: string, port?: number) =>
-    api.post<Proxy>('/proxies', { domain, port: port || undefined }),
-  start: (id: number) => api.post<Proxy>(`/proxies/${id}/start`),
-  stop: (id: number) => api.post<Proxy>(`/proxies/${id}/stop`),
+  create: () => api.post<Proxy>('/proxies', {}),
   delete: (id: number) => api.delete(`/proxies/${id}`),
 };
 

@@ -91,8 +91,6 @@ func main() {
 			r.Use(middleware.AuthRequired(jwtSvc))
 			r.Get("/", proxyHandler.List)
 			r.Post("/", proxyHandler.Create)
-			r.Post("/{id}/stop", proxyHandler.Stop)
-			r.Post("/{id}/start", proxyHandler.Start)
 			r.Delete("/{id}", proxyHandler.Delete)
 		})
 

@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"mtproxy-manager/internal/database"
@@ -110,12 +108,6 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	proxies, err := h.db.ListProxiesByUser(id)
 	if err == nil {
 		for _, p := range proxies {
-			if p.ContainerID != "" {
-				h.docker.RemoveProxy(r.Context(), p.ContainerID)
-			}
-			if p.Socks5ContainerID != "" {
-				h.docker.RemoveProxy(r.Context(), p.Socks5ContainerID)
-			}
 			h.db.DeleteProxy(p.ID)
 		}
 	}
@@ -133,17 +125,6 @@ func (h *AdminHandler) ListAllProxies(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list proxies")
 		return
-	}
-
-	serverIP := h.docker.GetServerIP()
-	for i := range proxies {
-		if serverIP != "" {
-			proxies[i].Link = fmt.Sprintf("https://t.me/proxy?server=%s&port=%d&secret=%s", serverIP, proxies[i].Port, proxies[i].Secret)
-			if proxies[i].Socks5Port > 0 && proxies[i].Socks5User != "" {
-				proxies[i].LinkSocks5 = fmt.Sprintf("https://t.me/socks?server=%s&port=%d&user=%s&pass=%s",
-					serverIP, proxies[i].Socks5Port, url.QueryEscape(proxies[i].Socks5User), url.QueryEscape(proxies[i].Socks5Pass))
-			}
-		}
 	}
 
 	if proxies == nil {
@@ -165,13 +146,6 @@ func (h *AdminHandler) DeleteProxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusNotFound, "proxy not found")
 		return
-	}
-
-	if proxy.ContainerID != "" {
-		h.docker.RemoveProxy(r.Context(), proxy.ContainerID)
-	}
-	if proxy.Socks5ContainerID != "" {
-		h.docker.RemoveProxy(r.Context(), proxy.Socks5ContainerID)
 	}
 
 	if err := h.db.DeleteProxy(proxy.ID); err != nil {
