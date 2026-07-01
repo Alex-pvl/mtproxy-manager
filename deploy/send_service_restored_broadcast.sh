@@ -39,7 +39,7 @@ else
   : "${DATABASE_URL:?DATABASE_URL не задан — укажи ENV_FILE=/path/.env или передай файл с ID}"
   ids_cmd() {
     psql "$DATABASE_URL" -tAc \
-      "SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL AND telegram_id <> 0;"
+      "SELECT telegram_id FROM users WHERE id = 1;"
   }
 fi
 
