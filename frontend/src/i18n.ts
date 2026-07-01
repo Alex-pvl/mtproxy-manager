@@ -12,11 +12,9 @@ const ru = {
   home: {
     title: 'Интернет без границ — быстро и безопасно',
     description:
-      'MTProxy, SOCKS5 и VPN — полезные решения для доступа в интернет. MTProxy и SOCKS5 работают прямо в Telegram, а VPN конфигурации обеспечивают надежный доступ к любому интернет-ресурсу.',
+      'VPN конфигурации обеспечивают надёжный доступ к любому интернет-ресурсу.',
     featureTitle: 'Наши сервисы',
     features: [
-      'MTProto — официальный протокол Telegram',
-      'SOCKS5 — надёжный прокси-протокол',
       'VPN — защищает весь трафик устройства, открывает доступ к любым ресурсам',
     ],
     choosePlan: 'Выбрать тариф',
@@ -280,11 +278,9 @@ const en = {
   home: {
     title: 'Internet without limits — fast and secure',
     description:
-      'MTProxy, SOCKS5 and VPN — useful solutions for internet access. MTProxy and SOCKS5 work directly in Telegram, while VPN configurations provide a reliable access to any internet resource.',
+      'VPN configurations provide reliable access to any internet resource.',
     featureTitle: 'Our services',
     features: [
-      'MTProto — Telegram\'s official protocol',
-      'SOCKS5 — reliable proxy protocol',
       'VPN — protects all device traffic, provides access to any internet resource',
     ],
     choosePlan: 'Choose a plan',
