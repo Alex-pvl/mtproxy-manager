@@ -49,6 +49,7 @@ type Config struct {
 	XUIPathPrefix string // custom panel base path (e.g. "vwtLfHqxkCntctQ"), empty = default
 	XUIUsername   string
 	XUIPassword   string
+	XUIAPIToken   string // 3x-ui Settings → Security → API Token; replaces login when set
 	XUIInboundID  int
 }
 
@@ -90,6 +91,7 @@ func Load() *Config {
 		XUIPathPrefix:        getEnv("XUI_PATH_PREFIX", ""),
 		XUIUsername:          getEnv("XUI_USERNAME", "admin"),
 		XUIPassword:          getEnv("XUI_PASSWORD", ""),
+		XUIAPIToken:          getEnv("XUI_API_TOKEN", ""),
 		XUIInboundID:         getEnvInt("XUI_INBOUND_ID", 1),
 	}
 }

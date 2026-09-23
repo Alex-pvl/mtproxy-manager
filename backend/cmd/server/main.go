@@ -42,7 +42,7 @@ func main() {
 	// Initialize x-ui client only when XUI_URL is configured
 	var xuiClient *xui.Client
 	if cfg.XUIEnabled {
-		xuiClient, err = xui.NewClient(cfg.XUIURL, cfg.XUIPathPrefix, cfg.XUIUsername, cfg.XUIPassword, cfg.XUIInboundID)
+		xuiClient, err = xui.NewClient(cfg.XUIURL, cfg.XUIPathPrefix, cfg.XUIUsername, cfg.XUIPassword, cfg.XUIAPIToken, cfg.XUIInboundID)
 		if err != nil {
 			log.Printf("WARNING: x-ui integration disabled — %v", err)
 			xuiClient = nil
