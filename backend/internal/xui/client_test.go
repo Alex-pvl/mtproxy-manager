@@ -1,6 +1,7 @@
 package xui
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,5 +26,21 @@ func TestNewClientWithAPIToken(t *testing.T) {
 	}
 	if c.inbound.Port != 443 {
 		t.Fatalf("inbound not loaded: %+v", c.inbound)
+	}
+}
+
+func TestInboundSettingsStringOrObject(t *testing.T) {
+	for _, raw := range []string{
+		`{"streamSettings":"{\"network\":\"tcp\"}"}`, // v2: JSON in a string
+		`{"streamSettings":{"network":"tcp"}}`,       // v3: plain object
+	} {
+		var in Inbound
+		if err := json.Unmarshal([]byte(raw), &in); err != nil {
+			t.Fatal(err)
+		}
+		var ss streamSettings
+		if err := json.Unmarshal([]byte(in.StreamSettings), &ss); err != nil || ss.Network != "tcp" {
+			t.Fatalf("%s: got %+v, %v", raw, ss, err)
+		}
 	}
 }
