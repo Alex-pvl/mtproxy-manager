@@ -104,8 +104,6 @@ type xuiClient struct {
 	TotalGB    int64  `json:"totalGB"`
 	ExpiryTime int64  `json:"expiryTime"`
 	Enable     bool   `json:"enable"`
-	TgID       string `json:"tgId"`
-	SubID      string `json:"subId"`
 }
 
 // bearerTransport adds the panel API token to every request.
