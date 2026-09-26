@@ -19,6 +19,7 @@ type Client struct {
 	pathPrefix string
 	username   string
 	password   string
+	subURL     string
 	inboundID  int
 	http       *http.Client
 	mu         sync.Mutex
@@ -93,7 +94,7 @@ type xuiClient struct {
 	SubID      string `json:"subId"`
 }
 
-func NewClient(baseURL, pathPrefix, username, password string, inboundID int) (*Client, error) {
+func NewClient(baseURL, pathPrefix, username, password, subURL string, inboundID int) (*Client, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("cookiejar: %w", err)
@@ -104,6 +105,7 @@ func NewClient(baseURL, pathPrefix, username, password string, inboundID int) (*
 		pathPrefix: strings.Trim(pathPrefix, "/"),
 		username:   username,
 		password:   password,
+		subURL:     subURL,
 		inboundID:  inboundID,
 		http: &http.Client{
 			Jar:     jar,
@@ -231,6 +233,7 @@ func (c *Client) buildClientEntry(uuid, email string, expiryTime time.Time) xuiC
 		Email:   email,
 		LimitIP: 1,
 		Enable:  true,
+		SubID:   uuid, // ponytail: vless uuid doubles as subId, nothing extra to store
 	}
 	if !expiryTime.IsZero() {
 		entry.ExpiryTime = expiryTime.UnixMilli()
@@ -252,6 +255,15 @@ func (c *Client) postClientSettings(path string, entry xuiClient) error {
 	}
 	payloadJSON, _ := json.Marshal(payload)
 	return c.doPost(path, payloadJSON)
+}
+
+// UserLink returns the client's subscription URL (time-limited by the client's
+// expiryTime in x-ui). Falls back to a raw vless:// link when XUI_SUB_URL is unset.
+func (c *Client) UserLink(uuid, remark string) string {
+	if c.subURL != "" {
+		return strings.TrimRight(c.subURL, "/") + "/" + uuid
+	}
+	return c.BuildLink(uuid, "", remark)
 }
 
 func (c *Client) BuildLink(uuid, serverIP, remark string) string {
@@ -289,9 +301,12 @@ func (c *Client) BuildLink(uuid, serverIP, remark string) string {
 	case "reality":
 		params.Set("security", "reality")
 		if ss.RealitySettings != nil {
-			params.Set("pbk", "KGtP7JJDbRi-wDmYBij4gsTQmh4jKTCK5Jw57fdET3E")
-
-			params.Set("fp", "firefox")
+			params.Set("pbk", ss.RealitySettings.Settings.PublicKey)
+			fp := ss.RealitySettings.Settings.Fingerprint
+			if fp == "" {
+				fp = "firefox"
+			}
+			params.Set("fp", fp)
 
 			sni := ss.RealitySettings.Settings.ServerName
 			if sni == "" && len(ss.RealitySettings.ServerNames) > 0 {

@@ -109,9 +109,9 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	remark := fmt.Sprintf("stay-proxy-%d", proxy.ID)
-	proxy.LinkVless = h.xuiClient.BuildLink(uuid, "", remark)
-	if proxy.LinkVless == "" {
-		log.Printf("vless: BuildLink returned empty: user_id=%d proxy_db_id=%d vless_uuid=%q remark=%q %s",
+	proxy.LinkSub = h.xuiClient.UserLink(uuid, remark)
+	if proxy.LinkSub == "" {
+		log.Printf("vless: UserLink returned empty: user_id=%d proxy_db_id=%d vless_uuid=%q remark=%q %s",
 			claims.UserID, proxy.ID, uuid, remark, h.xuiClient.DescribeForLog())
 	}
 
@@ -134,7 +134,7 @@ func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 	for i := range proxies {
 		if h.xuiClient != nil && proxies[i].VlessUUID != "" {
 			remark := fmt.Sprintf("stay-proxy-%d", proxies[i].ID)
-			proxies[i].LinkVless = h.xuiClient.BuildLink(proxies[i].VlessUUID, "", remark)
+			proxies[i].LinkSub = h.xuiClient.UserLink(proxies[i].VlessUUID, remark)
 		}
 	}
 

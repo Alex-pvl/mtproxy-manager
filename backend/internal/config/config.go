@@ -50,6 +50,7 @@ type Config struct {
 	XUIUsername   string
 	XUIPassword   string
 	XUIInboundID  int
+	XUISubURL     string // 3x-ui subscription base, e.g. https://tagwaiter.ru:2096/sub/
 }
 
 func Load() *Config {
@@ -91,6 +92,7 @@ func Load() *Config {
 		XUIUsername:          getEnv("XUI_USERNAME", "admin"),
 		XUIPassword:          getEnv("XUI_PASSWORD", ""),
 		XUIInboundID:         getEnvInt("XUI_INBOUND_ID", 1),
+		XUISubURL:            getEnv("XUI_SUB_URL", ""),
 	}
 }
 
