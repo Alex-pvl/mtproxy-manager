@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { adminApi } from '../api/client';
+import { adminApi, apiError } from '../api/client';
 import type { UserWithCount, Proxy } from '../api/client';
 
 export default function Admin() {
@@ -12,20 +12,17 @@ export default function Admin() {
   const [editMaxProxies, setEditMaxProxies] = useState('');
   const [editRole, setEditRole] = useState('');
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [usersRes, proxiesRes] = await Promise.all([
-        adminApi.listUsers(),
-        adminApi.listProxies(),
-      ]);
-      setUsers(usersRes.data);
-      setProxies(proxiesRes.data);
-    } catch {
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchData = useCallback(
+    () =>
+      Promise.all([adminApi.listUsers(), adminApi.listProxies()])
+        .then(([usersRes, proxiesRes]) => {
+          setUsers(usersRes.data);
+          setProxies(proxiesRes.data);
+        })
+        .catch(() => setError('Failed to load data'))
+        .finally(() => setLoading(false)),
+    [],
+  );
 
   useEffect(() => {
     fetchData();
@@ -45,33 +42,29 @@ export default function Admin() {
       });
       setEditingUser(null);
       fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update user');
+    } catch (err) {
+      setError(apiError(err, 'Failed to update user'));
     }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!confirm('Delete this user and all their proxies?')) return;
+    if (!confirm('Delete this user and all their VPNs?')) return;
     try {
       await adminApi.deleteUser(id);
       fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete user');
+    } catch (err) {
+      setError(apiError(err, 'Failed to delete user'));
     }
   };
 
   const handleDeleteProxy = async (id: number) => {
-    if (!confirm('Delete this proxy?')) return;
+    if (!confirm('Delete this VPN?')) return;
     try {
       await adminApi.deleteProxy(id);
       fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete proxy');
+    } catch (err) {
+      setError(apiError(err, 'Failed to delete VPN'));
     }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
   };
 
   if (loading) {
@@ -108,7 +101,7 @@ export default function Admin() {
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          All Proxies ({proxies.length})
+          All VPNs ({proxies.length})
         </button>
       </div>
 
@@ -215,9 +208,7 @@ export default function Admin() {
               <tr className="border-b border-gray-800 text-gray-400">
                 <th className="text-left px-4 py-3 font-medium">ID</th>
                 <th className="text-left px-4 py-3 font-medium">User</th>
-                <th className="text-left px-4 py-3 font-medium">Port</th>
-                <th className="text-left px-4 py-3 font-medium">Domain</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
+                <th className="text-left px-4 py-3 font-medium">Name</th>
                 <th className="text-left px-4 py-3 font-medium">Link</th>
                 <th className="text-right px-4 py-3 font-medium">Actions</th>
               </tr>
@@ -227,23 +218,11 @@ export default function Admin() {
                 <tr key={proxy.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                   <td className="px-4 py-3 text-gray-400">{proxy.id}</td>
                   <td className="px-4 py-3 text-gray-300">{proxy.user_id}</td>
-                  <td className="px-4 py-3 font-mono text-white">{proxy.port}</td>
-                  <td className="px-4 py-3 text-gray-300">{proxy.domain}</td>
+                  <td className="px-4 py-3 font-mono text-white">{proxy.name}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                      proxy.status === 'running'
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : proxy.status === 'stopped'
-                        ? 'bg-gray-500/15 text-gray-400'
-                        : 'bg-red-500/15 text-red-400'
-                    }`}>
-                      {proxy.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {proxy.link && (
+                    {proxy.link_sub && (
                       <button
-                        onClick={() => copyToClipboard(proxy.link!)}
+                        onClick={() => navigator.clipboard.writeText(proxy.link_sub!)}
                         className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
                       >
                         Copy link
@@ -262,8 +241,8 @@ export default function Admin() {
               ))}
               {proxies.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No proxies
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    No VPNs
                   </td>
                 </tr>
               )}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { authApi } from '../api/client';
+import { apiError, authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -76,9 +76,8 @@ export default function CredentialsAuthButton({ className, onSuccess }: Credenti
       setAuthToken(response.data.token);
       close();
       onSuccess?.();
-    } catch (err: any) {
-      const apiError = err?.response?.data?.error;
-      setError(typeof apiError === 'string' ? apiError : 'Request failed');
+    } catch (err) {
+      setError(apiError(err, 'Request failed'));
     } finally {
       setSubmitting(false);
     }

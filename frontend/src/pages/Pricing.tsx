@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { beginCell } from '@ton/core';
-import { paymentApi } from '../api/client';
+import { apiError, paymentApi } from '../api/client';
 import type { Plan } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -65,6 +65,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+// TON Connect transactions must declare an expiry (unix seconds).
+const tenMinutesFromNow = () => Math.floor(Date.now() / 1000) + 600;
+
 export default function Pricing() {
   const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
@@ -124,19 +127,7 @@ export default function Pricing() {
       window.Telegram.WebApp.openLink(url, { try_browser: true });
       return;
     }
-    // if (options?.stripReferrer) {
-    //   // СБП-шлюз требует политику no-referrer для стабильной работы прямой ссылки НСПК.
-    //   // Открываем во внешней вкладке, чтобы ссылка всегда обрабатывалась системным браузером.
-    //   const a = document.createElement('a');
-    //   a.href = url;
-    //   a.rel = 'noreferrer noopener';
-    //   a.referrerPolicy = 'no-referrer';
-    //   document.body.appendChild(a);
-    //   a.click();
-    //   document.body.removeChild(a);
-    //   return;
-    // }
-    window.location.href = url;
+    window.location.assign(url);
   };
 
   useEffect(() => {
@@ -239,7 +230,7 @@ export default function Pricing() {
       const payloadB64 = bytesToBase64(commentCell.toBoc());
 
       await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,
+        validUntil: tenMinutesFromNow(),
         messages: [
           {
             address: res.data.address,
@@ -263,10 +254,9 @@ export default function Pricing() {
         }
       }
       return;
-    } catch (err: any) {
-      if (err?.message !== 'Reject request') {
-        setError(err.response?.data?.error || t.pricing.failedPayment);
-      }
+    } catch (err) {
+      const walletRejected = err instanceof Error && err.message === 'Reject request';
+      if (!walletRejected) setError(apiError(err, t.pricing.failedPayment));
     } finally {
       setProcessingPlanId(null);
     }

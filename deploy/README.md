@@ -1,7 +1,7 @@
-# Деплой MTProxy Manager на хост (без Docker)
+# Деплой Stay VPN на хост
 
 Бэкенд (Go, порт 3000) + PostgreSQL + фронтенд (статика через Nginx).
-Docker нужен только для MTProxy/SOCKS5-контейнеров.
+VPN — клиенты в панели 3x-ui v3 на отдельном сервере.
 
 ## Требования
 
@@ -10,7 +10,6 @@ Docker нужен только для MTProxy/SOCKS5-контейнеров.
 - Node.js 22+
 - PostgreSQL 15+
 - Nginx
-- Docker (для прокси-контейнеров)
 - Certbot + Let's Encrypt (для SSL)
 
 ---
@@ -45,39 +44,56 @@ psql -h localhost -U mtproxy -d mtproxy -c '\l'
 
 ## 2. Конфигурация (.env)
 
-```bash
-cp .env.example .env
-nano .env
-```
-
-Обязательные параметры:
+Создай `.env` в корне репозитория:
 
 ```env
 JWT_SECRET=ваш-секретный-ключ-минимум-32-символа
-ADMIN_USERNAME=admin
-# Опционально: пароль для входа админа через логин+пароль
-ADMIN_PASSWORD=сильный-пароль-минимум-8-символов
-# Опционально: Telegram ID админа для входа через Telegram
-ADMIN_TELEGRAM_ID=ваш-telegram-id
-
 DATABASE_URL=postgres://mtproxy:yourpassword@localhost:5432/mtproxy?sslmode=disable
-
-SERVER_IP=ваш-IP-сервера
 SERVER_PORT=3000
 BASE_URL=https://staytg.org
-
-CRYPTOBOT_TOKEN=токен-из-@CryptoBot
-
-# Telegram Login (@BotFather → Bot Settings → Web Login)
-TG_BOT_TOKEN=токен-бота
-TG_BOT_USERNAME=username-бота-без-@
-VITE_TG_CLIENT_ID=числовой-ID-бота
-
-PORT_MIN=8000
-PORT_MAX=9999
-SOCKS5_PORT_MIN=10000
-SOCKS5_PORT_MAX=10999
 DEFAULT_MAX_PROXIES=5
+
+# Админ: логин+пароль и/или Telegram ID
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=
+ADMIN_TELEGRAM_ID=
+
+# Telegram-бот и вход через Telegram (@BotFather → Bot Settings → Web Login)
+TG_BOT_TOKEN=
+TG_BOT_USERNAME=           # без @
+TG_PAY_URL=https://t.me/staytg_bot/pay
+TG_CLIENT_ID=
+TG_CLIENT_SECRET=
+VITE_TG_CLIENT_ID=         # = TG_CLIENT_ID, встраивается во фронт при сборке
+# Секрет вебхука бота: тот же, что secret_token в setWebhook (см. ниже)
+TG_WEBHOOK_SECRET=
+
+# Оплата
+CRYPTOBOT_TOKEN=
+DIGITALPAY_API_KEY=
+DIGITALPAY_BASE_URL=https://digitalpay.cc
+DIGITALPAY_SBP_BACK_URL=
+TON_WALLET_ADDRESS=
+
+# Панель 3x-ui v3
+XUI_URL=https://tagwaiter.ru:<порт-панели>
+XUI_PATH_PREFIX=<base-path-панели>
+XUI_API_TOKEN=             # Настройки → Безопасность → API Token
+XUI_INBOUND_ID=1
+XUI_SUB_URL=https://tagwaiter.ru:2096/<путь-подписки>/
+```
+
+Значения с пробелами бери в кавычки, иначе `source .env` сломается.
+
+### Вебхук бота
+
+Бот принимает оплату звёздами через `/api/webhook/bot`. Чтобы никто, кроме
+Telegram, не мог туда постучаться, задай `TG_WEBHOOK_SECRET` и передай его
+при регистрации вебхука:
+
+```bash
+curl "https://api.telegram.org/bot$TG_BOT_TOKEN/setWebhook" \
+  -d url=https://staytg.org/api/webhook/bot -d secret_token=$TG_WEBHOOK_SECRET
 ```
 
 ---

@@ -47,22 +47,13 @@ export interface UserWithCount extends User {
   proxy_count: number;
 }
 
+// A VPN config: one client in the 3x-ui panel.
 export interface Proxy {
   id: number;
   user_id: number;
-  port: number;
-  domain: string;
-  secret: string;
-  container_id: string;
-  container_name: string;
-  status: 'running' | 'stopped' | 'error';
-  created_at: string;
-  link?: string;
-  link_socks5?: string;
+  name: string;
   link_sub?: string;
-  socks5_port?: number;
-  socks5_user?: string;
-  socks5_pass?: string;
+  created_at: string;
 }
 
 export interface AuthResponse {
@@ -141,5 +132,10 @@ export const paymentApi = {
     api.post<{ updated: boolean }>('/payments/check-pending'),
   getSubscription: () => api.get<Subscription>('/subscription'),
 };
+
+/** Error text from the backend's {"error": "..."} body, or the fallback. */
+export function apiError(err: unknown, fallback: string): string {
+  return axios.isAxiosError<{ error?: string }>(err) ? err.response?.data?.error || fallback : fallback;
+}
 
 export default api;

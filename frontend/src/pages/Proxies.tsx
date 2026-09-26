@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { proxyApi } from '../api/client';
+import { apiError, proxyApi } from '../api/client';
 import type { Proxy } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { BlurredLink } from '../components/BlurredLink';
+import { SubscriptionLink } from '../components/SubscriptionLink';
+import { useCopy } from '../hooks/useCopy';
 import TelegramLoginButton from '../components/TelegramLoginButton';
 
 function ShieldIcon({ className = '' }: { className?: string }) {
@@ -23,25 +24,21 @@ export default function Proxies() {
   const [createLoading, setCreateLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState<string | null>(null);
+  const { copied, copy } = useCopy<number>();
 
-  const fetchProxies = useCallback(async () => {
-    try {
-      const res = await proxyApi.list();
-      setProxies(res.data);
-    } catch {
-      setError(t.proxies.failedLoad);
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const fetchProxies = useCallback(
+    () =>
+      proxyApi
+        .list()
+        .then((res) => setProxies(res.data))
+        .catch(() => setError(t.proxies.failedLoad))
+        .finally(() => setLoading(false)),
+    [t],
+  );
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setLoading(false); return; }
-    fetchProxies();
-  }, [authLoading, user, fetchProxies]);
+    if (user) fetchProxies();
+  }, [user, fetchProxies]);
 
   const handleCreate = async () => {
     setCreateLoading(true);
@@ -49,8 +46,8 @@ export default function Proxies() {
     try {
       await proxyApi.create();
       await fetchProxies();
-    } catch (err: any) {
-      setError(err.response?.data?.error || t.proxies.failedCreate);
+    } catch (err) {
+      setError(apiError(err, t.proxies.failedCreate));
     } finally {
       setCreateLoading(false);
     }
@@ -62,20 +59,14 @@ export default function Proxies() {
     try {
       await proxyApi.delete(id);
       await fetchProxies();
-    } catch (err: any) {
-      setError(err.response?.data?.error || t.proxies.failedDelete);
+    } catch (err) {
+      setError(apiError(err, t.proxies.failedDelete));
     } finally {
       setActionLoading(null);
     }
   };
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 1500);
-  };
-
-  if (authLoading || loading) {
+  if (authLoading || (user && loading)) {
     return <div className="text-gray-500 dark:text-gray-400">{t.common.loading}</div>;
   }
 
@@ -157,7 +148,8 @@ export default function Proxies() {
               key={proxy.id}
               className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 overflow-hidden min-w-0"
             >
-              <div className="flex items-center justify-end mb-3">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{proxy.name}</span>
                 <button
                   onClick={() => handleDelete(proxy.id)}
                   disabled={actionLoading === proxy.id}
@@ -167,7 +159,6 @@ export default function Proxies() {
                 </button>
               </div>
 
-              {/* VPN (VLESS) link */}
               {proxy.link_sub && (
                 <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -176,14 +167,14 @@ export default function Proxies() {
                       <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.vlessLabel}</span>
                     </div>
                     <button
-                      onClick={() => copyToClipboard(proxy.link_sub!, `link-vless-${proxy.id}`)}
+                      onClick={() => copy(proxy.link_sub!, proxy.id)}
                       className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap transition-colors py-1 touch-manipulation shrink-0"
                     >
-                      {copied === `link-vless-${proxy.id}` ? t.proxies.copied : t.proxies.copy}
+                      {copied === proxy.id ? t.proxies.copied : t.proxies.copy}
                     </button>
                   </div>
                   <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
-                    <BlurredLink text={proxy.link_sub} type="vless" />
+                    <SubscriptionLink url={proxy.link_sub} />
                   </code>
                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">{t.proxies.vlessHint}</p>
                 </div>

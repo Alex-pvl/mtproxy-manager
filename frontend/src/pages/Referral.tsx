@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { referralApi } from '../api/client';
+import { useCopy } from '../hooks/useCopy';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import Sticker from '../components/Sticker';
@@ -53,11 +54,10 @@ export default function Referral() {
   const [invitedCount, setInvitedCount] = useState(0);
   const [bonusDays, setBonusDays] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy<'link'>(2000);
   const [shared, setShared] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
     referralApi
       .get(isMiniApp)
       .then((res) => {
@@ -69,14 +69,7 @@ export default function Referral() {
       .finally(() => setLoading(false));
   }, [isMiniApp]);
 
-  const handleCopy = async () => {
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
-  };
+  const handleCopy = () => link && copy(link, 'link');
 
   const handleShare = () => {
     if (!link) return;
@@ -92,7 +85,9 @@ export default function Referral() {
 
       setShared(true);
       setTimeout(() => setShared(false), 2000);
-    } catch {}
+    } catch {
+      // popup blocked and navigation refused — nothing else to try
+    }
   };
 
   if (!user) {

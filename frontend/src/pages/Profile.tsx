@@ -6,6 +6,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { referralApi } from '../api/client';
 import { toFriendlyAddress } from '../utils/tonAddress';
+import { TonWalletSheet } from '../components/TonWalletSheet';
+import { useCopy } from '../hooks/useCopy';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -146,10 +148,9 @@ export default function Profile() {
   const { language, setLanguage } = useLanguage();
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
-  const [copiedLink, setCopiedLink] = useState(false);
+  const { copied, copy } = useCopy<'link'>(2000);
   const [referralLink, setReferralLink] = useState('');
   const [tonActionsOpen, setTonActionsOpen] = useState(false);
-  const [tonCopied, setTonCopied] = useState(false);
 
   const shortWalletAddress = (address: string) => {
     if (address.length <= 11) return address;
@@ -157,17 +158,10 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => {});
+    referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => setReferralLink(''));
   }, [isMiniApp]);
 
-  const handleCopyLink = async () => {
-    if (!referralLink) return;
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    } catch {}
-  };
+  const handleCopyLink = () => referralLink && copy(referralLink, 'link');
 
   const handleWalletTap = () => {
     if (!wallet) {
@@ -175,24 +169,6 @@ export default function Profile() {
       return;
     }
     setTonActionsOpen(true);
-  };
-
-  const handleCopyWallet = async () => {
-    if (!wallet) return;
-    try {
-      await navigator.clipboard.writeText(toFriendlyAddress(wallet.account.address));
-      setTonCopied(true);
-      setTimeout(() => setTonCopied(false), 1500);
-    } catch {}
-  };
-
-  const handleDisconnectWallet = async () => {
-    try {
-      await tonConnectUI.disconnect();
-    } finally {
-      setTonActionsOpen(false);
-      setTonCopied(false);
-    }
   };
 
   if (!user) {
@@ -244,7 +220,7 @@ export default function Profile() {
               type="button"
               onClick={handleCopyLink}
               className={`shrink-0 p-2 rounded-lg transition-colors touch-manipulation ${
-                copiedLink
+                copied
                   ? 'text-emerald-500 bg-emerald-500/10'
                   : 'text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20'
               }`}
@@ -332,34 +308,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {tonActionsOpen && wallet && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setTonActionsOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 shadow-xl">
-            <button
-              type="button"
-              onClick={handleCopyWallet}
-              className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              {tonCopied ? t.proxies.copied : t.proxies.copy}
-            </button>
-            <button
-              type="button"
-              onClick={handleDisconnectWallet}
-              className="mt-2 w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
-            >
-              {t.profile.walletDisconnect}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTonActionsOpen(false)}
-              className="mt-2 w-full rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              {t.payment.cancel}
-            </button>
-          </div>
-        </div>
-      )}
+      <TonWalletSheet open={tonActionsOpen} onClose={() => setTonActionsOpen(false)} />
     </div>
   );
 }
