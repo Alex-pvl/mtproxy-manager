@@ -21,14 +21,6 @@ export default function Home() {
       title: t.showcase.vpn.title,
       desc: t.showcase.vpn.desc,
     },
-    {
-      to: '/stars',
-      sticker: 'buy_stars',
-      title: t.showcase.starsPremium.title,
-      desc: t.showcase.starsPremium.desc,
-      badge: t.showcase.unavailable,
-      disabled: true,
-    },
   ];
 
   return (

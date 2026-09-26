@@ -17,10 +17,6 @@ function CryptoBotIcon({ className = 'w-6 h-6' }: { className?: string }) {
   return <img src="/cryptobot.jpg" alt="CryptoBot" className={`${className} rounded-xl object-cover`} />;
 }
 
-function StarsPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/stars.jpg" alt="Telegram Stars" className={`${className} rounded-xl object-cover`} />;
-}
-
 function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
   return <img src="/toncoin.jpg" alt="GRAM" className={`${className} rounded-xl object-cover`} />;
 }
@@ -53,7 +49,7 @@ function CheckCircleIcon() {
   );
 }
 
-type PayMethod = 'cryptobot' | 'stars' | 'ton' | 'sbp';
+type PayMethod = 'cryptobot' | 'ton' | 'sbp';
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -84,13 +80,6 @@ export default function Pricing() {
     { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)', badge: t.payment.sbpUnavailable },
     { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'GRAM' },
     { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
-    {
-      id: 'stars',
-      icon: '/stars.jpg',
-      label: t.payment.stars,
-      disabled: !isMiniApp,
-      badge: !isMiniApp ? 'TG' : undefined,
-    },
   ];
 
   const formatTon = (nano: string) => {
@@ -105,10 +94,6 @@ export default function Pricing() {
     switch (selectedMethod) {
       case 'cryptobot':
         return { main: plan.price_usd_label ? plan.price_usd_label.replace(/^~/, '') : plan.price_label };
-      case 'stars':
-        return plan.stars_price
-          ? { main: `${plan.stars_price.toLocaleString('ru-RU')} ⭐` }
-          : { main: plan.price_label };
       case 'ton':
         return plan.ton_amount ? { main: formatTon(plan.ton_amount) } : { main: plan.price_label };
       case 'sbp':
@@ -208,24 +193,6 @@ export default function Pricing() {
       if (selectedMethod === 'cryptobot') {
         const res = await paymentApi.createPayment(plan.id, paymentSource);
         openPaymentLink(res.data.payment_url);
-        return;
-      }
-
-      if (selectedMethod === 'stars') {
-        if (!isMiniApp) {
-          setError('Оплата звёздами доступна только в Telegram');
-          return;
-        }
-        const res = await paymentApi.createStarsPayment(plan.id);
-        window.Telegram!.WebApp!.openInvoice(res.data.invoice_link, (status) => {
-          setProcessingPlanId(null);
-          if (status === 'paid') {
-            setShowSuccess(true);
-            refreshUser();
-          } else if (status === 'failed') {
-            setError(t.pricing.failedPayment);
-          }
-        });
         return;
       }
 
@@ -437,9 +404,6 @@ export default function Pricing() {
               <div className="flex items-center gap-1.5 mb-3">
                 <PaymentIconFrame outlined>
                   <SbpPayIcon className="w-5 h-5" />
-                </PaymentIconFrame>
-                <PaymentIconFrame outlined>
-                  <StarsPayIcon className="w-5 h-5" />
                 </PaymentIconFrame>
                 <PaymentIconFrame>
                   <CryptoBotIcon className="w-5 h-5" />

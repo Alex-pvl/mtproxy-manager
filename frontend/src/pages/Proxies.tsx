@@ -168,7 +168,7 @@ export default function Proxies() {
               </div>
 
               {/* VPN (VLESS) link */}
-              {proxy.link_vless && (
+              {proxy.link_sub && (
                 <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
@@ -176,14 +176,14 @@ export default function Proxies() {
                       <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.vlessLabel}</span>
                     </div>
                     <button
-                      onClick={() => copyToClipboard(proxy.link_vless!, `link-vless-${proxy.id}`)}
+                      onClick={() => copyToClipboard(proxy.link_sub!, `link-vless-${proxy.id}`)}
                       className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap transition-colors py-1 touch-manipulation shrink-0"
                     >
                       {copied === `link-vless-${proxy.id}` ? t.proxies.copied : t.proxies.copy}
                     </button>
                   </div>
                   <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
-                    <BlurredLink text={proxy.link_vless} type="vless" />
+                    <BlurredLink text={proxy.link_sub} type="vless" />
                   </code>
                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">{t.proxies.vlessHint}</p>
                 </div>

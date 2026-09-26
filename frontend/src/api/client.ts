@@ -59,7 +59,7 @@ export interface Proxy {
   created_at: string;
   link?: string;
   link_socks5?: string;
-  link_vless?: string;
+  link_sub?: string;
   socks5_port?: number;
   socks5_user?: string;
   socks5_pass?: string;
@@ -123,7 +123,6 @@ export interface Plan {
   discount_percent?: number;
   per_month: string;
   max_proxies: number;
-  stars_price?: number;
   ton_amount?: string;
 }
 
@@ -133,74 +132,11 @@ export const paymentApi = {
     api.post<{ payment_url: string }>('/payments/create', { plan_id: planId, source: source || undefined }),
   createSbpPayment: (planId: string, source?: 'web' | 'tg') =>
     api.post<{ payment_url: string }>('/payments/sbp/create', { plan_id: planId, source: source || undefined }),
-  createStarsPayment: (planId: string) =>
-    api.post<{ invoice_link: string }>('/payments/stars/create', { plan_id: planId }),
   createTonPayment: (planId: string) =>
     api.post<{ address: string; amount: string; comment: string }>('/payments/ton/create', { plan_id: planId }),
   checkPendingPayments: () =>
     api.post<{ updated: boolean }>('/payments/check-pending'),
   getSubscription: () => api.get<Subscription>('/subscription'),
-};
-
-// ─── Telegram Stars / Premium via Fragment ────────────────────────────────────
-
-export type ProductType = 'stars' | 'premium';
-
-export interface ProductQuote {
-  type: ProductType;
-  quantity: number;
-  ton_cost_nano: number;
-  ton_amount: string;
-  price_rub: string;
-  price_usd: string;
-  markup_pct: number;
-}
-
-export interface UsernameCheck {
-  ok: boolean;
-  username: string;
-  display_name?: string;
-  photo_url?: string;
-  reason?: string;
-  already_premium?: boolean;
-}
-
-export interface ProductOrderResponse {
-  order_id: number;
-  price_rub: string;
-  price_usd: string;
-  payment_url?: string;
-  // TON-specific
-  address?: string;
-  amount?: string;
-  comment?: string;
-}
-
-export interface ProductOrderStatus {
-  order_id: number;
-  status: 'pending' | 'processing' | 'delivered' | 'failed';
-  type: ProductType;
-  quantity: number;
-  tx_hash?: string;
-  error?: string;
-}
-
-export const productApi = {
-  starsQuote: (quantity: number, recipient: string) =>
-    api.get<ProductQuote>('/products/stars/quote', { params: { quantity, recipient } }),
-  premiumQuote: (months: number, recipient: string) =>
-    api.get<ProductQuote>('/products/premium/quote', { params: { quantity: months, recipient } }),
-  checkUsername: (username: string, type?: 'stars' | 'premium') =>
-    api.get<UsernameCheck>('/products/username/check', { params: { u: username, type } }),
-  createOrder: (params: {
-    type: ProductType;
-    recipient: string;
-    quantity: number;
-    method: 'sbp' | 'cryptobot' | 'ton';
-    source?: 'web' | 'tg';
-  }) => api.post<ProductOrderResponse>('/products/order', params),
-  getOrder: (orderId: number) =>
-    api.get<ProductOrderStatus>(`/products/orders/${orderId}`),
 };
 
 export default api;

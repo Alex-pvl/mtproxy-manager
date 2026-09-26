@@ -96,7 +96,7 @@ export function BlurredLink({ text, type }: Props) {
   }
 
   if (type === 'vless') {
-    const match = text.match(/^(vless:\/\/)([^@]+)(@.*)$/i);
+    const match = text.match(/^(vless:\/\/)([^@]+)(@.*)$/i) || text.match(/^(https?:\/\/.*\/)([^/]+)()$/i);
     if (!match) return <span>{text}</span>;
     const [, prefix, credentialPart, suffix] = match;
     return (

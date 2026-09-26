@@ -19,7 +19,7 @@
   }
 }
 
-/* Force a dedicated dark surface for /stars and /premium regardless of theme toggle. */
+/* Dedicated dark surface for spend-* checkout UI (Pricing). */
 .spend-surface {
   background: #12172c;
   color: #fff;
