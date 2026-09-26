@@ -103,7 +103,7 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.db.CreateProxy(proxy); err != nil {
-		_ = h.xuiClient.RemoveClient(email)
+		_ = h.xuiClient.RemoveClient(uuid)
 		writeError(w, http.StatusInternalServerError, "failed to save VPN")
 		return
 	}
@@ -152,7 +152,7 @@ func (h *ProxyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.xuiClient != nil && proxy.VlessUUID != "" {
-		if err := h.xuiClient.RemoveClient(vlessEmail(proxy.Port, proxy.UserID)); err != nil {
+		if err := h.xuiClient.RemoveClient(proxy.VlessUUID); err != nil {
 			log.Printf("xui remove client (proxy id=%d uuid=%s): %v", proxy.ID, proxy.VlessUUID, err)
 		}
 	}

@@ -237,23 +237,22 @@ func (c *Client) refreshInbound() error {
 // AddClient registers a new VLESS client in the configured x-ui inbound.
 // Pass a non-zero expiryTime to set when the client access expires; zero = no expiry.
 func (c *Client) AddClient(uuid, email string, expiryTime time.Time) error {
-	payload, _ := json.Marshal(map[string]interface{}{
-		"client":     c.buildClientEntry(uuid, email, expiryTime),
-		"inboundIds": []int{c.inboundID},
-	})
-	return c.doPost("panel/api/clients/add", payload)
+	entry := c.buildClientEntry(uuid, email, expiryTime)
+	return c.postClientSettings("panel/api/inbounds/addClient", entry)
 }
 
 // UpdateClientExpiry updates the expiry time of an existing VLESS client in x-ui.
 // Pass a non-zero expiryTime to set a deadline; zero = remove expiry limit.
 func (c *Client) UpdateClientExpiry(uuid, email string, expiryTime time.Time) error {
-	payload, _ := json.Marshal(c.buildClientEntry(uuid, email, expiryTime))
-	return c.doPost("panel/api/clients/update/"+url.PathEscape(email), payload)
+	entry := c.buildClientEntry(uuid, email, expiryTime)
+	path := fmt.Sprintf("panel/api/inbounds/updateClient/%s", uuid)
+	return c.postClientSettings(path, entry)
 }
 
-// RemoveClient deletes a client (from all inbounds) by email.
-func (c *Client) RemoveClient(email string) error {
-	if err := c.doPost("panel/api/clients/del/"+url.PathEscape(email), nil); err != nil {
+// RemoveClient deletes a VLESS client from the inbound by UUID.
+func (c *Client) RemoveClient(uuid string) error {
+	path := fmt.Sprintf("panel/api/inbounds/%d/delClient/%s", c.inboundID, uuid)
+	if err := c.doPost(path, nil); err != nil {
 		return fmt.Errorf("delClient: %w", err)
 	}
 	return nil
@@ -270,6 +269,22 @@ func (c *Client) buildClientEntry(uuid, email string, expiryTime time.Time) xuiC
 		entry.ExpiryTime = expiryTime.UnixMilli()
 	}
 	return entry
+}
+
+func (c *Client) postClientSettings(path string, entry xuiClient) error {
+	settings := map[string]interface{}{
+		"clients": []xuiClient{entry},
+	}
+	settingsJSON, err := json.Marshal(settings)
+	if err != nil {
+		return fmt.Errorf("marshal settings: %w", err)
+	}
+	payload := map[string]interface{}{
+		"id":       c.inboundID,
+		"settings": string(settingsJSON),
+	}
+	payloadJSON, _ := json.Marshal(payload)
+	return c.doPost(path, payloadJSON)
 }
 
 func (c *Client) BuildLink(uuid, serverIP, remark string) string {
