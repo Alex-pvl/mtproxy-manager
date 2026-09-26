@@ -21,7 +21,7 @@ const ru = {
     myServices: 'Мои сервисы',
   },
   showcase: {
-    title: 'Получите услуги Telegram быстро — без KYC.',
+    title: 'VPN без KYC — быстро и надёжно.',
     subtitle: 'Быстро. Безопасно. Просто.',
     openCard: 'Перейти',
     back: '← На главную',
@@ -218,7 +218,7 @@ const en = {
     myServices: 'My services',
   },
   showcase: {
-    title: 'Get Telegram services fast — no KYC.',
+    title: 'VPN with no KYC — fast and reliable.',
     subtitle: 'Fast. Secure. Simple.',
     openCard: 'Open',
     back: '← Back to home',
