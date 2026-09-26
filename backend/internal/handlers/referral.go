@@ -20,28 +20,13 @@ func NewReferralHandler(db *database.DB, cfg *config.Config) *ReferralHandler {
 
 func (h *ReferralHandler) Get(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	_, err := h.db.GetUserByID(claims.UserID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "user not found")
-		return
-	}
-
 	code, err := h.db.GetOrCreateReferralCode(claims.UserID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get referral code")
 		return
 	}
 
-	baseURL := strings.TrimSuffix(h.cfg.BaseURL, "/")
-	if baseURL == "" {
-		baseURL = "https://example.com"
-	}
-	referralLink := baseURL + "/register?ref=" + code
+	referralLink := strings.TrimSuffix(h.cfg.BaseURL, "/") + "/register?ref=" + code
 	if r.URL.Query().Get("miniapp") == "1" {
 		if miniAppLink := buildMiniAppReferralLink(h.cfg.TelegramBotUsername, code); miniAppLink != "" {
 			referralLink = miniAppLink
@@ -51,7 +36,7 @@ func (h *ReferralHandler) Get(w http.ResponseWriter, r *http.Request) {
 	invited, _ := h.db.CountReferredBy(claims.UserID)
 	bonusDays, _ := h.db.SumBonusDaysReceived(claims.UserID)
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"referral_link":       referralLink,
 		"invited_count":       invited,
 		"bonus_days_received": bonusDays,

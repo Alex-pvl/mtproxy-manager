@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -94,12 +95,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existingUser, err := h.db.GetUserByUsername(username)
-	if err == nil && existingUser != nil {
+	if _, err := h.db.GetUserByUsername(username); err == nil {
 		writeError(w, http.StatusConflict, "username already taken")
 		return
-	}
-	if err != nil && err != sql.ErrNoRows {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusInternalServerError, "failed to check user")
 		return
 	}
@@ -163,40 +162,49 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	user, err := h.db.GetUserByID(claims.UserID)
+	user, err := h.db.GetUserByID(getClaims(r).UserID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "user not found")
 		return
 	}
-
-	resp := meResponse{User: user}
-
-	sub, _ := h.db.GetActiveSubscription(user.ID)
-	if sub != nil {
-		plan := models.GetPlan(sub.PlanID)
-		planName := sub.PlanID
-		if plan != nil {
-			planName = plan.Name
-		}
-		resp.Subscription = &subscriptionInfo{
-			Active:    true,
-			PlanID:    sub.PlanID,
-			PlanName:  planName,
-			ExpiresAt: &sub.ExpiresAt,
-		}
-	} else {
-		resp.Subscription = &subscriptionInfo{Active: false}
-	}
-
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, meResponse{User: user, Subscription: loadSubscriptionInfo(h.db, user.ID)})
 }
 
-func readJSON(r *http.Request, out interface{}) error {
-	return json.NewDecoder(r.Body).Decode(out)
+func loadSubscriptionInfo(db *database.DB, userID int64) *subscriptionInfo {
+	sub, _ := db.GetActiveSubscription(userID)
+	if sub == nil {
+		return &subscriptionInfo{Active: false}
+	}
+	info := &subscriptionInfo{Active: true, PlanID: sub.PlanID, PlanName: sub.PlanID, ExpiresAt: &sub.ExpiresAt}
+	if plan := models.GetPlan(sub.PlanID); plan != nil {
+		info.PlanName = plan.Name
+	}
+	return info
+}
+
+// findOrCreateTelegramUser logs in a Telegram user, registering them on first
+// visit (with an optional referral code). A taken username falls back to tg_<id>.
+func findOrCreateTelegramUser(db *database.DB, telegramID int64, username, ref string) (*models.User, error) {
+	user, err := db.GetUserByTelegramID(telegramID)
+	if err == nil {
+		return user, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	var referrerID *int64
+	if ref != "" {
+		if id, err := db.GetUserIDByReferralCode(ref); err == nil {
+			referrerID = &id
+		}
+	}
+	fallback := fmt.Sprintf("tg_%d", telegramID)
+	if username == "" {
+		username = fallback
+	}
+	user, err = db.CreateUserByTelegram(telegramID, username, referrerID)
+	if err != nil && username != fallback {
+		user, err = db.CreateUserByTelegram(telegramID, fallback, referrerID)
+	}
+	return user, err
 }

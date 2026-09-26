@@ -1,7 +1,6 @@
 package xui
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,102 +9,42 @@ import (
 	"time"
 )
 
-func TestNewClientWithAPIToken(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/p/login" {
-			t.Error("login must not be called when API token is set")
-		}
-		if r.Header.Get("Authorization") != "Bearer tok" {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		w.Write([]byte(`{"success":true,"obj":{"id":36,"port":443}}`))
-	}))
-	defer srv.Close()
-
-	c, err := NewClient(srv.URL, "p", "", "", "tok", "", 36)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.inbound.Port != 443 {
-		t.Fatalf("inbound not loaded: %+v", c.inbound)
-	}
-}
-
-func TestInboundSettingsStringOrObject(t *testing.T) {
-	for _, raw := range []string{
-		`{"streamSettings":"{\"network\":\"tcp\"}"}`, // v2: JSON in a string
-		`{"streamSettings":{"network":"tcp"}}`,       // v3: plain object
-	} {
-		var in Inbound
-		if err := json.Unmarshal([]byte(raw), &in); err != nil {
-			t.Fatal(err)
-		}
-		var ss streamSettings
-		if err := json.Unmarshal([]byte(in.StreamSettings), &ss); err != nil || ss.Network != "tcp" {
-			t.Fatalf("%s: got %+v, %v", raw, ss, err)
-		}
-	}
-}
-
-func TestClientOpsUseV3Paths(t *testing.T) {
+func TestClientV3Calls(t *testing.T) {
 	var got []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = append(got, r.Method+" "+r.URL.Path)
-		w.Write([]byte(`{"success":true,"obj":{"id":36}}`))
+		if r.Header.Get("Authorization") != "Bearer tok" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, r.Method+" "+r.URL.Path+" "+string(b))
+		w.Write([]byte(`{"success":true,"obj":{}}`))
 	}))
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL, "p", "", "", "tok", "", 36)
+	c, err := NewClient(srv.URL, "/p/", "tok", "https://vpn.example:2096/sub/", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.AddClient("u", "a@b", time.Time{}); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.UpdateClientExpiry("u", "a@b", time.Now()); err != nil {
+	if err := c.AddClient("u1", "a@b", time.UnixMilli(1000)); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.RemoveClient("a@b"); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{
-		"GET /p/panel/api/inbounds/get/36",
-		"POST /p/panel/api/clients/add",
-		"POST /p/panel/api/clients/update/a@b",
-		"POST /p/panel/api/clients/del/a@b",
+		"GET /p/panel/api/inbounds/get/1 ",
+		`POST /p/panel/api/clients/add {"client":{"id":"u1","email":"a@b","limitIp":1,"totalGB":0,"expiryTime":1000,"enable":true,"subId":"u1"},"inboundIds":[1]}`,
+		"POST /p/panel/api/clients/del/a@b ",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("got:\n%s", strings.Join(got, "\n"))
 	}
-}
+	if s := c.SubscriptionURL("u1"); s != "https://vpn.example:2096/sub/u1" {
+		t.Fatalf("SubscriptionURL = %q", s)
+	}
 
-func TestSubscriptionLinkAndSubID(t *testing.T) {
-	var addBody string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/clients/add") {
-			b, _ := io.ReadAll(r.Body)
-			addBody = string(b)
-		}
-		w.Write([]byte(`{"success":true,"obj":{"id":1,"port":443}}`))
-	}))
-	defer srv.Close()
-
-	c, err := NewClient(srv.URL, "p", "", "", "tok", "https://vpn.example:2096/sub/", 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.AddClient("abc", "e@x", time.Now().Add(time.Hour)); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(addBody, `"subId":"abc"`) {
-		t.Fatalf("subId not sent: %s", addBody)
-	}
-	if got := c.UserLink("abc", "r"); got != "https://vpn.example:2096/sub/abc" {
-		t.Fatalf("UserLink = %q", got)
-	}
-	c.subURL = ""
-	if got := c.UserLink("abc", "r"); !strings.HasPrefix(got, "vless://abc@") {
-		t.Fatalf("fallback = %q", got)
+	if _, err := NewClient(srv.URL, "p", "wrong", "x", 1); err == nil || !strings.Contains(err.Error(), "XUI_API_TOKEN") {
+		t.Fatalf("bad token should fail with a hint, got %v", err)
 	}
 }

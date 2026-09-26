@@ -43,7 +43,7 @@ func (db *DB) Close() error {
 }
 
 func (db *DB) migrate() error {
-	migrations := []string{
+	for _, m := range []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id BIGSERIAL PRIMARY KEY,
 			username TEXT NOT NULL UNIQUE,
@@ -52,137 +52,77 @@ func (db *DB) migrate() error {
 			max_proxies INTEGER NOT NULL DEFAULT 5,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		"ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT DEFAULT 0",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id) WHERE telegram_id > 0",
+
 		`CREATE TABLE IF NOT EXISTS proxies (
 			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL,
-			port INTEGER NOT NULL UNIQUE,
-			domain TEXT NOT NULL,
-			secret TEXT NOT NULL,
-			container_id TEXT NOT NULL DEFAULT '',
-			container_name TEXT NOT NULL DEFAULT '',
-			status TEXT NOT NULL DEFAULT 'stopped',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			vless_uuid TEXT NOT NULL DEFAULT '',
+			vless_email TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS vless_uuid TEXT DEFAULT ''",
+		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS vless_email TEXT DEFAULT ''",
+		// Legacy MTProxy/SOCKS5 era: drop records without a VLESS client, name the
+		// old VLESS clients the way they were created, then drop the dead columns.
+		`DO $$ BEGIN
+			IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'proxies' AND column_name = 'port') THEN
+				DELETE FROM proxies WHERE COALESCE(vless_uuid, '') = '';
+				UPDATE proxies SET vless_email = 'proxy-' || port || '-user-' || user_id WHERE COALESCE(vless_email, '') = '';
+				ALTER TABLE proxies
+					DROP COLUMN port, DROP COLUMN domain, DROP COLUMN secret,
+					DROP COLUMN container_id, DROP COLUMN container_name, DROP COLUMN status,
+					DROP COLUMN IF EXISTS socks5_port, DROP COLUMN IF EXISTS socks5_user,
+					DROP COLUMN IF EXISTS socks5_pass, DROP COLUMN IF EXISTS socks5_container_id,
+					DROP COLUMN IF EXISTS socks5_container_name;
+			END IF;
+		END $$`,
+
 		`CREATE TABLE IF NOT EXISTS payments (
 			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL,
+			user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			plan_id TEXT NOT NULL,
 			external_id TEXT NOT NULL UNIQUE,
 			amount TEXT NOT NULL DEFAULT '0',
 			status TEXT NOT NULL DEFAULT 'pending',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS subscriptions (
 			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL,
+			user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			plan_id TEXT NOT NULL,
 			payment_id BIGINT NOT NULL DEFAULT 0,
 			starts_at TIMESTAMPTZ NOT NULL,
 			expires_at TIMESTAMPTZ NOT NULL,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_7d_sent BOOLEAN NOT NULL DEFAULT FALSE",
+		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_1d_sent BOOLEAN NOT NULL DEFAULT FALSE",
+
 		`CREATE TABLE IF NOT EXISTS referral_codes (
-			user_id BIGINT PRIMARY KEY,
-			code TEXT NOT NULL UNIQUE,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+			code TEXT NOT NULL UNIQUE
 		)`,
 		`CREATE TABLE IF NOT EXISTS referrals (
-			referrer_id BIGINT NOT NULL,
-			referred_id BIGINT NOT NULL,
+			referrer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			referred_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (referrer_id, referred_id),
-			FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
-			FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
+			PRIMARY KEY (referrer_id, referred_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS referral_bonuses (
 			id BIGSERIAL PRIMARY KEY,
-			referrer_id BIGINT NOT NULL,
-			referred_user_id BIGINT NOT NULL,
+			referrer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			referred_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			payment_id BIGINT NOT NULL,
 			bonus_days INTEGER NOT NULL,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
-			FOREIGN KEY (referred_user_id) REFERENCES users(id) ON DELETE CASCADE
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
-	}
-
-	for _, m := range migrations {
+	} {
 		if _, err := db.conn.Exec(m); err != nil {
-			return err
+			return fmt.Errorf("%w\n%s", err, m)
 		}
 	}
-
-	for _, alter := range []string{
-		"ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT DEFAULT 0",
-		"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id) WHERE telegram_id > 0",
-	} {
-		if _, err := db.conn.Exec(alter); err != nil {
-			return err
-		}
-	}
-
-	// SOCKS5 columns migration (idempotent via IF NOT EXISTS)
-	for _, alter := range []string{
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS socks5_port INTEGER DEFAULT 0",
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS socks5_user TEXT DEFAULT ''",
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS socks5_pass TEXT DEFAULT ''",
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS socks5_container_id TEXT DEFAULT ''",
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS socks5_container_name TEXT DEFAULT ''",
-	} {
-		if _, err := db.conn.Exec(alter); err != nil {
-			return err
-		}
-	}
-
-	for _, alter := range []string{
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS vless_uuid TEXT DEFAULT ''",
-		"ALTER TABLE proxies ADD COLUMN IF NOT EXISTS vless_email TEXT DEFAULT ''",
-	} {
-		if _, err := db.conn.Exec(alter); err != nil {
-			return err
-		}
-	}
-
-	for _, alter := range []string{
-		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_7d_sent BOOLEAN NOT NULL DEFAULT FALSE",
-		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_1d_sent BOOLEAN NOT NULL DEFAULT FALSE",
-	} {
-		if _, err := db.conn.Exec(alter); err != nil {
-			return err
-		}
-	}
-
-	// Products: payments now reference a product_type with optional metadata,
-	// and a separate table tracks Fragment fulfillment for stars/premium.
-	for _, alter := range []string{
-		"ALTER TABLE payments ADD COLUMN IF NOT EXISTS product_type TEXT NOT NULL DEFAULT 'vpn'",
-		"ALTER TABLE payments ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb",
-		`CREATE TABLE IF NOT EXISTS fragment_orders (
-			id BIGSERIAL PRIMARY KEY,
-			payment_id BIGINT NOT NULL UNIQUE,
-			user_id BIGINT NOT NULL,
-			type TEXT NOT NULL,
-			recipient_username TEXT NOT NULL,
-			quantity INTEGER NOT NULL,
-			status TEXT NOT NULL DEFAULT 'pending',
-			fragment_tx_hash TEXT NOT NULL DEFAULT '',
-			error TEXT NOT NULL DEFAULT '',
-			attempts INTEGER NOT NULL DEFAULT 0,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-		)`,
-		"CREATE INDEX IF NOT EXISTS idx_fragment_orders_status ON fragment_orders(status) WHERE status IN ('pending','processing')",
-	} {
-		if _, err := db.conn.Exec(alter); err != nil {
-			return err
-		}
-	}
-
 	return db.ensureAdmin()
 }
 
@@ -343,30 +283,32 @@ func (db *DB) DeleteUser(id int64) error {
 
 // --- Proxy queries ---
 
+const proxyCols = "id, user_id, vless_uuid, vless_email, created_at"
+
+func scanProxies(rows *sql.Rows) ([]models.Proxy, error) {
+	defer rows.Close()
+	proxies := []models.Proxy{}
+	for rows.Next() {
+		var p models.Proxy
+		if err := rows.Scan(&p.ID, &p.UserID, &p.VlessUUID, &p.VlessEmail, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		proxies = append(proxies, p)
+	}
+	return proxies, rows.Err()
+}
+
 func (db *DB) CreateProxy(p *models.Proxy) error {
-	err := db.conn.QueryRow(
-		`INSERT INTO proxies (user_id, port, domain, secret, container_id, container_name, status,
-			socks5_port, socks5_user, socks5_pass, socks5_container_id, socks5_container_name,
-			vless_uuid, vless_email)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, created_at`,
-		p.UserID, p.Port, p.Domain, p.Secret, p.ContainerID, p.ContainerName, p.Status,
-		p.Socks5Port, p.Socks5User, p.Socks5Pass, p.Socks5ContainerID, p.Socks5ContainerName,
-		p.VlessUUID, p.VlessEmail,
+	return db.conn.QueryRow(
+		"INSERT INTO proxies (user_id, vless_uuid, vless_email) VALUES ($1, $2, $3) RETURNING id, created_at",
+		p.UserID, p.VlessUUID, p.VlessEmail,
 	).Scan(&p.ID, &p.CreatedAt)
-	return err
 }
 
 func (db *DB) GetProxy(id int64) (*models.Proxy, error) {
 	p := &models.Proxy{}
-	err := db.conn.QueryRow(
-		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
-			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
-			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, ''),
-			COALESCE(vless_uuid, ''), COALESCE(vless_email, '')
-		 FROM proxies WHERE id = $1`, id,
-	).Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
-		&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName,
-		&p.VlessUUID, &p.VlessEmail)
+	err := db.conn.QueryRow("SELECT "+proxyCols+" FROM proxies WHERE id = $1", id).
+		Scan(&p.ID, &p.UserID, &p.VlessUUID, &p.VlessEmail, &p.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -374,82 +316,19 @@ func (db *DB) GetProxy(id int64) (*models.Proxy, error) {
 }
 
 func (db *DB) ListProxiesByUser(userID int64) ([]models.Proxy, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
-			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
-			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, ''),
-			COALESCE(vless_uuid, ''), COALESCE(vless_email, '')
-		 FROM proxies WHERE user_id = $1 ORDER BY id`, userID,
-	)
+	rows, err := db.conn.Query("SELECT "+proxyCols+" FROM proxies WHERE user_id = $1 ORDER BY id", userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var proxies []models.Proxy
-	for rows.Next() {
-		var p models.Proxy
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
-			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName,
-			&p.VlessUUID, &p.VlessEmail); err != nil {
-			return nil, err
-		}
-		proxies = append(proxies, p)
-	}
-	return proxies, nil
+	return scanProxies(rows)
 }
 
 func (db *DB) ListAllProxies() ([]models.Proxy, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, user_id, port, domain, secret, container_id, container_name, status, created_at,
-			COALESCE(socks5_port, 0), COALESCE(socks5_user, ''), COALESCE(socks5_pass, ''),
-			COALESCE(socks5_container_id, ''), COALESCE(socks5_container_name, ''),
-			COALESCE(vless_uuid, ''), COALESCE(vless_email, '')
-		 FROM proxies ORDER BY id`,
-	)
+	rows, err := db.conn.Query("SELECT " + proxyCols + " FROM proxies ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var proxies []models.Proxy
-	for rows.Next() {
-		var p models.Proxy
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.Domain, &p.Secret, &p.ContainerID, &p.ContainerName, &p.Status, &p.CreatedAt,
-			&p.Socks5Port, &p.Socks5User, &p.Socks5Pass, &p.Socks5ContainerID, &p.Socks5ContainerName,
-			&p.VlessUUID, &p.VlessEmail); err != nil {
-			return nil, err
-		}
-		proxies = append(proxies, p)
-	}
-	return proxies, nil
-}
-
-// ListProxiesWithVlessByUser returns all proxies for a user that have a VLESS UUID assigned.
-func (db *DB) ListProxiesWithVlessByUser(userID int64) ([]models.Proxy, error) {
-	rows, err := db.conn.Query(
-		`SELECT id, user_id, port, COALESCE(vless_uuid, ''), COALESCE(vless_email, '')
-		 FROM proxies WHERE user_id = $1 AND vless_uuid != '' ORDER BY id`, userID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var proxies []models.Proxy
-	for rows.Next() {
-		var p models.Proxy
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Port, &p.VlessUUID, &p.VlessEmail); err != nil {
-			return nil, err
-		}
-		proxies = append(proxies, p)
-	}
-	return proxies, nil
-}
-
-func (db *DB) UpdateProxyStatus(id int64, status models.ProxyStatus, containerID string) error {
-	_, err := db.conn.Exec("UPDATE proxies SET status = $1, container_id = $2 WHERE id = $3", status, containerID, id)
-	return err
+	return scanProxies(rows)
 }
 
 func (db *DB) DeleteProxy(id int64) error {
@@ -463,77 +342,55 @@ func (db *DB) CountProxiesByUser(userID int64) (int, error) {
 	return count, err
 }
 
-func (db *DB) IsPortUsed(port int) (bool, error) {
-	var count int
-	err := db.conn.QueryRow("SELECT COUNT(*) FROM proxies WHERE port = $1 OR socks5_port = $1", port).Scan(&count)
-	return count > 0, err
-}
-
-func (db *DB) GetUsedPorts() (map[int]bool, error) {
-	rows, err := db.conn.Query("SELECT port FROM proxies UNION SELECT socks5_port FROM proxies WHERE socks5_port > 0")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	ports := make(map[int]bool)
-	for rows.Next() {
-		var port int
-		if err := rows.Scan(&port); err != nil {
-			return nil, err
-		}
-		ports[port] = true
-	}
-	return ports, nil
-}
-
 // --- Payment queries ---
 
 func (db *DB) CreatePayment(p *models.Payment) error {
-	productType := p.ProductType
-	if productType == "" {
-		productType = string(models.ProductVPN)
-	}
-	metadata := p.Metadata
-	if metadata == "" {
-		metadata = "{}"
-	}
-	err := db.conn.QueryRow(
-		`INSERT INTO payments (user_id, plan_id, external_id, amount, status, product_type, metadata)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb) RETURNING id, created_at`,
-		p.UserID, p.PlanID, p.ExternalID, p.Amount, p.Status, productType, metadata,
-	).Scan(&p.ID, &p.CreatedAt)
-	if err == nil {
-		p.ProductType = productType
-		p.Metadata = metadata
-	}
-	return err
+	return db.conn.QueryRow(
+		`INSERT INTO payments (user_id, plan_id, external_id, amount, status)
+		 VALUES ($1, $2, $3, $4, 'pending') RETURNING id, status, created_at`,
+		p.UserID, p.PlanID, p.ExternalID, p.Amount,
+	).Scan(&p.ID, &p.Status, &p.CreatedAt)
 }
 
 func (db *DB) GetPaymentByExternalID(externalID string) (*models.Payment, error) {
 	p := &models.Payment{}
 	err := db.conn.QueryRow(
-		`SELECT id, user_id, plan_id, external_id, amount, status,
-			COALESCE(product_type, 'vpn'), COALESCE(metadata::text, '{}'), created_at
-		 FROM payments WHERE external_id = $1`,
+		"SELECT id, user_id, plan_id, external_id, amount, status, created_at FROM payments WHERE external_id = $1",
 		externalID,
-	).Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status,
-		&p.ProductType, &p.Metadata, &p.CreatedAt)
+	).Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status, &p.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return p, nil
 }
 
-func (db *DB) UpdatePaymentStatus(externalID, status string) error {
-	_, err := db.conn.Exec("UPDATE payments SET status = $1 WHERE external_id = $2", status, externalID)
+// MarkPaymentPaid flips a pending payment to paid and returns it. It returns
+// (nil, nil) if the payment was already paid or canceled, so concurrent
+// webhooks/polls fulfil a payment exactly once.
+func (db *DB) MarkPaymentPaid(externalID string) (*models.Payment, error) {
+	p := &models.Payment{}
+	err := db.conn.QueryRow(
+		`UPDATE payments SET status = 'paid' WHERE external_id = $1 AND status = 'pending'
+		 RETURNING id, user_id, plan_id, external_id, amount, status, created_at`,
+		externalID,
+	).Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status, &p.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (db *DB) CancelPayment(externalID string) error {
+	_, err := db.conn.Exec("UPDATE payments SET status = 'canceled' WHERE external_id = $1 AND status = 'pending'", externalID)
 	return err
 }
 
-func (db *DB) GetPendingPaymentsByUser(userID int64) ([]*models.Payment, error) {
+func (db *DB) GetPendingPaymentsByUser(userID int64) ([]models.Payment, error) {
 	rows, err := db.conn.Query(
-		`SELECT id, user_id, plan_id, external_id, amount, status,
-			COALESCE(product_type, 'vpn'), COALESCE(metadata::text, '{}'), created_at
+		`SELECT id, user_id, plan_id, external_id, amount, status, created_at
 		 FROM payments WHERE user_id = $1 AND status = 'pending' ORDER BY created_at DESC`,
 		userID,
 	)
@@ -541,91 +398,15 @@ func (db *DB) GetPendingPaymentsByUser(userID int64) ([]*models.Payment, error) 
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*models.Payment
+	var out []models.Payment
 	for rows.Next() {
-		p := &models.Payment{}
-		if err := rows.Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status,
-			&p.ProductType, &p.Metadata, &p.CreatedAt); err != nil {
-			continue
+		var p models.Payment
+		if err := rows.Scan(&p.ID, &p.UserID, &p.PlanID, &p.ExternalID, &p.Amount, &p.Status, &p.CreatedAt); err != nil {
+			return nil, err
 		}
 		out = append(out, p)
 	}
-	return out, nil
-}
-
-// --- Fragment orders ---
-
-func (db *DB) CreateFragmentOrder(o *models.FragmentOrder) error {
-	return db.conn.QueryRow(
-		`INSERT INTO fragment_orders (payment_id, user_id, type, recipient_username, quantity, status)
-		 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at`,
-		o.PaymentID, o.UserID, o.Type, o.RecipientUsername, o.Quantity, o.Status,
-	).Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt)
-}
-
-func (db *DB) GetFragmentOrderByID(id int64) (*models.FragmentOrder, error) {
-	o := &models.FragmentOrder{}
-	err := db.conn.QueryRow(
-		`SELECT id, payment_id, user_id, type, recipient_username, quantity, status,
-			fragment_tx_hash, error, attempts, created_at, updated_at
-		 FROM fragment_orders WHERE id = $1`,
-		id,
-	).Scan(&o.ID, &o.PaymentID, &o.UserID, &o.Type, &o.RecipientUsername, &o.Quantity,
-		&o.Status, &o.FragmentTxHash, &o.Error, &o.Attempts, &o.CreatedAt, &o.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return o, nil
-}
-
-func (db *DB) GetFragmentOrderByPaymentID(paymentID int64) (*models.FragmentOrder, error) {
-	o := &models.FragmentOrder{}
-	err := db.conn.QueryRow(
-		`SELECT id, payment_id, user_id, type, recipient_username, quantity, status,
-			fragment_tx_hash, error, attempts, created_at, updated_at
-		 FROM fragment_orders WHERE payment_id = $1`,
-		paymentID,
-	).Scan(&o.ID, &o.PaymentID, &o.UserID, &o.Type, &o.RecipientUsername, &o.Quantity,
-		&o.Status, &o.FragmentTxHash, &o.Error, &o.Attempts, &o.CreatedAt, &o.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return o, nil
-}
-
-func (db *DB) UpdateFragmentOrderStatus(id int64, status, txHash, errMsg string) error {
-	_, err := db.conn.Exec(
-		`UPDATE fragment_orders SET status = $1, fragment_tx_hash = $2, error = $3,
-			attempts = attempts + 1, updated_at = NOW() WHERE id = $4`,
-		status, txHash, errMsg, id,
-	)
-	return err
-}
-
-func (db *DB) ListPendingFragmentOrders(limit int) ([]*models.FragmentOrder, error) {
-	if limit <= 0 {
-		limit = 50
-	}
-	rows, err := db.conn.Query(
-		`SELECT id, payment_id, user_id, type, recipient_username, quantity, status,
-			fragment_tx_hash, error, attempts, created_at, updated_at
-		 FROM fragment_orders WHERE status IN ('pending','processing') ORDER BY created_at LIMIT $1`,
-		limit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []*models.FragmentOrder
-	for rows.Next() {
-		o := &models.FragmentOrder{}
-		if err := rows.Scan(&o.ID, &o.PaymentID, &o.UserID, &o.Type, &o.RecipientUsername, &o.Quantity,
-			&o.Status, &o.FragmentTxHash, &o.Error, &o.Attempts, &o.CreatedAt, &o.UpdatedAt); err != nil {
-			continue
-		}
-		out = append(out, o)
-	}
-	return out, nil
+	return out, rows.Err()
 }
 
 // --- Subscription queries ---

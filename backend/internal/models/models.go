@@ -9,14 +9,6 @@ const (
 	RoleAdmin Role = "admin"
 )
 
-type ProxyStatus string
-
-const (
-	StatusRunning ProxyStatus = "running"
-	StatusStopped ProxyStatus = "stopped"
-	StatusError   ProxyStatus = "error"
-)
-
 type User struct {
 	ID           int64     `json:"id"`
 	Username     string    `json:"username"`
@@ -27,26 +19,14 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// Proxy is a user's VPN config: one 3x-ui client. The name is historical.
 type Proxy struct {
-	ID                  int64       `json:"id"`
-	UserID              int64       `json:"user_id"`
-	Port                int         `json:"port"`
-	Domain              string      `json:"domain"`
-	Secret              string      `json:"secret"`
-	ContainerID         string      `json:"container_id"`
-	ContainerName       string      `json:"container_name"`
-	Status              ProxyStatus `json:"status"`
-	CreatedAt           time.Time   `json:"created_at"`
-	Link                string      `json:"link,omitempty"`
-	Socks5Port          int         `json:"socks5_port,omitempty"`
-	Socks5User          string      `json:"socks5_user,omitempty"`
-	Socks5Pass          string      `json:"socks5_pass,omitempty"`
-	Socks5ContainerID   string      `json:"socks5_container_id,omitempty"`
-	Socks5ContainerName string      `json:"socks5_container_name,omitempty"`
-	LinkSocks5          string      `json:"link_socks5,omitempty"`
-	VlessUUID           string      `json:"vless_uuid,omitempty"`
-	VlessEmail          string      `json:"-"` // x-ui client email; empty on legacy rows
-	LinkSub             string      `json:"link_sub,omitempty"` // subscription URL, or vless:// if XUI_SUB_URL unset
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"user_id"`
+	VlessUUID  string    `json:"-"`
+	VlessEmail string    `json:"name"`               // x-ui client email, e.g. staytg.org-alice-1
+	LinkSub    string    `json:"link_sub,omitempty"` // subscription URL
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // --- Plans & Subscriptions ---
@@ -114,46 +94,11 @@ type Subscription struct {
 }
 
 type Payment struct {
-	ID          int64     `json:"id"`
-	UserID      int64     `json:"user_id"`
-	PlanID      string    `json:"plan_id"`
-	ExternalID  string    `json:"external_id"`
-	Amount      string    `json:"amount"`
-	Status      string    `json:"status"`
-	ProductType string    `json:"product_type"`
-	Metadata    string    `json:"metadata,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"user_id"`
+	PlanID     string    `json:"plan_id"`
+	ExternalID string    `json:"external_id"` // provider id, prefixed: sbp_, stars_, stay_ (TON), bare = CryptoBot
+	Amount     string    `json:"amount"`
+	Status     string    `json:"status"` // pending | paid | canceled
+	CreatedAt  time.Time `json:"created_at"`
 }
-
-// --- Products: Stars & Premium ---
-
-type ProductType string
-
-const (
-	ProductVPN     ProductType = "vpn"
-	ProductStars   ProductType = "stars"
-	ProductPremium ProductType = "premium"
-)
-
-// FragmentOrder tracks a Stars/Premium delivery via Fragment worker.
-type FragmentOrder struct {
-	ID                int64     `json:"id"`
-	PaymentID         int64     `json:"payment_id"`
-	UserID            int64     `json:"user_id"`
-	Type              string    `json:"type"` // "stars" | "premium"
-	RecipientUsername string    `json:"recipient_username"`
-	Quantity          int       `json:"quantity"` // stars amount, or months for premium
-	Status            string    `json:"status"`   // "pending"|"processing"|"delivered"|"failed"
-	FragmentTxHash    string    `json:"fragment_tx_hash,omitempty"`
-	Error             string    `json:"error,omitempty"`
-	Attempts          int       `json:"attempts"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
-}
-
-// StarsPackages — preset stars amounts shown on the showcase.
-// Final price is computed dynamically from Fragment quote + markup.
-var StarsPackages = []int{50, 100, 250, 500, 1000, 2500, 5000}
-
-// PremiumMonthsOptions — supported gift periods for Telegram Premium.
-var PremiumMonthsOptions = []int{3, 6, 12}

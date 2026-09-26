@@ -1,6 +1,0 @@
-aiohttp>=3.9
-# Unofficial Fragment SDK by whicencer — buys Stars/Premium via Fragment.
-fragment-sdk==0.2.0
-# fragment-sdk imports `from tonutils.client import TonapiClient`, which only
-# exists on the 0.x branch — tonutils 2.x reorganised the module layout.
-tonutils>=0.5.0,<2

@@ -1,268 +1,196 @@
 package handlers
 
 import (
-	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/database"
-	"mtproxy-manager/internal/fragment"
 	"mtproxy-manager/internal/models"
-	"mtproxy-manager/internal/xui"
 )
 
-const cryptoPayAPI = "https://pay.crypt.bot/api"
-
+// PaymentHandler sells subscription plans through CryptoBot, SBP (DigitalPay),
+// TON and Telegram Stars. Every provider ends in fulfill(), which activates the
+// plan exactly once per payment.
 type PaymentHandler struct {
-	db        *database.DB
-	cfg       *config.Config
-	xuiClient *xui.Client      // nil if x-ui integration is disabled
-	fragment  *fragment.Client // nil-safe; checked via Available()
+	db  *database.DB
+	cfg *config.Config
+	vpn *VPN
+	bot *Bot
 }
 
-func NewPaymentHandler(db *database.DB, cfg *config.Config, xuiClient *xui.Client) *PaymentHandler {
-	return &PaymentHandler{
-		db:        db,
-		cfg:       cfg,
-		xuiClient: xuiClient,
-		fragment:  fragment.NewClient(cfg.FragmentWorkerURL, cfg.FragmentWorkerToken),
-	}
+func NewPaymentHandler(db *database.DB, cfg *config.Config, vpn *VPN, bot *Bot) *PaymentHandler {
+	return &PaymentHandler{db: db, cfg: cfg, vpn: vpn, bot: bot}
 }
 
 func (h *PaymentHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, models.Plans)
 }
 
-type createPaymentRequest struct {
-	PlanID string `json:"plan_id"`
-	Source string `json:"source,omitempty"` // "tg" | "web"
+func (h *PaymentHandler) GetSubscription(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, loadSubscriptionInfo(h.db, getClaims(r).UserID))
 }
 
-func normalizePaymentSource(source string) string {
-	switch strings.ToLower(strings.TrimSpace(source)) {
-	case "tg", "telegram", "miniapp":
-		return "tg"
-	default:
-		return "web"
+type paymentRequest struct {
+	UserID int64
+	Plan   *models.Plan
+	Source string // "tg" when paying from the Mini App, else "web"
+}
+
+// readPaymentRequest parses {plan_id, source}; on failure it has written the response.
+func readPaymentRequest(w http.ResponseWriter, r *http.Request) (*paymentRequest, bool) {
+	var body struct {
+		PlanID string `json:"plan_id"`
+		Source string `json:"source"`
 	}
+	if err := readJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return nil, false
+	}
+	plan := models.GetPlan(body.PlanID)
+	if plan == nil {
+		writeError(w, http.StatusBadRequest, "invalid plan")
+		return nil, false
+	}
+	source := "web"
+	switch strings.ToLower(strings.TrimSpace(body.Source)) {
+	case "tg", "telegram", "miniapp":
+		source = "tg"
+	}
+	return &paymentRequest{UserID: getClaims(r).UserID, Plan: plan, Source: source}, true
 }
 
-func (h *PaymentHandler) paymentReturnURL(source string) string {
-	if normalizePaymentSource(source) == "tg" {
-		botUsername := strings.TrimPrefix(strings.TrimSpace(h.cfg.TelegramBotUsername), "@")
-		if botUsername != "" {
-			return fmt.Sprintf("https://t.me/%s?startapp=payment_success", botUsername)
+// savePayment records a pending payment; without it we could not credit the user.
+func (h *PaymentHandler) savePayment(w http.ResponseWriter, req *paymentRequest, externalID, amount string) bool {
+	err := h.db.CreatePayment(&models.Payment{UserID: req.UserID, PlanID: req.Plan.ID, ExternalID: externalID, Amount: amount})
+	if err != nil {
+		log.Printf("save payment %s: %v", externalID, err)
+		writeError(w, http.StatusInternalServerError, "failed to create payment")
+		return false
+	}
+	return true
+}
+
+// returnURL is where the provider sends the user after paying.
+func (h *PaymentHandler) returnURL(source string) string {
+	if source == "tg" {
+		if bot := strings.TrimPrefix(strings.TrimSpace(h.cfg.TelegramBotUsername), "@"); bot != "" {
+			return "https://t.me/" + bot + "?startapp=payment_success"
 		}
-		if h.cfg.TelegramPayURL != "" {
-			if strings.Contains(h.cfg.TelegramPayURL, "?") {
-				return h.cfg.TelegramPayURL + "&startapp=payment_success"
+		if u := h.cfg.TelegramPayURL; u != "" {
+			sep := "?"
+			if strings.Contains(u, "?") {
+				sep = "&"
 			}
-			return h.cfg.TelegramPayURL + "?startapp=payment_success"
+			return u + sep + "startapp=payment_success"
 		}
 	}
 	return strings.TrimRight(h.cfg.BaseURL, "/") + "/pricing?payment=1"
 }
 
-func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
+// fulfill activates the plan of a confirmed payment. Safe to call repeatedly.
+func (h *PaymentHandler) fulfill(externalID string) error {
+	payment, err := h.db.MarkPaymentPaid(externalID)
+	if err != nil {
+		return fmt.Errorf("mark paid %s: %w", externalID, err)
 	}
-
-	var req createPaymentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
+	if payment == nil {
+		return nil // already fulfilled or canceled
 	}
-
-	plan := models.GetPlan(req.PlanID)
+	plan := models.GetPlan(payment.PlanID)
 	if plan == nil {
-		writeError(w, http.StatusBadRequest, "invalid plan")
-		return
-	}
-	source := normalizePaymentSource(req.Source)
-
-	payload, _ := json.Marshal(map[string]string{
-		"user_id": strconv.FormatInt(claims.UserID, 10),
-		"plan_id": plan.ID,
-		"source":  source,
-	})
-
-	returnURL := h.paymentReturnURL(source)
-
-	invoiceReq := map[string]interface{}{
-		"currency_type": "fiat",
-		"fiat":          "RUB",
-		"amount":        plan.Price,
-		"description":   fmt.Sprintf("Подписка MTProxy — %s", plan.Name),
-		"payload":       string(payload),
-		"paid_btn_name": "callback",
-		"paid_btn_url":  returnURL,
+		return fmt.Errorf("payment %s has unknown plan %q", externalID, payment.PlanID)
 	}
 
-	body, _ := json.Marshal(invoiceReq)
-
-	httpReq, _ := http.NewRequest("POST", cryptoPayAPI+"/createInvoice", bytes.NewReader(body))
-	httpReq.Header.Set("Crypto-Pay-API-Token", h.cfg.CryptoBotToken)
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		log.Printf("CryptoPay request error: %v", err)
-		writeError(w, http.StatusInternalServerError, "payment service unavailable")
-		return
+	startsAt := time.Now()
+	if cur, _ := h.db.GetActiveSubscription(payment.UserID); cur != nil {
+		startsAt = cur.ExpiresAt
 	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	var cryptoResp struct {
-		OK     bool `json:"ok"`
-		Result struct {
-			InvoiceID     int64  `json:"invoice_id"`
-			BotInvoiceURL string `json:"bot_invoice_url"`
-			Status        string `json:"status"`
-		} `json:"result"`
-		Error struct {
-			Code int    `json:"code"`
-			Name string `json:"name"`
-		} `json:"error"`
+	sub := &models.Subscription{
+		UserID:    payment.UserID,
+		PlanID:    plan.ID,
+		PaymentID: payment.ID,
+		StartsAt:  startsAt,
+		ExpiresAt: startsAt.AddDate(0, 0, plan.DurationDays),
 	}
-
-	if err := json.Unmarshal(respBody, &cryptoResp); err != nil || !cryptoResp.OK {
-		log.Printf("CryptoPay error: ok=%v, err=%v, body=%s", cryptoResp.OK, err, string(respBody))
-		writeError(w, http.StatusInternalServerError, "failed to create payment")
-		return
+	if err := h.db.CreateSubscription(sub); err != nil {
+		return fmt.Errorf("create subscription for payment %s: %w", externalID, err)
 	}
+	log.Printf("subscription activated: user=%d plan=%s expires=%s", payment.UserID, plan.ID, sub.ExpiresAt.Format(time.RFC3339))
 
-	payment := &models.Payment{
-		UserID:     claims.UserID,
-		PlanID:     plan.ID,
-		ExternalID: strconv.FormatInt(cryptoResp.Result.InvoiceID, 10),
-		Amount:     plan.Price,
-		Status:     "pending",
+	if user, err := h.db.GetUserByID(payment.UserID); err == nil {
+		_ = h.db.UpdateUser(user.ID, user.Role, plan.MaxProxies)
+		go h.bot.NotifySubscriptionPaid(user, plan)
 	}
-	if err := h.db.CreatePayment(payment); err != nil {
-		log.Printf("Failed to save payment: %v", err)
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"payment_url": cryptoResp.Result.BotInvoiceURL,
-	})
+	h.vpn.SyncExpiry(payment.UserID, sub.ExpiresAt)
+	h.creditReferrer(payment, plan)
+	return nil
 }
 
-func (h *PaymentHandler) Webhook(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+const referralBonusShare = 0.15
+
+// creditReferrer gives whoever invited the payer 15% of the plan's days.
+func (h *PaymentHandler) creditReferrer(payment *models.Payment, plan *models.Plan) {
+	referrerID, err := h.db.GetReferrerByReferred(payment.UserID)
+	if err != nil || referrerID == 0 {
 		return
 	}
-
-	signature := r.Header.Get("crypto-pay-api-signature")
-	if !h.verifySignature(body, signature) {
-		log.Printf("Webhook signature verification failed")
-		w.WriteHeader(http.StatusUnauthorized)
+	bonusDays := int(float64(plan.DurationDays) * referralBonusShare)
+	if bonusDays == 0 {
 		return
 	}
-
-	var update struct {
-		UpdateType string `json:"update_type"`
-		Payload    struct {
-			InvoiceID int64  `json:"invoice_id"`
-			Status    string `json:"status"`
-			Payload   string `json:"payload"`
-		} `json:"payload"`
-	}
-
-	if err := json.Unmarshal(body, &update); err != nil {
-		log.Printf("Webhook parse error: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+	if exists, _ := h.db.ReferralBonusExistsForPayment(payment.ID); exists {
 		return
 	}
-
-	if update.UpdateType != "invoice_paid" {
-		w.WriteHeader(http.StatusOK)
+	if err := h.db.CreateReferralBonus(referrerID, payment.UserID, payment.ID, bonusDays); err != nil {
+		log.Printf("referral bonus payment=%d: %v", payment.ID, err)
 		return
 	}
-
-	externalID := strconv.FormatInt(update.Payload.InvoiceID, 10)
-	if err := h.fulfillPayment(externalID); err != nil {
-		log.Printf("CryptoPay webhook fulfill: %v", err)
+	if err := h.db.ExtendSubscription(referrerID, bonusDays); err != nil {
+		log.Printf("referral extend user=%d: %v", referrerID, err)
+		return
 	}
-
-	w.WriteHeader(http.StatusOK)
+	if sub, _ := h.db.GetActiveSubscription(referrerID); sub != nil {
+		h.vpn.SyncExpiry(referrerID, sub.ExpiresAt)
+	}
 }
 
-func (h *PaymentHandler) GetSubscription(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	sub, err := h.db.GetActiveSubscription(claims.UserID)
-	if err != nil || sub == nil {
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"active": false,
-		})
-		return
-	}
-
-	plan := models.GetPlan(sub.PlanID)
-	planName := sub.PlanID
-	if plan != nil {
-		planName = plan.Name
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"active":     true,
-		"plan_name":  planName,
-		"expires_at": sub.ExpiresAt,
-	})
-}
-
-// syncVlessExpiry updates the expiry time of all VLESS clients belonging to userID
-// in the x-ui panel to match their subscription expiry. Called after any subscription change.
-func (h *PaymentHandler) syncVlessExpiry(userID int64, expiresAt time.Time) {
-	if h.xuiClient == nil {
-		return
-	}
-	proxies, err := h.db.ListProxiesWithVlessByUser(userID)
+// CheckPendingPayments asks providers about the user's pending payments, for
+// when a webhook was missed. Stars are only confirmed by the bot webhook.
+func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Request) {
+	pending, err := h.db.GetPendingPaymentsByUser(getClaims(r).UserID)
 	if err != nil {
-		log.Printf("syncVlessExpiry: list proxies for user %d: %v", userID, err)
+		writeError(w, http.StatusInternalServerError, "failed to load payments")
 		return
 	}
-	for _, p := range proxies {
-		email := proxyEmail(p)
-		if err := h.xuiClient.UpdateClientExpiry(p.VlessUUID, email, expiresAt); err != nil {
-			log.Printf("syncVlessExpiry: update uuid=%s user=%d: %v", p.VlessUUID, userID, err)
+	updated := false
+	for _, p := range pending {
+		var paid bool
+		var err error
+		switch {
+		case strings.HasPrefix(p.ExternalID, tonPrefix):
+			paid, err = h.tonPaid(p)
+		case strings.HasPrefix(p.ExternalID, sbpPrefix):
+			paid, err = h.sbpPaid(p.ExternalID)
+		case strings.HasPrefix(p.ExternalID, starsPrefix):
+			continue
+		default:
+			paid, err = h.cryptoBotPaid(p.ExternalID)
+		}
+		if err != nil {
+			log.Printf("check payment %s: %v", p.ExternalID, err)
+			continue
+		}
+		if paid {
+			if err := h.fulfill(p.ExternalID); err != nil {
+				log.Printf("fulfill %s: %v", p.ExternalID, err)
+				continue
+			}
+			updated = true
 		}
 	}
-	if len(proxies) > 0 {
-		log.Printf("syncVlessExpiry: updated %d VLESS client(s) for user %d, expires %s",
-			len(proxies), userID, expiresAt.Format(time.RFC3339))
-	}
-}
-
-func (h *PaymentHandler) verifySignature(body []byte, signature string) bool {
-	if signature == "" || h.cfg.CryptoBotToken == "" {
-		return false
-	}
-	secret := sha256.Sum256([]byte(h.cfg.CryptoBotToken))
-	mac := hmac.New(sha256.New, secret[:])
-	mac.Write(body)
-	expected := hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(expected), []byte(signature))
+	writeJSON(w, http.StatusOK, map[string]bool{"updated": updated})
 }
