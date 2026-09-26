@@ -1,0 +1,115 @@
+groups:
+  - name: stay
+    rules:
+      - alert: StayBackendDown
+        expr: up{job="stay"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Backend is not answering /metrics
+          description: "systemctl status mtproxy-manager; journalctl -u mtproxy-manager -n 100"
+
+      - alert: StayPaymentNotActivated
+        expr: increase(stay_payment_fulfill_errors_total[15m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "A paid {{ $labels.provider }} payment did not activate a subscription"
+          description: Money was received but the user got nothing. Find "fulfill" in the backend log and fix by hand.
+
+      - alert: StayHigh5xxRate
+        expr: |
+          sum(rate(stay_http_requests_total{code=~"5.."}[10m]))
+            / sum(rate(stay_http_requests_total[10m])) > 0.05
+          and sum(rate(stay_http_requests_total[10m])) > 0.05
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of API requests fail with 5xx"
+
+      - alert: StaySlowAPI
+        expr: histogram_quantile(0.95, sum by (le) (rate(stay_http_request_duration_seconds_bucket{route=~"/api/.*"}[10m]))) > 2
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "API p95 latency is {{ $value | humanizeDuration }}"
+
+      - alert: StayXUIDisconnected
+        expr: stay_xui_connected == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: 3x-ui was unreachable at backend start; users cannot create or renew connections
+          description: Check XUI_* in .env and the panel, then restart the backend.
+
+      - alert: StayXUIErrors
+        expr: sum(increase(stay_xui_request_duration_seconds_count{result="error"}[15m])) > 3
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value | humanize }} failed 3x-ui API calls in 15m"
+
+      - alert: StayTelegramErrors
+        expr: sum(increase(stay_telegram_api_errors_total[30m])) > 10
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value | humanize }} failed Telegram Bot API calls in 30m"
+
+      - alert: StaySiteDown
+        expr: probe_success{job="site"} == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }} is down"
+
+      - alert: StayXUIServerUnreachable
+        expr: probe_success{job="xui_server"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "3x-ui subscription port {{ $labels.instance }} is unreachable"
+
+      - alert: StayTLSCertExpiring
+        expr: probe_ssl_earliest_cert_expiry{job="site"} - time() < 14 * 86400
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "TLS certificate of {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+
+  - name: backup
+    rules:
+      - alert: StayBackupFailed
+        expr: stay_backup_last_run_success == 0
+        labels: { severity: critical }
+        annotations:
+          summary: Last database backup failed
+          description: "journalctl -u stay-backup -n 50"
+
+      - alert: StayBackupMissing
+        # Runs on the 1st and 15th; >17 days means at least one run was missed.
+        expr: time() - stay_backup_last_success_timestamp_seconds > 17 * 86400 or absent(stay_backup_last_success_timestamp_seconds)
+        for: 1h
+        labels: { severity: critical }
+        annotations:
+          summary: No successful database backup in over 17 days
+
+  - name: host
+    rules:
+      - alert: HostDiskAlmostFull
+        expr: node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} < 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Root disk has {{ $value | humanizePercentage }} free"
+
+      - alert: HostLowMemory
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Only {{ $value | humanizePercentage }} RAM available"
+
+      - alert: HostHighLoad
+        expr: node_load15 / count without (cpu, mode) (node_cpu_seconds_total{mode="idle"}) > 2
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "15m load is {{ $value | humanize }}x CPU count"

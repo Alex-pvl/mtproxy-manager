@@ -71,6 +71,7 @@ func (h *PaymentHandler) savePayment(w http.ResponseWriter, req *paymentRequest,
 		writeError(w, http.StatusInternalServerError, "failed to create payment")
 		return false
 	}
+	paymentsCreated.WithLabelValues(providerOf(externalID)).Inc()
 	return true
 }
 
@@ -93,16 +94,28 @@ func (h *PaymentHandler) returnURL(source string) string {
 
 // fulfill activates the plan of a confirmed payment. Safe to call repeatedly.
 func (h *PaymentHandler) fulfill(externalID string) error {
+	activated, err := h.activate(externalID)
+	switch {
+	case err != nil:
+		paymentFulfillErrors.WithLabelValues(providerOf(externalID)).Inc()
+	case activated:
+		paymentsFulfilled.WithLabelValues(providerOf(externalID)).Inc()
+	}
+	return err
+}
+
+// activate reports whether this call was the one that activated the payment.
+func (h *PaymentHandler) activate(externalID string) (bool, error) {
 	payment, err := h.db.MarkPaymentPaid(externalID)
 	if err != nil {
-		return fmt.Errorf("mark paid %s: %w", externalID, err)
+		return false, fmt.Errorf("mark paid %s: %w", externalID, err)
 	}
 	if payment == nil {
-		return nil // already fulfilled or canceled
+		return false, nil // already fulfilled or canceled
 	}
 	plan := models.GetPlan(payment.PlanID)
 	if plan == nil {
-		return fmt.Errorf("payment %s has unknown plan %q", externalID, payment.PlanID)
+		return false, fmt.Errorf("payment %s has unknown plan %q", externalID, payment.PlanID)
 	}
 
 	startsAt := time.Now()
@@ -117,7 +130,7 @@ func (h *PaymentHandler) fulfill(externalID string) error {
 		ExpiresAt: startsAt.AddDate(0, 0, plan.DurationDays),
 	}
 	if err := h.db.CreateSubscription(sub); err != nil {
-		return fmt.Errorf("create subscription for payment %s: %w", externalID, err)
+		return false, fmt.Errorf("create subscription for payment %s: %w", externalID, err)
 	}
 	log.Printf("subscription activated: user=%d plan=%s expires=%s", payment.UserID, plan.ID, sub.ExpiresAt.Format(time.RFC3339))
 
@@ -127,7 +140,7 @@ func (h *PaymentHandler) fulfill(externalID string) error {
 	}
 	h.vpn.SyncExpiry(payment.UserID, sub.ExpiresAt)
 	h.creditReferrer(payment, plan)
-	return nil
+	return true, nil
 }
 
 const referralBonusShare = 0.15

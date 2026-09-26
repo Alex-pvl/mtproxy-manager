@@ -52,6 +52,7 @@ DATABASE_URL=postgres://mtproxy:yourpassword@localhost:5432/mtproxy?sslmode=disa
 SERVER_PORT=3000
 BASE_URL=https://staytg.org
 DEFAULT_MAX_PROXIES=5
+METRICS_ADDR=127.0.0.1:9464   # Prometheus, см. ops/README.md
 
 # Админ: логин+пароль и/или Telegram ID
 ADMIN_USERNAME=admin

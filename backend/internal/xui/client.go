@@ -11,7 +11,16 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+var requests = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name:    "stay_xui_request_duration_seconds",
+	Help:    "3x-ui API calls by operation and result (ok|error).",
+	Buckets: prometheus.DefBuckets,
+}, []string{"op", "result"})
 
 type Client struct {
 	baseURL   string // panel URL including base path, no trailing slash
@@ -97,6 +106,26 @@ func newClient(uuid, email string, expiry time.Time) client {
 }
 
 func (c *Client) call(method, path string, body any) (json.RawMessage, error) {
+	start := time.Now()
+	obj, err := c.do(method, path, body)
+	result := "ok"
+	if err != nil {
+		result = "error"
+	}
+	requests.WithLabelValues(operation(path), result).Observe(time.Since(start).Seconds())
+	return obj, err
+}
+
+// operation turns "panel/api/clients/del/a@b" into "clients/del".
+func operation(path string) string {
+	parts := strings.SplitN(strings.TrimPrefix(path, "panel/api/"), "/", 3)
+	if len(parts) >= 2 {
+		return parts[0] + "/" + parts[1]
+	}
+	return parts[0]
+}
+
+func (c *Client) do(method, path string, body any) (json.RawMessage, error) {
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)

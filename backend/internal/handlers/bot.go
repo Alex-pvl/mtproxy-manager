@@ -36,6 +36,7 @@ func (b *Bot) Call(method string, params map[string]any, out any) error {
 	body, _ := json.Marshal(params)
 	resp, err := httpClient.Post("https://api.telegram.org/bot"+b.cfg.TelegramBotToken+"/"+method, "application/json", bytes.NewReader(body))
 	if err != nil {
+		telegramErrors.WithLabelValues(method).Inc()
 		var ue *url.Error
 		if errors.As(err, &ue) {
 			err = ue.Err // the URL contains the bot token; keep it out of logs
@@ -53,6 +54,7 @@ func (b *Bot) Call(method string, params map[string]any, out any) error {
 		return fmt.Errorf("%s: HTTP %d: %s", method, resp.StatusCode, truncateBody(respBody))
 	}
 	if !envelope.OK {
+		telegramErrors.WithLabelValues(method).Inc()
 		return fmt.Errorf("%s: %s", method, envelope.Description)
 	}
 	if out == nil {

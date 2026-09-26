@@ -11,6 +11,7 @@ type Config struct {
 	DatabaseURL       string
 	BaseURL           string
 	DefaultMaxProxies int
+	MetricsAddr       string // Prometheus /metrics listener; keep it off the public interface
 
 	AdminUsername   string
 	AdminPassword   string
@@ -45,6 +46,7 @@ func Load() *Config {
 		DatabaseURL:       getEnv("DATABASE_URL", "postgres://mtproxy:mtproxy@localhost:5432/mtproxy?sslmode=disable"),
 		BaseURL:           getEnv("BASE_URL", ""),
 		DefaultMaxProxies: getEnvInt("DEFAULT_MAX_PROXIES", 5),
+		MetricsAddr:       getEnv("METRICS_ADDR", "127.0.0.1:9464"),
 
 		AdminUsername:   getEnv("ADMIN_USERNAME", "admin"),
 		AdminPassword:   getEnv("ADMIN_PASSWORD", ""),

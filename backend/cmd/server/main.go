@@ -21,6 +21,9 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -33,6 +36,9 @@ func main() {
 	}
 	defer db.Close()
 
+	db.RegisterMetrics()
+	xuiUp := promauto.NewGauge(prometheus.GaugeOpts{Name: "stay_xui_connected", Help: "1 if the 3x-ui panel was reachable at startup (VPN features enabled)."})
+
 	var xuiClient *xui.Client
 	if cfg.XUIURL != "" {
 		xuiClient, err = xui.NewClient(cfg.XUIURL, cfg.XUIPathPrefix, cfg.XUIAPIToken, cfg.XUISubURL, cfg.XUIInboundID)
@@ -41,6 +47,7 @@ func main() {
 			xuiClient = nil
 		} else {
 			log.Printf("x-ui connected (inbound id=%d)", cfg.XUIInboundID)
+			xuiUp.Set(1)
 		}
 	}
 
@@ -57,7 +64,7 @@ func main() {
 	referralHandler := handlers.NewReferralHandler(db, cfg)
 
 	r := chi.NewRouter()
-	r.Use(chimw.Logger, chimw.Recoverer, chimw.RealIP)
+	r.Use(chimw.Logger, chimw.Recoverer, chimw.RealIP, middleware.Metrics)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -115,6 +122,14 @@ func main() {
 		log.Printf("listening on :%s", cfg.ServerPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server: %v", err)
+		}
+	}()
+	go func() {
+		log.Printf("metrics on %s/metrics", cfg.MetricsAddr)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(cfg.MetricsAddr, mux); err != nil {
+			log.Printf("metrics server: %v", err)
 		}
 	}()
 	go every(6*time.Hour, 2*time.Minute, bot.RunExpiryReminders)
