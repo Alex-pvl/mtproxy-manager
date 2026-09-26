@@ -18,8 +18,8 @@ export default function Home() {
     {
       to: '/pricing',
       sticker: 'tariffs',
-      title: t.showcase.vpn.title,
-      desc: t.showcase.vpn.desc,
+      title: t.showcase.service.title,
+      desc: t.showcase.service.desc,
     },
   ];
 

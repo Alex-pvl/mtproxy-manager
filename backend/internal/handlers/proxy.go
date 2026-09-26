@@ -30,17 +30,17 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if user.Role != models.RoleAdmin {
 		if sub, _ := h.db.GetActiveSubscription(user.ID); sub == nil {
-			writeError(w, http.StatusForbidden, "active subscription required to create a VPN")
+			writeError(w, http.StatusForbidden, "active subscription required to create a connection")
 			return
 		}
 	}
 	count, err := h.db.CountProxiesByUser(user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to count VPNs")
+		writeError(w, http.StatusInternalServerError, "failed to count connections")
 		return
 	}
 	if count >= user.MaxProxies {
-		writeError(w, http.StatusForbidden, fmt.Sprintf("VPN limit reached (%d/%d)", count, user.MaxProxies))
+		writeError(w, http.StatusForbidden, fmt.Sprintf("connection limit reached (%d/%d)", count, user.MaxProxies))
 		return
 	}
 
@@ -56,7 +56,7 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 	proxies, err := h.vpn.List(getClaims(r).UserID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list VPNs")
+		writeError(w, http.StatusInternalServerError, "failed to list connections")
 		return
 	}
 	writeJSON(w, http.StatusOK, proxies)
@@ -69,17 +69,17 @@ func (h *ProxyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	proxy, err := h.db.GetProxy(id)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && proxy.UserID != getClaims(r).UserID) {
-		writeError(w, http.StatusNotFound, "vpn not found")
+		writeError(w, http.StatusNotFound, "connection not found")
 		return
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get VPN")
+		writeError(w, http.StatusInternalServerError, "failed to get connection")
 		return
 	}
 	if err := h.vpn.Delete(proxy); err != nil {
 		log.Printf("delete vpn id=%d: %v", proxy.ID, err)
-		writeError(w, http.StatusServiceUnavailable, "failed to delete VPN, please try again later")
+		writeError(w, http.StatusServiceUnavailable, "failed to delete connection, please try again later")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"message": "vpn deleted"})
+	writeJSON(w, http.StatusOK, map[string]string{"message": "connection deleted"})
 }

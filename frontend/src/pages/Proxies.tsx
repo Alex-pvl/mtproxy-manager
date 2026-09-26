@@ -164,7 +164,7 @@ export default function Proxies() {
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <ShieldIcon className="w-4 h-4 text-violet-500 dark:text-violet-400 shrink-0" />
-                      <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.vlessLabel}</span>
+                      <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.linkLabel}</span>
                     </div>
                     <button
                       onClick={() => copy(proxy.link_sub!, proxy.id)}
@@ -176,7 +176,7 @@ export default function Proxies() {
                   <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
                     <SubscriptionLink url={proxy.link_sub} />
                   </code>
-                  <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">{t.proxies.vlessHint}</p>
+                  <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">{t.proxies.linkHint}</p>
                 </div>
               )}
             </div>

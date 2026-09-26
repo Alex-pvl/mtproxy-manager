@@ -148,3 +148,9 @@
 .dark .spend-sheet__item { color: #fff; }
 .dark .spend-sheet__item:hover { background: #252a44; }
 .dark .spend-sheet__item-desc { color: #8b93b3; }
+
+html,
+body {
+  /* No rubber-band overscroll: in Telegram it drags the Mini App down. */
+  overscroll-behavior: none;
+}

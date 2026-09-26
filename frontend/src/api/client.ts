@@ -47,7 +47,7 @@ export interface UserWithCount extends User {
   proxy_count: number;
 }
 
-// A VPN config: one client in the 3x-ui panel.
+// A connection: one client in the 3x-ui panel.
 export interface Proxy {
   id: number;
   user_id: number;

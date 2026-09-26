@@ -82,7 +82,7 @@ func (b *Bot) openAppButton() map[string]any {
 func (b *Bot) SendWelcome(chatID int64) error {
 	return b.send(chatID, `👋 Добро пожаловать в Stay!
 
-🛡️ Быстрый и стабильный VPN прямо из Telegram.
+🛡️ Быстрое и стабильное защищённое подключение прямо из Telegram.
 
 💪 Мгновенная настройка • Высокоскоростные серверы • Работает на всех устройствах`)
 }
@@ -91,7 +91,7 @@ func (b *Bot) NotifySubscriptionPaid(user *models.User, plan *models.Plan) {
 	if !b.Enabled() || user.TelegramID == 0 {
 		return
 	}
-	text := fmt.Sprintf("✅ Успешная оплата!\n\nПодписка Stay на %s активирована.\nОткройте приложение, чтобы подключить VPN.", plan.Name)
+	text := fmt.Sprintf("✅ Успешная оплата!\n\nПодписка Stay на %s активирована.\nОткройте приложение, чтобы настроить подключение.", plan.Name)
 	if err := b.send(user.TelegramID, text); err != nil {
 		log.Printf("notify paid user=%d: %v", user.ID, err)
 	}
@@ -109,7 +109,7 @@ func (b *Bot) RunExpiryReminders() {
 		mark func(int64) error
 		text string
 	}{
-		{7, true, b.db.MarkSubscriptionExpiryReminder7dSent, "⏳ Подписка Stay (%s) закончится через 7 дней.\n\nДоступ активен до: %s\n\nПродлите подписку, чтобы не потерять VPN."},
+		{7, true, b.db.MarkSubscriptionExpiryReminder7dSent, "⏳ Подписка Stay (%s) закончится через 7 дней.\n\nДоступ активен до: %s\n\nПродлите подписку, чтобы не потерять доступ."},
 		{1, false, b.db.MarkSubscriptionExpiryReminder1dSent, "⚠️ Подписка Stay (%s) заканчивается через 1 день.\n\nДоступ активен до: %s\n\nПродлите подписку, чтобы не потерять доступ."},
 	} {
 		rows, err := b.db.ListSubscriptionsExpiryCalendarDays(r.days, r.is7d)

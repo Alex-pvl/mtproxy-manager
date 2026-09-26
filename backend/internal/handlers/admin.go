@@ -86,7 +86,7 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.vpn.DeleteAllOf(id); err != nil {
 		log.Printf("admin delete user=%d vpns: %v", id, err)
-		writeError(w, http.StatusServiceUnavailable, "failed to delete user's VPNs in x-ui")
+		writeError(w, http.StatusServiceUnavailable, "failed to delete user's connections in x-ui")
 		return
 	}
 	if err := h.db.DeleteUser(id); err != nil {
@@ -99,7 +99,7 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ListAllProxies(w http.ResponseWriter, r *http.Request) {
 	proxies, err := h.db.ListAllProxies()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list VPNs")
+		writeError(w, http.StatusInternalServerError, "failed to list connections")
 		return
 	}
 	for i := range proxies {
@@ -115,13 +115,13 @@ func (h *AdminHandler) DeleteProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	proxy, err := h.db.GetProxy(id)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "vpn not found")
+		writeError(w, http.StatusNotFound, "connection not found")
 		return
 	}
 	if err := h.vpn.Delete(proxy); err != nil {
 		log.Printf("admin delete vpn id=%d: %v", id, err)
-		writeError(w, http.StatusServiceUnavailable, "failed to delete VPN in x-ui")
+		writeError(w, http.StatusServiceUnavailable, "failed to delete connection in x-ui")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"message": "vpn deleted"})
+	writeJSON(w, http.StatusOK, map[string]string{"message": "connection deleted"})
 }

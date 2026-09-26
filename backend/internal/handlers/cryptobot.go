@@ -33,7 +33,7 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 		"currency_type": "fiat",
 		"fiat":          "RUB",
 		"amount":        req.Plan.Price,
-		"description":   "Подписка Stay VPN — " + req.Plan.Name,
+		"description":   "Подписка Stay — " + req.Plan.Name,
 		"paid_btn_name": "callback",
 		"paid_btn_url":  h.returnURL(req.Source),
 	}, &invoice)

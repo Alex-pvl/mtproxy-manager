@@ -32,8 +32,8 @@ func (h *PaymentHandler) CreateStarsPayment(w http.ResponseWriter, r *http.Reque
 
 	var link string
 	err := h.bot.Call("createInvoiceLink", map[string]any{
-		"title":       "Подписка Stay VPN — " + req.Plan.Name,
-		"description": fmt.Sprintf("Доступ к VPN на %d дней.", req.Plan.DurationDays),
+		"title":       "Подписка Stay — " + req.Plan.Name,
+		"description": fmt.Sprintf("Доступ к сервису Stay на %d дней.", req.Plan.DurationDays),
 		"payload":     string(payload),
 		"currency":    "XTR",
 		"prices":      []map[string]any{{"label": req.Plan.Name, "amount": req.Plan.StarsPrice}},

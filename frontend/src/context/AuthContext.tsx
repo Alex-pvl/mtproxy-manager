@@ -30,6 +30,8 @@ declare global {
         ready: () => void;
         expand: () => void;
         close: () => void;
+        /** Bot API 7.7+: stop swipe-down from minimizing the app while scrolling. */
+        disableVerticalSwipes?: () => void;
       };
     };
   }
@@ -74,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isMiniApp) {
       webApp!.ready();
       webApp!.expand();
+      webApp!.disableVerticalSwipes?.();
     }
   }, [isMiniApp, webApp]);
 
