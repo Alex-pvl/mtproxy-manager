@@ -83,7 +83,12 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if sub, subErr := h.db.GetActiveSubscription(claims.UserID); subErr == nil && sub != nil {
 		expiryTime = sub.ExpiresAt
 	}
-	email := vlessEmail(id, claims.UserID)
+	existing, err := h.db.ListProxiesByUser(claims.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list VPNs")
+		return
+	}
+	email := nextVlessEmail(user.Username, existing)
 	if err := h.xuiClient.AddClient(uuid, email, expiryTime); err != nil {
 		expStr := "none"
 		if !expiryTime.IsZero() {
@@ -99,7 +104,8 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		UserID:    claims.UserID,
 		Port:      id,
 		Status:    models.StatusRunning,
-		VlessUUID: uuid,
+		VlessUUID:  uuid,
+		VlessEmail: email,
 	}
 
 	if err := h.db.CreateProxy(proxy); err != nil {
@@ -152,7 +158,7 @@ func (h *ProxyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.xuiClient != nil && proxy.VlessUUID != "" {
-		if err := h.xuiClient.RemoveClient(vlessEmail(proxy.Port, proxy.UserID)); err != nil {
+		if err := h.xuiClient.RemoveClient(proxyEmail(*proxy)); err != nil {
 			log.Printf("xui remove client (proxy id=%d uuid=%s): %v", proxy.ID, proxy.VlessUUID, err)
 		}
 	}
@@ -193,8 +199,25 @@ func (h *ProxyHandler) getOwnedProxy(w http.ResponseWriter, r *http.Request) (*m
 	return proxy, true
 }
 
-// vlessEmail returns a deterministic x-ui client email for a given record id and user.
-// This lets us reconstruct it later when updating expiry without storing it separately.
-func vlessEmail(id int, userID int64) string {
-	return fmt.Sprintf("proxy-%d-user-%d", id, userID)
+// nextVlessEmail names a new x-ui client "staytg.org-<username>-<n>" with the
+// smallest n not taken by the user's existing VPNs.
+func nextVlessEmail(username string, existing []models.Proxy) string {
+	taken := map[string]bool{}
+	for _, p := range existing {
+		taken[p.VlessEmail] = true
+	}
+	for n := 1; ; n++ {
+		if e := fmt.Sprintf("staytg.org-%s-%d", username, n); !taken[e] {
+			return e
+		}
+	}
+}
+
+// proxyEmail returns the x-ui client email for a VPN record; legacy rows
+// (created before vless_email was stored) use the old derived format.
+func proxyEmail(p models.Proxy) string {
+	if p.VlessEmail != "" {
+		return p.VlessEmail
+	}
+	return fmt.Sprintf("proxy-%d-user-%d", p.Port, p.UserID)
 }

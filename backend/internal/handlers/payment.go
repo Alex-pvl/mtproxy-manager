@@ -245,7 +245,7 @@ func (h *PaymentHandler) syncVlessExpiry(userID int64, expiresAt time.Time) {
 		return
 	}
 	for _, p := range proxies {
-		email := vlessEmail(p.Port, p.UserID)
+		email := proxyEmail(p)
 		if err := h.xuiClient.UpdateClientExpiry(p.VlessUUID, email, expiresAt); err != nil {
 			log.Printf("syncVlessExpiry: update uuid=%s user=%d: %v", p.VlessUUID, userID, err)
 		}

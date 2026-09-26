@@ -45,6 +45,7 @@ type Proxy struct {
 	Socks5ContainerName string      `json:"socks5_container_name,omitempty"`
 	LinkSocks5          string      `json:"link_socks5,omitempty"`
 	VlessUUID           string      `json:"vless_uuid,omitempty"`
+	VlessEmail          string      `json:"-"` // x-ui client email; empty on legacy rows
 	LinkSub             string      `json:"link_sub,omitempty"` // subscription URL, or vless:// if XUI_SUB_URL unset
 }
 
