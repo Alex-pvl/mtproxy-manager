@@ -46,7 +46,9 @@ ssh -L 3001:127.0.0.1:3001 root@<сервер-приложения>
 **На сервере 3x-ui (tagwaiter.ru):**
 
 ```bash
-sudo useradd -m -s /usr/sbin/nologin stay-backup
+# shell must be a real one: sshd runs the forced rrsync command through it;
+# the key's command=/restrict options are what lock the account down
+sudo useradd -m -s /bin/sh stay-backup
 sudo -u stay-backup mkdir -p /home/stay-backup/dumps /home/stay-backup/.ssh
 sudo chmod 700 /home/stay-backup/.ssh
 which rrsync   # есть в пакете rsync (Ubuntu 22.04+/Debian 12); иначе /usr/share/doc/rsync/scripts/rrsync
