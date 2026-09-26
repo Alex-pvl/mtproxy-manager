@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"mtproxy-manager/internal/auth"
 	"mtproxy-manager/internal/config"
 	"mtproxy-manager/internal/database"
-	"mtproxy-manager/internal/docker"
 	"mtproxy-manager/internal/handlers"
 	"mtproxy-manager/internal/middleware"
 	"mtproxy-manager/internal/xui"
@@ -21,6 +21,9 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -33,131 +36,143 @@ func main() {
 	}
 	defer db.Close()
 
-	dockerMgr, err := docker.NewManager(cfg, db)
-	if err != nil {
-		log.Fatalf("docker: %v", err)
-	}
-	defer dockerMgr.Close()
+	db.RegisterMetrics()
+	xuiUp := promauto.NewGauge(prometheus.GaugeOpts{Name: "stay_xui_connected", Help: "1 if the 3x-ui panel was reachable at startup (VPN features enabled)."})
 
-	// Initialize x-ui client only when XUI_URL is configured
 	var xuiClient *xui.Client
-	if cfg.XUIEnabled {
-		xuiClient, err = xui.NewClient(cfg.XUIURL, cfg.XUIPathPrefix, cfg.XUIUsername, cfg.XUIPassword, cfg.XUIInboundID)
+	if cfg.XUIURL != "" {
+		xuiClient, err = xui.NewClient(cfg.XUIURL, cfg.XUIPathPrefix, cfg.XUIAPIToken, cfg.XUISubURL, cfg.XUIInboundID)
 		if err != nil {
-			log.Printf("WARNING: x-ui integration disabled — %v", err)
+			log.Printf("WARNING: VPN disabled, x-ui unavailable: %v", err)
 			xuiClient = nil
 		} else {
-			log.Printf("x-ui integration enabled (inbound id=%d)", cfg.XUIInboundID)
+			log.Printf("x-ui connected (inbound id=%d)", cfg.XUIInboundID)
+			xuiUp.Set(1)
 		}
 	}
 
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
+	vpn := handlers.NewVPN(db, xuiClient)
+	bot := handlers.NewBot(cfg, db)
 
 	authHandler := handlers.NewAuthHandler(db, jwtSvc)
-	telegramHandler := handlers.NewTelegramHandler(db, jwtSvc, cfg)
 	oidcHandler := handlers.NewOIDCHandler(db, jwtSvc, cfg)
 	webAppHandler := handlers.NewWebAppHandler(db, jwtSvc, cfg)
-	proxyHandler := handlers.NewProxyHandler(db, dockerMgr, xuiClient)
-	adminHandler := handlers.NewAdminHandler(db, dockerMgr)
-	paymentHandler := handlers.NewPaymentHandler(db, cfg, xuiClient)
+	proxyHandler := handlers.NewProxyHandler(db, vpn)
+	adminHandler := handlers.NewAdminHandler(db, vpn)
+	paymentHandler := handlers.NewPaymentHandler(db, cfg, vpn, bot)
 	referralHandler := handlers.NewReferralHandler(db, cfg)
 
 	r := chi.NewRouter()
-
-	r.Use(chimw.Logger)
-	r.Use(chimw.Recoverer)
-	r.Use(chimw.RealIP)
+	r.Use(chimw.Logger, chimw.Recoverer, chimw.RealIP, middleware.Metrics)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type"},
+		MaxAge:         300,
 	}))
 
 	r.Route("/api", func(r chi.Router) {
-		r.Route("/auth", func(r chi.Router) {
-			r.Post("/telegram", telegramHandler.Auth)
-			r.Post("/webapp", webAppHandler.Auth)
-			r.Get("/oidc/init", oidcHandler.Init)
-			r.Get("/oidc/callback", oidcHandler.Callback)
-			r.With(middleware.AuthRequired(jwtSvc)).Get("/me", authHandler.Me)
-		})
-
-		r.Route("/proxies", func(r chi.Router) {
-			r.Use(middleware.AuthRequired(jwtSvc))
-			r.Get("/", proxyHandler.List)
-			r.Post("/", proxyHandler.Create)
-			r.Post("/{id}/stop", proxyHandler.Stop)
-			r.Post("/{id}/start", proxyHandler.Start)
-			r.Delete("/{id}", proxyHandler.Delete)
-		})
-
-		r.Route("/admin", func(r chi.Router) {
-			r.Use(middleware.AuthRequired(jwtSvc))
-			r.Use(middleware.AdminRequired)
-			r.Get("/users", adminHandler.ListUsers)
-			r.Put("/users/{id}", adminHandler.UpdateUser)
-			r.Delete("/users/{id}", adminHandler.DeleteUser)
-			r.Get("/proxies", adminHandler.ListAllProxies)
-			r.Delete("/proxies/{id}", adminHandler.DeleteProxy)
-		})
-
+		// Public
+		r.Post("/auth/register", authHandler.Register)
+		r.Post("/auth/login", authHandler.Login)
+		r.Post("/auth/webapp", webAppHandler.Auth)
+		r.Get("/auth/oidc/init", oidcHandler.Init)
+		r.Get("/auth/oidc/callback", oidcHandler.Callback)
 		r.Get("/plans", paymentHandler.ListPlans)
+
+		// Provider webhooks (each verifies its own authenticity)
 		r.Post("/payments/webhook", paymentHandler.Webhook)
+		r.Post("/payments/sbp/webhook", paymentHandler.DigitalPayWebhook)
 		r.Post("/webhook/bot", paymentHandler.BotWebhook)
 
-		r.Route("/payments", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthRequired(jwtSvc))
-			r.Post("/create", paymentHandler.CreatePayment)
-			r.Post("/stars/create", paymentHandler.CreateStarsPayment)
-			r.Post("/ton/create", paymentHandler.CreateTonPayment)
-			r.Post("/check-pending", paymentHandler.CheckPendingPayments)
-		})
+			r.Get("/auth/me", authHandler.Me)
+			r.Get("/subscription", paymentHandler.GetSubscription)
+			r.Get("/referral", referralHandler.Get)
 
-		r.With(middleware.AuthRequired(jwtSvc)).Get("/subscription", paymentHandler.GetSubscription)
-		r.With(middleware.AuthRequired(jwtSvc)).Get("/referral", referralHandler.Get)
+			r.Get("/proxies", proxyHandler.List)
+			r.Post("/proxies", proxyHandler.Create)
+			r.Delete("/proxies/{id}", proxyHandler.Delete)
+
+			r.Post("/payments/create", paymentHandler.CreatePayment)
+			r.Post("/payments/sbp/create", paymentHandler.CreateSBPPayment)
+			r.Post("/payments/stars/create", paymentHandler.CreateStarsPayment)
+			r.Post("/payments/ton/create", paymentHandler.CreateTonPayment)
+			r.Post("/payments/check-pending", paymentHandler.CheckPendingPayments)
+
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(middleware.AdminRequired)
+				r.Get("/users", adminHandler.ListUsers)
+				r.Put("/users/{id}", adminHandler.UpdateUser)
+				r.Delete("/users/{id}", adminHandler.DeleteUser)
+				r.Get("/proxies", adminHandler.ListAllProxies)
+				r.Delete("/proxies/{id}", adminHandler.DeleteProxy)
+			})
+		})
 	})
 
-	// Serve frontend static files (embedded or from disk)
-	staticDir := "./frontend/dist"
-	if _, err := os.Stat(staticDir); err == nil {
-		fileServer(r, staticDir)
+	if dir := "./frontend/dist"; dirExists(dir) {
+		serveSPA(r, dir)
 	}
 
-	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: r,
-	}
-
+	srv := &http.Server{Addr: ":" + cfg.ServerPort, Handler: r}
 	go func() {
-		log.Printf("Starting server on :%s", cfg.ServerPort)
+		log.Printf("listening on :%s", cfg.ServerPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server: %v", err)
 		}
 	}()
+	go func() {
+		log.Printf("metrics on %s/metrics", cfg.MetricsAddr)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(cfg.MetricsAddr, mux); err != nil {
+			log.Printf("metrics server: %v", err)
+		}
+	}()
+	go every(6*time.Hour, 2*time.Minute, bot.RunExpiryReminders)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-
-	log.Println("Shutting down server...")
+	log.Println("shutting down")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	srv.Shutdown(ctx)
+	_ = srv.Shutdown(ctx)
 }
 
-func fileServer(r chi.Router, dir string) {
-	fs := http.FileServer(http.Dir(dir))
+// every runs job after delay and then on each interval, surviving panics.
+func every(interval, delay time.Duration, job func()) {
+	run := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("background job panic: %v", r)
+			}
+		}()
+		job()
+	}
+	time.Sleep(delay)
+	for {
+		run()
+		time.Sleep(interval)
+	}
+}
 
-	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		// Try serving the file directly; fall back to index.html for SPA routing
-		path := dir + r.URL.Path
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			http.ServeFile(w, r, dir+"/index.html")
+func dirExists(dir string) bool {
+	info, err := os.Stat(dir)
+	return err == nil && info.IsDir()
+}
+
+// serveSPA serves built frontend files and falls back to index.html for client routes.
+func serveSPA(r chi.Router, dir string) {
+	files := http.FileServer(http.Dir(dir))
+	r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
+		if _, err := os.Stat(filepath.Join(dir, filepath.Clean("/"+req.URL.Path))); os.IsNotExist(err) {
+			http.ServeFile(w, req, filepath.Join(dir, "index.html"))
 			return
 		}
-		fs.ServeHTTP(w, r)
+		files.ServeHTTP(w, req)
 	})
 }

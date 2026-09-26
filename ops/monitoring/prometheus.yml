@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Alerts are evaluated but not sent anywhere yet; see Status → Alerts in Prometheus.
+
+scrape_configs:
+  - job_name: stay
+    static_configs:
+      - targets: [127.0.0.1:9464] # METRICS_ADDR of the backend
+
+  - job_name: node
+    static_configs:
+      - targets: [127.0.0.1:9100]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [127.0.0.1:9090]
+
+  # Is the public site answering (checks nginx + TLS + backend)?
+  - job_name: site
+    metrics_path: /probe
+    params: { module: [http_2xx] }
+    static_configs:
+      - targets:
+          - https://staytg.org/
+          - https://staytg.org/api/plans
+    relabel_configs: &blackbox
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+
+  # Subscription endpoint of the 3x-ui server that users' apps poll.
+  - job_name: xui_server
+    metrics_path: /probe
+    params: { module: [tcp_connect] }
+    static_configs:
+      - targets: [tagwaiter.ru:2096]
+    relabel_configs: *blackbox

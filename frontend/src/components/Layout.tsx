@@ -7,6 +7,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTonBalance } from '../hooks/useTonBalance';
 import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
+import CredentialsAuthButton from './CredentialsAuthButton';
+import { TonWalletSheet } from './TonWalletSheet';
 
 // ─── Theme icons ──────────────────────────────────────────────────────────────
 
@@ -113,6 +115,7 @@ export default function Layout() {
   const { language, setLanguage, t } = useLanguage();
   const [referralOpen, setReferralOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tonActionsOpen, setTonActionsOpen] = useState(false);
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const tonBalance = useTonBalance();
@@ -121,6 +124,14 @@ export default function Layout() {
     logout();
     navigate('/');
     setMenuOpen(false);
+  };
+
+  const openTonWalletActions = () => {
+    if (!wallet) {
+      tonConnectUI.openModal();
+      return;
+    }
+    setTonActionsOpen(true);
   };
 
   const themeToggle = (
@@ -225,19 +236,19 @@ export default function Layout() {
             {/* TON Connect: toncoin.jpg icon + balance */}
             <button
               type="button"
-              onClick={() => tonConnectUI.openModal()}
-              aria-label="TON wallet"
+              onClick={openTonWalletActions}
+              aria-label="GRAM wallet"
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
                   ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
               }`}
             >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
+              <img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover shrink-0" />
               <span className="tabular-nums whitespace-nowrap">
                 {wallet
-                  ? (tonBalance !== null ? `${tonBalance} TON` : '...')
-                  : 'TON'}
+                  ? (tonBalance !== null ? `${tonBalance} GRAM` : '...')
+                  : 'GRAM'}
               </span>
             </button>
           </div>
@@ -250,6 +261,8 @@ export default function Layout() {
         >
           <Outlet />
         </main>
+
+        <TonWalletSheet open={tonActionsOpen} onClose={() => setTonActionsOpen(false)} />
 
         {/* ── Bottom navigation bar ── */}
         <nav
@@ -327,24 +340,36 @@ export default function Layout() {
             {/* TON Connect widget */}
             <button
               type="button"
-              onClick={() => tonConnectUI.openModal()}
-              aria-label="TON wallet"
+              onClick={openTonWalletActions}
+              aria-label="GRAM wallet"
               className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
                   ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 hover:bg-sky-500/25 dark:hover:bg-sky-500/25'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover shrink-0" />
+              <img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover shrink-0" />
               <span className="tabular-nums whitespace-nowrap">
                 {wallet
-                  ? (tonBalance !== null ? `${tonBalance} TON` : '...')
-                  : 'TON'}
+                  ? (tonBalance !== null ? `${tonBalance} GRAM` : '...')
+                  : 'GRAM'}
               </span>
             </button>
 
             {themeToggle}
             {langToggle}
+            <button
+              type="button"
+              onClick={openTonWalletActions}
+              aria-label="GRAM wallet"
+              className={`md:hidden flex items-center justify-center w-9 h-9 rounded-full transition-colors touch-manipulation shrink-0 ${
+                wallet
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              <img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover" />
+            </button>
 
             {user ? (
               <>
@@ -364,10 +389,13 @@ export default function Layout() {
                 </button>
               </>
             ) : (
-              <TelegramLoginButton
-                label={t.nav.login}
-                className="hidden md:flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
-              />
+              <div className="hidden md:flex items-center gap-2">
+                <TelegramLoginButton
+                  label={t.nav.login}
+                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
+                />
+                <CredentialsAuthButton className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap" />
+              </div>
             )}
             <button
               type="button"
@@ -388,20 +416,6 @@ export default function Layout() {
         {menuOpen && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 flex flex-col gap-3">
             {navLinks}
-            <button
-              type="button"
-              onClick={() => { tonConnectUI.openModal(); setMenuOpen(false); }}
-              className={`sm:hidden flex items-center gap-2 w-full py-2 rounded-lg text-left transition-colors ${
-                wallet
-                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              <img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />
-              <span className="text-sm font-medium tabular-nums whitespace-nowrap">
-                {wallet ? (tonBalance !== null ? `${tonBalance} TON` : 'TON') : t.payment.tonNotConnected}
-              </span>
-            </button>
             <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
               {user ? (
                 <>
@@ -411,10 +425,16 @@ export default function Layout() {
                   </button>
                 </>
               ) : (
-                <TelegramLoginButton
-                  label={t.nav.login}
-                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation"
-                />
+                <div className="w-full flex flex-col gap-2">
+                  <TelegramLoginButton
+                    label={t.nav.login}
+                    className="flex items-center justify-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-2 transition-colors touch-manipulation"
+                  />
+                  <CredentialsAuthButton
+                    className="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md px-3 py-2 transition-colors touch-manipulation"
+                    onSuccess={() => setMenuOpen(false)}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -423,6 +443,9 @@ export default function Layout() {
       <main className="mx-auto max-w-6xl w-full px-3 sm:px-4 py-4 sm:py-8 flex-1">
         <Outlet />
       </main>
+
+      <TonWalletSheet open={tonActionsOpen} onClose={() => setTonActionsOpen(false)} />
+
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4">
         <div className="mx-auto max-w-6xl px-4 text-center text-xs text-gray-400 dark:text-gray-500">
           {t.footer.feedback}{' '}

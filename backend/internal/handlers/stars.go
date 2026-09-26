@@ -1,423 +1,137 @@
 package handlers
 
 import (
-	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
-
-	"mtproxy-manager/internal/models"
 )
 
-const telegramBotAPI = "https://api.telegram.org/bot"
+const starsPrefix = "stars_"
 
-// CreateStarsPayment creates a Telegram Stars (XTR) invoice link via Bot API.
+// CreateStarsPayment creates a Telegram Stars (XTR) invoice link for the Mini App.
 func (h *PaymentHandler) CreateStarsPayment(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	if h.cfg.TelegramBotToken == "" {
+	if !h.bot.Enabled() {
 		writeError(w, http.StatusServiceUnavailable, "stars payments not configured")
 		return
 	}
-
-	var req createPaymentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+	req, ok := readPaymentRequest(w, r)
+	if !ok {
 		return
 	}
-
-	plan := models.GetPlan(req.PlanID)
-	if plan == nil {
-		writeError(w, http.StatusBadRequest, "invalid plan")
-		return
-	}
-	if plan.StarsPrice == 0 {
+	if req.Plan.StarsPrice == 0 {
 		writeError(w, http.StatusBadRequest, "this plan does not support Stars payment")
 		return
 	}
+	externalID := fmt.Sprintf("%s%d_%d", starsPrefix, req.UserID, time.Now().UnixMilli())
+	payload, _ := json.Marshal(starsPayload{PaymentID: externalID})
 
-	payload, _ := json.Marshal(map[string]string{
-		"user_id": strconv.FormatInt(claims.UserID, 10),
-		"plan_id": plan.ID,
-	})
-
-	invoiceReq := map[string]interface{}{
-		"title":       fmt.Sprintf("Подписка Stay VPN — %s", plan.Name),
-		"description": fmt.Sprintf("VPN-доступ на %d дней. MTProxy, SOCKS5, VLESS.", plan.DurationDays),
+	var link string
+	err := h.bot.Call("createInvoiceLink", map[string]any{
+		"title":       "Подписка Stay — " + req.Plan.Name,
+		"description": fmt.Sprintf("Доступ к сервису Stay на %d дней.", req.Plan.DurationDays),
 		"payload":     string(payload),
 		"currency":    "XTR",
-		"prices": []map[string]interface{}{
-			{"label": plan.Name, "amount": plan.StarsPrice},
-		},
-	}
-
-	body, _ := json.Marshal(invoiceReq)
-	url := fmt.Sprintf("%s%s/createInvoiceLink", telegramBotAPI, h.cfg.TelegramBotToken)
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
+		"prices":      []map[string]any{{"label": req.Plan.Name, "amount": req.Plan.StarsPrice}},
+	}, &link)
 	if err != nil {
-		log.Printf("Stars createInvoiceLink error: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to create stars invoice")
+		log.Printf("stars invoice: %v", err)
+		writeError(w, http.StatusBadGateway, "failed to create stars invoice")
 		return
 	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	var tgResp struct {
-		OK     bool   `json:"ok"`
-		Result string `json:"result"`
-	}
-	if err := json.Unmarshal(respBody, &tgResp); err != nil || !tgResp.OK {
-		log.Printf("Stars createInvoiceLink failed: %s", string(respBody))
-		writeError(w, http.StatusInternalServerError, "failed to create stars invoice")
+	if !h.savePayment(w, req, externalID, strconv.Itoa(req.Plan.StarsPrice)) {
 		return
 	}
-
-	payment := &models.Payment{
-		UserID:     claims.UserID,
-		PlanID:     plan.ID,
-		ExternalID: fmt.Sprintf("stars_%d_%d", claims.UserID, time.Now().UnixMilli()),
-		Amount:     strconv.Itoa(plan.StarsPrice),
-		Status:     "pending",
-	}
-	if err := h.db.CreatePayment(payment); err != nil {
-		log.Printf("Failed to save stars payment: %v", err)
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"invoice_link": tgResp.Result,
-	})
+	writeJSON(w, http.StatusOK, map[string]string{"invoice_link": link})
 }
 
-// CreateTonPayment returns the TON wallet address and amount for a direct TON transfer.
-func (h *PaymentHandler) CreateTonPayment(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	if h.cfg.TonWalletAddress == "" {
-		writeError(w, http.StatusServiceUnavailable, "ton payments not configured")
-		return
-	}
-
-	var req createPaymentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	plan := models.GetPlan(req.PlanID)
-	if plan == nil {
-		writeError(w, http.StatusBadRequest, "invalid plan")
-		return
-	}
-	if plan.TonAmount == "" {
-		writeError(w, http.StatusBadRequest, "this plan does not support TON payment")
-		return
-	}
-
-	// Encode comment as base64 for TON transaction payload
-	comment := fmt.Sprintf("stay_%d_%s", claims.UserID, plan.ID)
-
-	payment := &models.Payment{
-		UserID:     claims.UserID,
-		PlanID:     plan.ID,
-		ExternalID: comment,
-		Amount:     plan.TonAmount,
-		Status:     "pending",
-	}
-	if err := h.db.CreatePayment(payment); err != nil {
-		log.Printf("Failed to save TON payment: %v", err)
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"address": h.cfg.TonWalletAddress,
-		"amount":  plan.TonAmount,
-		"comment": comment,
-	})
+// starsPayload is the invoice payload. Invoices created before payment_id was
+// added carry only user_id/plan_id.
+type starsPayload struct {
+	PaymentID string `json:"payment_id,omitempty"`
+	UserID    string `json:"user_id,omitempty"`
+	PlanID    string `json:"plan_id,omitempty"`
 }
 
-// BotWebhook handles Telegram Bot API webhook updates (successful_payment, pre_checkout_query).
+// BotWebhook handles Telegram updates: /start, Stars pre-checkout and payment.
 func (h *PaymentHandler) BotWebhook(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if s := h.cfg.TelegramWebhookSecret; s != "" &&
+		subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Telegram-Bot-Api-Secret-Token")), []byte(s)) != 1 {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-
 	var update struct {
-		UpdateID         int64 `json:"update_id"`
 		PreCheckoutQuery *struct {
-			ID               string `json:"id"`
-			From             struct{ ID int64 `json:"id"` } `json:"from"`
-			Currency         string `json:"currency"`
-			TotalAmount      int    `json:"total_amount"`
-			InvoicePayload   string `json:"invoice_payload"`
+			ID string `json:"id"`
 		} `json:"pre_checkout_query"`
 		Message *struct {
-			From             struct{ ID int64 `json:"id"` } `json:"from"`
+			Chat struct {
+				ID int64 `json:"id"`
+			} `json:"chat"`
+			Text              string `json:"text"`
 			SuccessfulPayment *struct {
-				Currency                string `json:"currency"`
-				TotalAmount             int    `json:"total_amount"`
-				InvoicePayload          string `json:"invoice_payload"`
-				TelegramPaymentChargeID string `json:"telegram_payment_charge_id"`
+				Currency       string `json:"currency"`
+				TotalAmount    int    `json:"total_amount"`
+				InvoicePayload string `json:"invoice_payload"`
 			} `json:"successful_payment"`
 		} `json:"message"`
 	}
-
-	if err := json.Unmarshal(body, &update); err != nil {
-		log.Printf("BotWebhook parse error: %v", err)
+	if err := readJSON(r, &update); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	// Telegram retries non-2xx responses, so always answer 200 from here on.
+	defer w.WriteHeader(http.StatusOK)
 
-	// Answer pre_checkout_query immediately (required within 10 seconds)
-	if update.PreCheckoutQuery != nil {
-		h.answerPreCheckoutQuery(update.PreCheckoutQuery.ID, true, "")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	// Handle successful Stars payment
-	if update.Message != nil && update.Message.SuccessfulPayment != nil {
-		sp := update.Message.SuccessfulPayment
-		if sp.Currency != "XTR" {
-			w.WriteHeader(http.StatusOK)
-			return
+	switch msg := update.Message; {
+	case update.PreCheckoutQuery != nil:
+		if err := h.bot.Call("answerPreCheckoutQuery", map[string]any{
+			"pre_checkout_query_id": update.PreCheckoutQuery.ID, "ok": true,
+		}, nil); err != nil {
+			log.Printf("answerPreCheckoutQuery: %v", err)
 		}
-
-		var meta struct {
-			UserID string `json:"user_id"`
-			PlanID string `json:"plan_id"`
+	case msg == nil:
+	case msg.SuccessfulPayment != nil && msg.SuccessfulPayment.Currency == "XTR":
+		sp := msg.SuccessfulPayment
+		if err := h.fulfillStars(sp.InvoicePayload, sp.TotalAmount); err != nil {
+			log.Printf("stars payment: %v", err)
 		}
-		if err := json.Unmarshal([]byte(sp.InvoicePayload), &meta); err != nil {
-			log.Printf("BotWebhook Stars payload parse error: %v", err)
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		userID, _ := strconv.ParseInt(meta.UserID, 10, 64)
-		plan := models.GetPlan(meta.PlanID)
-		if plan == nil || userID == 0 {
-			log.Printf("BotWebhook: invalid plan=%s or user=%d", meta.PlanID, userID)
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if err := h.activateSubscription(userID, plan, sp.TelegramPaymentChargeID); err != nil {
-			log.Printf("BotWebhook: failed to activate subscription for user %d: %v", userID, err)
+	case strings.HasPrefix(strings.TrimSpace(msg.Text), "/start"):
+		if err := h.bot.SendWelcome(msg.Chat.ID); err != nil {
+			log.Printf("/start: %v", err)
 		}
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
-func (h *PaymentHandler) answerPreCheckoutQuery(queryID string, ok bool, errorMsg string) {
-	payload := map[string]interface{}{
-		"pre_checkout_query_id": queryID,
-		"ok":                    ok,
+func (h *PaymentHandler) fulfillStars(invoicePayload string, paidStars int) error {
+	var pl starsPayload
+	if err := json.Unmarshal([]byte(invoicePayload), &pl); err != nil {
+		return fmt.Errorf("bad payload %q: %w", invoicePayload, err)
 	}
-	if !ok && errorMsg != "" {
-		payload["error_message"] = errorMsg
+	externalID := pl.PaymentID
+	if externalID == "" { // legacy invoice: latest pending Stars payment for user+plan
+		userID, _ := strconv.ParseInt(pl.UserID, 10, 64)
+		pending, err := h.db.GetPendingPaymentsByUser(userID)
+		if err != nil {
+			return err
+		}
+		for _, p := range pending {
+			if p.PlanID == pl.PlanID && strings.HasPrefix(p.ExternalID, starsPrefix) {
+				externalID = p.ExternalID
+				break
+			}
+		}
 	}
-	body, _ := json.Marshal(payload)
-	url := fmt.Sprintf("%s%s/answerPreCheckoutQuery", telegramBotAPI, h.cfg.TelegramBotToken)
-	client := &http.Client{Timeout: 8 * time.Second}
-	resp, err := client.Post(url, "application/json", bytes.NewReader(body))
+	payment, err := h.db.GetPaymentByExternalID(externalID)
 	if err != nil {
-		log.Printf("answerPreCheckoutQuery error: %v", err)
-		return
+		return fmt.Errorf("payment %q not found: %w", externalID, err)
 	}
-	defer resp.Body.Close()
+	if want, _ := strconv.Atoi(payment.Amount); paidStars < want {
+		return fmt.Errorf("payment %s: paid %d stars, want %d", externalID, paidStars, want)
+	}
+	return h.fulfill(externalID)
 }
-
-func (h *PaymentHandler) activateSubscription(userID int64, plan *models.Plan, externalID string) error {
-	h.db.UpdatePaymentStatus(externalID, "paid")
-
-	existing, _ := h.db.GetActiveSubscription(userID)
-	startsAt := time.Now()
-	if existing != nil && existing.ExpiresAt.After(startsAt) {
-		startsAt = existing.ExpiresAt
-	}
-	expiresAt := startsAt.AddDate(0, 0, plan.DurationDays)
-
-	var paymentID int64
-	if payment, err := h.db.GetPaymentByExternalID(externalID); err == nil && payment != nil {
-		paymentID = payment.ID
-	}
-
-	sub := &models.Subscription{
-		UserID:    userID,
-		PlanID:    plan.ID,
-		PaymentID: paymentID,
-		StartsAt:  startsAt,
-		ExpiresAt: expiresAt,
-	}
-	if err := h.db.CreateSubscription(sub); err != nil {
-		return err
-	}
-
-	log.Printf("Subscription activated: user=%d plan=%s expires=%s", userID, plan.ID, expiresAt.Format(time.RFC3339))
-
-	if user, err := h.db.GetUserByID(userID); err == nil {
-		_ = h.db.UpdateUser(userID, user.Role, plan.MaxProxies)
-	}
-	h.syncVlessExpiry(userID, expiresAt)
-
-	// Referral bonus
-	if referrerID, err := h.db.GetReferrerByReferred(userID); err == nil && referrerID > 0 {
-		exists, _ := h.db.ReferralBonusExistsForPayment(paymentID)
-		if !exists {
-			bonusDays := int(float64(plan.DurationDays) * 0.15)
-			if bonusDays > 0 {
-				if err := h.db.CreateReferralBonus(referrerID, userID, paymentID, bonusDays); err == nil {
-					_ = h.db.ExtendSubscription(referrerID, bonusDays)
-					if referrerSub, err := h.db.GetActiveSubscription(referrerID); err == nil && referrerSub != nil {
-						h.syncVlessExpiry(referrerID, referrerSub.ExpiresAt)
-					}
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-const tonAPIBase = "https://tonapi.io/v2"
-
-// CheckPendingPayments polls CryptoPay and TonAPI for pending payments and activates subscriptions.
-func (h *PaymentHandler) CheckPendingPayments(w http.ResponseWriter, r *http.Request) {
-	claims := getClaims(r)
-	if claims == nil {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	pending, err := h.db.GetPendingPaymentsByUser(claims.UserID)
-	if err != nil || len(pending) == 0 {
-		writeJSON(w, http.StatusOK, map[string]bool{"updated": false})
-		return
-	}
-
-	updated := false
-	for _, p := range pending {
-		if p.Status != "pending" {
-			continue
-		}
-		plan := models.GetPlan(p.PlanID)
-		if plan == nil {
-			continue
-		}
-		// TON payments: external_id = "stay_{userID}_{planID}"
-		if len(p.ExternalID) >= 5 && p.ExternalID[:5] == "stay_" {
-			if h.cfg.TonWalletAddress != "" {
-				if err := h.checkTonPayment(p.ExternalID, p.UserID, plan); err == nil {
-					updated = true
-				}
-			}
-			continue
-		}
-		// Stars: external_id starts with "stars_"
-		if len(p.ExternalID) >= 6 && p.ExternalID[:6] == "stars_" {
-			continue // Stars are handled by BotWebhook
-		}
-		// CryptoPay
-		if h.cfg.CryptoBotToken != "" {
-			if err := h.checkCryptoPayInvoice(p.ExternalID, p.UserID, plan); err == nil {
-				updated = true
-			}
-		}
-	}
-
-	writeJSON(w, http.StatusOK, map[string]bool{"updated": updated})
-}
-
-func (h *PaymentHandler) checkTonPayment(comment string, userID int64, plan *models.Plan) error {
-	url := tonAPIBase + "/accounts/" + h.cfg.TonWalletAddress + "/events?limit=30"
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	var data struct {
-		Events []struct {
-			Actions []struct {
-				Type        string `json:"type"`
-				TonTransfer *struct {
-					Amount  int64  `json:"amount"`
-					Comment string `json:"comment"`
-				} `json:"TonTransfer"`
-			} `json:"actions"`
-		} `json:"events"`
-	}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return err
-	}
-
-	wantAmount, _ := strconv.ParseInt(plan.TonAmount, 10, 64)
-	for _, ev := range data.Events {
-		for _, a := range ev.Actions {
-			if a.Type != "TonTransfer" || a.TonTransfer == nil {
-				continue
-			}
-			t := a.TonTransfer
-			if t.Comment == comment && t.Amount >= wantAmount {
-				return h.activateSubscription(userID, plan, comment)
-			}
-		}
-	}
-	return fmt.Errorf("ton payment not found")
-}
-
-func (h *PaymentHandler) checkCryptoPayInvoice(invoiceID string, userID int64, plan *models.Plan) error {
-	url := fmt.Sprintf("%s/getInvoices?invoice_ids=%s&status=paid", cryptoPayAPI, invoiceID)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Crypto-Pay-API-Token", h.cfg.CryptoBotToken)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		OK     bool `json:"ok"`
-		Result struct {
-			Items []struct {
-				InvoiceID int64  `json:"invoice_id"`
-				Status    string `json:"status"`
-			} `json:"items"`
-		} `json:"result"`
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-	if err := json.Unmarshal(body, &result); err != nil || !result.OK {
-		return fmt.Errorf("cryptopay check failed")
-	}
-
-	for _, item := range result.Result.Items {
-		if item.Status == "paid" {
-			extID := strconv.FormatInt(item.InvoiceID, 10)
-			return h.activateSubscription(userID, plan, extID)
-		}
-	}
-
-	return fmt.Errorf("not paid yet")
-}
-

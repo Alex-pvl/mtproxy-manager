@@ -19,10 +19,19 @@ declare global {
           start_param?: string;
         };
         openInvoice: (url: string, callback: (status: string) => void) => void;
+        openLink?: (
+          url: string,
+          options?: {
+            try_instant_view?: boolean;
+            try_browser?: boolean;
+          }
+        ) => void;
         openTelegramLink?: (url: string) => void;
         ready: () => void;
         expand: () => void;
         close: () => void;
+        /** Bot API 7.7+: stop swipe-down from minimizing the app while scrolling. */
+        disableVerticalSwipes?: () => void;
       };
     };
   }
@@ -35,15 +44,11 @@ interface AuthState {
   isMiniApp: boolean;
   telegramPhotoUrl: string | null;
   logout: () => void;
+  setAuthToken: (nextToken: string) => void;
   refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
-
-function getTelegramWebApp() {
-  return window.Telegram?.WebApp;
-}
-
 function getInitialToken(): string | null {
   const params = new URLSearchParams(window.location.search);
   const urlToken = params.get('token');
@@ -59,8 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(getInitialToken);
   const [isLoading, setIsLoading] = useState(true);
   const webappLoginAttempted = useRef(false);
-
-  const webApp = getTelegramWebApp();
+  // SDK is loaded synchronously in index.html, so it's ready before React mounts.
+  const webApp = window.Telegram?.WebApp;
   const isMiniApp = !!(webApp && webApp.initData);
   const telegramPhotoUrl = isMiniApp
     ? (webApp!.initDataUnsafe.user?.photo_url ?? null)
@@ -71,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isMiniApp) {
       webApp!.ready();
       webApp!.expand();
+      webApp!.disableVerticalSwipes?.();
     }
   }, [isMiniApp, webApp]);
 
@@ -128,6 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const setAuthToken = (nextToken: string) => {
+    localStorage.setItem('token', nextToken);
+    setToken(nextToken);
+  };
+
   const refreshUser = useCallback(async () => {
     if (!token) return;
     try {
@@ -137,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isMiniApp, telegramPhotoUrl, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isMiniApp, telegramPhotoUrl, logout, setAuthToken, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -47,22 +47,13 @@ export interface UserWithCount extends User {
   proxy_count: number;
 }
 
+// A connection: one client in the 3x-ui panel.
 export interface Proxy {
   id: number;
   user_id: number;
-  port: number;
-  domain: string;
-  secret: string;
-  container_id: string;
-  container_name: string;
-  status: 'running' | 'stopped' | 'error';
+  name: string;
+  link_sub?: string;
   created_at: string;
-  link?: string;
-  link_socks5?: string;
-  link_vless?: string;
-  socks5_port?: number;
-  socks5_user?: string;
-  socks5_pass?: string;
 }
 
 export interface AuthResponse {
@@ -76,6 +67,10 @@ export interface AuthResponse {
 
 export const authApi = {
   me: () => api.get<User>('/auth/me'),
+  login: (username: string, password: string) =>
+    api.post<AuthResponse>('/auth/login', { username, password }),
+  register: (username: string, password: string) =>
+    api.post<AuthResponse>('/auth/register', { username, password }),
   webappLogin: (initData: string, ref?: string) =>
     api.post<AuthResponse>('/auth/webapp', { init_data: initData, ref: ref || undefined }),
 };
@@ -95,10 +90,7 @@ export const referralApi = {
 
 export const proxyApi = {
   list: () => api.get<Proxy[]>('/proxies'),
-  create: (domain: string, port?: number) =>
-    api.post<Proxy>('/proxies', { domain, port: port || undefined }),
-  start: (id: number) => api.post<Proxy>(`/proxies/${id}/start`),
-  stop: (id: number) => api.post<Proxy>(`/proxies/${id}/stop`),
+  create: () => api.post<Proxy>('/proxies', {}),
   delete: (id: number) => api.delete(`/proxies/${id}`),
 };
 
@@ -128,8 +120,10 @@ export interface Plan {
 
 export const paymentApi = {
   listPlans: () => api.get<Plan[]>('/plans'),
-  createPayment: (planId: string) =>
-    api.post<{ payment_url: string }>('/payments/create', { plan_id: planId }),
+  createPayment: (planId: string, source?: 'web' | 'tg') =>
+    api.post<{ payment_url: string }>('/payments/create', { plan_id: planId, source: source || undefined }),
+  createSbpPayment: (planId: string, source?: 'web' | 'tg') =>
+    api.post<{ payment_url: string }>('/payments/sbp/create', { plan_id: planId, source: source || undefined }),
   createStarsPayment: (planId: string) =>
     api.post<{ invoice_link: string }>('/payments/stars/create', { plan_id: planId }),
   createTonPayment: (planId: string) =>
@@ -138,5 +132,10 @@ export const paymentApi = {
     api.post<{ updated: boolean }>('/payments/check-pending'),
   getSubscription: () => api.get<Subscription>('/subscription'),
 };
+
+/** Error text from the backend's {"error": "..."} body, or the fallback. */
+export function apiError(err: unknown, fallback: string): string {
+  return axios.isAxiosError<{ error?: string }>(err) ? err.response?.data?.error || fallback : fallback;
+}
 
 export default api;

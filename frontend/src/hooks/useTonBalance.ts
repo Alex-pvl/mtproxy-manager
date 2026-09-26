@@ -6,7 +6,7 @@ function parseBalance(data: unknown): string | null {
   const obj = data as Record<string, unknown>;
   // TonCenter: { result: "1592521995920473" } (string, nanotons)
   // TonAPI v2: { balance: number } or { balance: string } (nanotons)
-  let nano = obj.result ?? obj.balance;
+  const nano = obj.result ?? obj.balance;
   if (nano === undefined) return null;
   const num = typeof nano === 'string' ? parseInt(nano, 10) : typeof nano === 'number' ? nano : NaN;
   if (!Number.isFinite(num) || num < 0) return null;
@@ -18,32 +18,19 @@ function parseBalance(data: unknown): string | null {
  * Returns a formatted string like "2.45" (in TON), or null when not available.
  */
 export function useTonBalance(): string | null {
-  const wallet = useTonWallet();
-  const [balance, setBalance] = useState<string | null>(null);
+  const address = useTonWallet()?.account.address;
+  // Keyed by address so a stale balance is never shown for another (or no) wallet.
+  const [fetched, setFetched] = useState<{ address: string; balance: string | null } | null>(null);
 
   useEffect(() => {
-    const address = wallet?.account.address;
-    if (!address) {
-      setBalance(null);
-      return;
-    }
-
+    if (!address) return;
     let cancelled = false;
-
     fetch(`https://tonapi.io/v2/accounts/${encodeURIComponent(address)}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) {
-          const b = parseBalance(data);
-          setBalance(b);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      });
-
+      .then((data) => !cancelled && setFetched({ address, balance: parseBalance(data) }))
+      .catch(() => !cancelled && setFetched({ address, balance: null }));
     return () => { cancelled = true; };
-  }, [wallet?.account.address]);
+  }, [address]);
 
-  return balance;
+  return address && fetched?.address === address ? fetched.balance : null;
 }

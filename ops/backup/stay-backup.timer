@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Stay database backup twice a month
+
+[Timer]
+# 1st and 15th at 03:30 server time ≈ every two weeks. Persistent catches up
+# a run missed while the server was off.
+OnCalendar=*-*-01,15 03:30:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

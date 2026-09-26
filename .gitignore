@@ -11,8 +11,13 @@ backend/mtproxy-manager
 
 # Deployment-specific nginx config (use nginx/nginx.conf.example as template)
 nginx/staytg.org.conf
-backend/go.sum
 backend/server
 frontend/dist
 frontend/node_modules
 frontend/package-lock.json
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+.claude/

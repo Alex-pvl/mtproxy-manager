@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { beginCell } from '@ton/core';
-import { paymentApi } from '../api/client';
+import { apiError, paymentApi } from '../api/client';
 import type { Plan } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import Sticker from '../components/Sticker';
+import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
 
 const POPULAR_PLAN = 'year_1';
 
@@ -21,7 +22,27 @@ function StarsPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
 }
 
 function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/toncoin.jpg" alt="TON" className={`${className} rounded-xl object-cover`} />;
+  return <img src="/toncoin.jpg" alt="GRAM" className={`${className} rounded-xl object-cover`} />;
+}
+
+function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
+  return <img src="/sbp.jpg" alt="SBP" className={`${className} rounded-xl object-cover`} />;
+}
+
+function PaymentIconFrame({
+  children,
+  outlined = false,
+}: {
+  children: React.ReactNode;
+  outlined?: boolean;
+}) {
+  return (
+    <span
+      className={`shrink-0 rounded-xl ${outlined ? 'ring-1 ring-gray-200 dark:ring-gray-700' : ''}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 function CheckCircleIcon() {
@@ -32,250 +53,82 @@ function CheckCircleIcon() {
   );
 }
 
-function XIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
+type PayMethod = 'cryptobot' | 'stars' | 'ton' | 'sbp';
 
-// ─── Payment method modal ─────────────────────────────────────────────────────
-
-type PayMethod = 'cryptobot' | 'stars' | 'ton';
-
-interface PaymentMethodSheetProps {
-  plan: Plan;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-
-function PaymentMethodSheet({ plan, onClose, onSuccess }: PaymentMethodSheetProps) {
-  const { t } = useLanguage();
-  const [tonConnectUI] = useTonConnectUI();
-  const wallet = useTonWallet();
-  const [loading, setLoading] = useState<PayMethod | null>(null);
-  const [error, setError] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  const isMiniApp = !!(window.Telegram?.WebApp?.initData);
-
-  const handleCryptoBot = async () => {
-    setLoading('cryptobot');
-    setError('');
-    try {
-      const res = await paymentApi.createPayment(plan.id);
-      const paymentUrl = res.data.payment_url;
-      if (window.Telegram?.WebApp?.openLink) {
-        // In Telegram Mini App, force opening payment in an external browser.
-        window.Telegram.WebApp.openLink(paymentUrl, { try_browser: true } as any);
-      } else {
-        window.open(paymentUrl, '_blank', 'noopener,noreferrer');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error || t.pricing.failedPayment);
-      setLoading(null);
-    }
-  };
-
-  const handleStars = async () => {
-    if (!isMiniApp) {
-      setError('Оплата звёздами доступна только в Telegram');
-      return;
-    }
-    setLoading('stars');
-    setError('');
-    try {
-      const res = await paymentApi.createStarsPayment(plan.id);
-      window.Telegram!.WebApp!.openInvoice(res.data.invoice_link, (status) => {
-        setLoading(null);
-        if (status === 'paid') {
-          setShowSuccess(true);
-          setTimeout(() => {
-            onSuccess();
-            onClose();
-          }, 2000);
-        } else if (status === 'failed' || status === 'cancelled') {
-          if (status === 'failed') setError(t.pricing.failedPayment);
-        }
-      });
-    } catch (err: any) {
-      setError(err.response?.data?.error || t.pricing.failedPayment);
-      setLoading(null);
-    }
-  };
-
-  const handleTon = async () => {
-    if (!wallet) {
-      tonConnectUI.openModal();
-      return;
-    }
-    setLoading('ton');
-    setError('');
-    try {
-      const res = await paymentApi.createTonPayment(plan.id);
-      const commentCell = beginCell().storeUint(0, 32).storeStringTail(res.data.comment).endCell();
-      const payloadB64 = Buffer.from(commentCell.toBoc()).toString('base64');
-
-      await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages: [
-          {
-            address: res.data.address,
-            amount: res.data.amount,
-            payload: payloadB64,
-          },
-        ],
-      });
-      setShowSuccess(true);
-      // Poll for payment confirmation (backend verifies on-chain via TonAPI)
-      const poll = async () => {
-        for (let i = 0; i < 12; i++) {
-          await new Promise((r) => setTimeout(r, 5000));
-          try {
-            await paymentApi.checkPendingPayments();
-            onSuccess();
-            const sub = await paymentApi.getSubscription();
-            if (sub.data?.active) {
-              setTimeout(() => onClose(), 500);
-              return;
-            }
-          } catch {}
-        }
-        setTimeout(() => onClose(), 500);
-      };
-      poll();
-    } catch (err: any) {
-      if (err?.message !== 'Reject request') {
-        setError(err.response?.data?.error || t.pricing.failedPayment);
-      }
-      setLoading(null);
-    }
-  };
-
-  if (showSuccess) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
-        <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-        <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm p-8 flex flex-col items-center text-center shadow-xl">
-          <CheckCircleIcon />
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-3 mb-2">{t.payment.successTitle}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{t.payment.successDesc}</p>
-          <button
-            type="button"
-            onClick={() => { onSuccess(); onClose(); }}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
-          >
-            {t.payment.ok}
-          </button>
-        </div>
-      </div>
-    );
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
   }
-
-  const methods: { id: PayMethod; icon: React.ReactNode; label: string; desc: string; action: () => void; disabled?: boolean; badge?: string }[] = [
-    {
-      id: 'stars',
-      icon: <StarsPayIcon className="w-10 h-10" />,
-      label: t.payment.stars,
-      desc: plan.stars_price ? `${plan.stars_price} ⭐` : t.payment.starsDesc,
-      action: handleStars,
-      disabled: !isMiniApp,
-      badge: !isMiniApp ? 'Только в TG' : undefined,
-    },
-    {
-      id: 'cryptobot',
-      icon: <CryptoBotIcon className="w-10 h-10" />,
-      label: t.payment.cryptobot,
-      desc: plan.price_usd_label ? `${plan.price_usd_label} · ${t.payment.cryptobotDesc}` : t.payment.cryptobotDesc,
-      action: handleCryptoBot,
-    },
-    {
-      id: 'ton',
-      icon: <TonPayIcon className="w-10 h-10" />,
-      label: t.payment.ton,
-      desc: wallet
-        ? (plan.ton_amount ? `${(parseInt(plan.ton_amount, 10) / 1e9).toFixed(2)} TON` : t.payment.tonDesc)
-        : t.payment.tonNotConnected,
-      action: handleTon,
-    },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">{t.payment.selectMethod}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {plan.price_label} · {t.pricing.planNames[plan.id] ?? plan.name}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 -m-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors touch-manipulation"
-          >
-            <XIcon />
-          </button>
-        </div>
-
-        {error && (
-          <div className="mx-5 mb-2 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-lg px-3 py-2">
-            {error}
-          </div>
-        )}
-
-        {/* Methods list */}
-        <div className="px-3 pb-5 space-y-2">
-          {methods.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={m.action}
-              disabled={loading !== null}
-              className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 active:bg-indigo-50 dark:active:bg-indigo-500/10 transition-colors touch-manipulation disabled:opacity-60 text-left"
-            >
-              <span className="shrink-0">{m.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{m.label}</span>
-                  {m.badge && (
-                    <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">
-                      {m.badge}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{m.desc}</p>
-              </div>
-              {loading === m.id && (
-                <svg className="w-4 h-4 animate-spin text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return btoa(binary);
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+// TON Connect transactions must declare an expiry (unix seconds).
+const tenMinutesFromNow = () => Math.floor(Date.now() / 1000) + 600;
+
 export default function Pricing() {
   const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
+  const [tonConnectUI] = useTonConnectUI();
+  const wallet = useTonWallet();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
+  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const sub = user?.subscription;
+  const isMiniApp = !!(window.Telegram?.WebApp?.initData);
+
+  const methods: PaymentMethod[] = [
+    { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)', badge: t.payment.sbpUnavailable },
+    { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'GRAM' },
+    { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
+    {
+      id: 'stars',
+      icon: '/stars.jpg',
+      label: t.payment.stars,
+      disabled: !isMiniApp,
+      badge: !isMiniApp ? 'TG' : undefined,
+    },
+  ];
+
+  const formatTon = (nano: string) => {
+    const n = Number(nano);
+    if (!Number.isFinite(n)) return nano;
+    const ton = n / 1_000_000_000;
+    const str = ton.toFixed(2).replace(/\.?0+$/, '');
+    return `${str} GRAM`;
+  };
+
+  const getDisplayPrice = (plan: Plan): { main: string; secondary?: string } => {
+    switch (selectedMethod) {
+      case 'cryptobot':
+        return { main: plan.price_usd_label ? plan.price_usd_label.replace(/^~/, '') : plan.price_label };
+      case 'stars':
+        return plan.stars_price
+          ? { main: `${plan.stars_price.toLocaleString('ru-RU')} ⭐` }
+          : { main: plan.price_label };
+      case 'ton':
+        return plan.ton_amount ? { main: formatTon(plan.ton_amount) } : { main: plan.price_label };
+      case 'sbp':
+      default:
+        return { main: plan.price_label, secondary: plan.price_usd_label };
+    }
+  };
+
+  const openPaymentLink = (url: string) => {
+    if (isMiniApp && window.Telegram?.WebApp?.openLink) {
+      // try_browser: открыть в системном браузере, а не во встроенном WebView Telegram.
+      // В Telegram политика no-referrer не требуется.
+      window.Telegram.WebApp.openLink(url, { try_browser: true });
+      return;
+    }
+    window.location.assign(url);
+  };
 
   useEffect(() => {
     paymentApi.listPlans()
@@ -286,14 +139,128 @@ export default function Pricing() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has('payment')) {
-      paymentApi
-        .checkPendingPayments()
-        .then(() => refreshUser())
-        .catch(() => refreshUser())
-        .finally(() => window.history.replaceState({}, '', '/pricing'));
+    const hasLegacyPaymentFlag = params.has('payment');
+    const startParam =
+      params.get('startapp') ||
+      params.get('tgWebAppStartParam') ||
+      params.get('start_param');
+    const isMiniAppPaymentReturn = startParam === 'payment_success';
+
+    if (!hasLegacyPaymentFlag && !isMiniAppPaymentReturn) {
+      return;
     }
+
+    paymentApi
+      .checkPendingPayments()
+      .then(async (res) => {
+        if (res.data?.updated) {
+          setShowSuccess(true);
+        }
+
+        await refreshUser();
+
+        // Fallback for race conditions: webhook may activate subscription
+        // a little later than checkPendingPayments returns.
+        if (!res.data?.updated) {
+          try {
+            const subRes = await paymentApi.getSubscription();
+            if (subRes.data?.active) {
+              setShowSuccess(true);
+            }
+          } catch {
+            // ignore subscription polling errors
+          }
+        }
+      })
+      .catch(() => refreshUser())
+      .finally(() => {
+        params.delete('payment');
+        params.delete('startapp');
+        params.delete('tgWebAppStartParam');
+        params.delete('start_param');
+        const nextSearch = params.toString();
+        window.history.replaceState({}, '', nextSearch ? `/pricing?${nextSearch}` : '/pricing');
+      });
   }, [refreshUser]);
+
+  const handleBuyPlan = async (plan: Plan) => {
+    if (!user || processingPlanId) return;
+    setError('');
+    setProcessingPlanId(plan.id);
+    const paymentSource: 'web' | 'tg' = isMiniApp ? 'tg' : 'web';
+
+    try {
+      if (selectedMethod === 'sbp') {
+        // SBP temporarily disabled — route RUB buyers to manual checkout via @oddwallet.
+        openPaymentLink('https://t.me/oddwallet');
+        return;
+      }
+
+      if (selectedMethod === 'cryptobot') {
+        const res = await paymentApi.createPayment(plan.id, paymentSource);
+        openPaymentLink(res.data.payment_url);
+        return;
+      }
+
+      if (selectedMethod === 'stars') {
+        if (!isMiniApp) {
+          setError('Оплата звёздами доступна только в Telegram');
+          return;
+        }
+        const res = await paymentApi.createStarsPayment(plan.id);
+        window.Telegram!.WebApp!.openInvoice(res.data.invoice_link, (status) => {
+          setProcessingPlanId(null);
+          if (status === 'paid') {
+            setShowSuccess(true);
+            refreshUser();
+          } else if (status === 'failed') {
+            setError(t.pricing.failedPayment);
+          }
+        });
+        return;
+      }
+
+      // TON
+      if (!wallet) {
+        tonConnectUI.openModal();
+        return;
+      }
+      const res = await paymentApi.createTonPayment(plan.id);
+      const commentCell = beginCell().storeUint(0, 32).storeStringTail(res.data.comment).endCell();
+      const payloadB64 = bytesToBase64(commentCell.toBoc());
+
+      await tonConnectUI.sendTransaction({
+        validUntil: tenMinutesFromNow(),
+        messages: [
+          {
+            address: res.data.address,
+            amount: res.data.amount,
+            payload: payloadB64,
+          },
+        ],
+      });
+      setShowSuccess(true);
+      setProcessingPlanId(null);
+
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        try {
+          await paymentApi.checkPendingPayments();
+          await refreshUser();
+          const subRes = await paymentApi.getSubscription();
+          if (subRes.data?.active) break;
+        } catch {
+          // ignore transient polling errors
+        }
+      }
+      return;
+    } catch (err) {
+      const walletRejected = err instanceof Error && err.message === 'Reject request';
+      if (!walletRejected) setError(apiError(err, t.pricing.failedPayment));
+    } finally {
+      setProcessingPlanId(null);
+    }
+  };
 
   if (loading) {
     return <div className="text-gray-500 dark:text-gray-400">{t.pricing.loading}</div>;
@@ -301,17 +268,52 @@ export default function Pricing() {
 
   return (
     <div>
-      {selectedPlan && (
-        <PaymentMethodSheet
-          plan={selectedPlan}
-          onClose={() => setSelectedPlan(null)}
-          onSuccess={() => { refreshUser(); setSelectedPlan(null); }}
-        />
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuccess(false)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm p-8 flex flex-col items-center text-center shadow-xl">
+            <CheckCircleIcon />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-3 mb-2">{t.payment.successTitle}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{t.payment.successDesc}</p>
+            <button
+              type="button"
+              onClick={() => setShowSuccess(false)}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
+            >
+              {t.payment.ok}
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="text-center mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.pricing.title}</h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
+      </div>
+
+      <div className="max-w-xl mx-auto mb-6">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+          {t.payment.selectMethod}
+        </p>
+        <PaymentMethodPicker
+          methods={methods}
+          value={selectedMethod}
+          onChange={(v) => setSelectedMethod(v as PayMethod)}
+          placeholder={t.payment.selectMethod}
+        />
+        {selectedMethod === 'sbp' && (
+          <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-center">
+            <p className="text-sm text-amber-700 dark:text-amber-400">{t.payment.sbpUnavailableNotice}</p>
+            <a
+              href="https://t.me/oddwallet"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {t.payment.sbpContact} →
+            </a>
+          </div>
+        )}
       </div>
 
       <div className="mb-8">
@@ -382,24 +384,37 @@ export default function Pricing() {
 
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
 
-              <div className="mb-4 flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">{plan.price_label}</span>
-                {plan.price_usd_label && (
-                  <span className="text-base text-gray-400 dark:text-gray-500">({plan.price_usd_label})</span>
-                )}
-                {plan.original_price_label && (
-                  <>
-                    <span className="text-base text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
-                    {plan.discount_percent != null && plan.discount_percent > 0 && (
-                      <span className="text-sm font-medium text-blue-500 dark:text-blue-400">−{plan.discount_percent}%</span>
+              <div className="mb-4">
+                {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
+                      Скидка {plan.discount_percent}%
+                    </span>
+                    {plan.original_price_label && (
+                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
                     )}
-                  </>
+                  </div>
                 )}
+
+                {(() => {
+                  const { main, secondary } = getDisplayPrice(plan);
+                  return (
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{main}</span>
+                      {secondary && (
+                        <span className="text-base text-gray-400 dark:text-gray-500">({secondary})</span>
+                      )}
+                    </div>
+                  );
+                })()}
+
               </div>
 
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                {plan.per_month}{t.pricing.perMonth}
-              </p>
+              {selectedMethod === 'sbp' && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  {plan.per_month}{t.pricing.perMonth}
+                </p>
+              )}
 
               <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2 mb-4 flex-1">
                 <li className="flex items-center gap-2">
@@ -410,21 +425,26 @@ export default function Pricing() {
 
               {/* Payment methods hint */}
               <div className="flex items-center gap-1.5 mb-3">
-                <StarsPayIcon className="w-5 h-5" />
-                <CryptoBotIcon className="w-5 h-5" />
-                <TonPayIcon className="w-5 h-5" />
+                <PaymentIconFrame outlined>
+                  <SbpPayIcon className="w-5 h-5" />
+                </PaymentIconFrame>
+                <PaymentIconFrame outlined>
+                  <StarsPayIcon className="w-5 h-5" />
+                </PaymentIconFrame>
+                <PaymentIconFrame>
+                  <CryptoBotIcon className="w-5 h-5" />
+                </PaymentIconFrame>
+                <PaymentIconFrame>
+                  <TonPayIcon className="w-5 h-5" />
+                </PaymentIconFrame>
               </div>
 
               <button
-                onClick={() => user ? setSelectedPlan(plan) : undefined}
-                disabled={!user}
-                className={`w-full text-sm font-medium rounded px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation ${
-                  isPopular
-                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
-                }`}
+                onClick={() => user ? handleBuyPlan(plan) : undefined}
+                disabled={!user || processingPlanId === plan.id}
+                className="spend-cta touch-manipulation"
               >
-                {sub?.active ? t.pricing.renew : t.pricing.buy}
+                {processingPlanId === plan.id ? t.payment.processing : (sub?.active ? t.pricing.renew : t.pricing.buy)}
               </button>
             </div>
           );

@@ -6,6 +6,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { referralApi } from '../api/client';
 import { toFriendlyAddress } from '../utils/tonAddress';
+import { TonWalletSheet } from '../components/TonWalletSheet';
+import { useCopy } from '../hooks/useCopy';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -146,20 +148,27 @@ export default function Profile() {
   const { language, setLanguage } = useLanguage();
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
-  const [copiedLink, setCopiedLink] = useState(false);
+  const { copied, copy } = useCopy<'link'>(2000);
   const [referralLink, setReferralLink] = useState('');
+  const [tonActionsOpen, setTonActionsOpen] = useState(false);
+
+  const shortWalletAddress = (address: string) => {
+    if (address.length <= 11) return address;
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
 
   useEffect(() => {
-    referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => {});
+    referralApi.get(isMiniApp).then((res) => setReferralLink(res.data.referral_link)).catch(() => setReferralLink(''));
   }, [isMiniApp]);
 
-  const handleCopyLink = async () => {
-    if (!referralLink) return;
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    } catch {}
+  const handleCopyLink = () => referralLink && copy(referralLink, 'link');
+
+  const handleWalletTap = () => {
+    if (!wallet) {
+      tonConnectUI.openModal();
+      return;
+    }
+    setTonActionsOpen(true);
   };
 
   if (!user) {
@@ -211,7 +220,7 @@ export default function Profile() {
               type="button"
               onClick={handleCopyLink}
               className={`shrink-0 p-2 rounded-lg transition-colors touch-manipulation ${
-                copiedLink
+                copied
                   ? 'text-emerald-500 bg-emerald-500/10'
                   : 'text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20'
               }`}
@@ -231,21 +240,10 @@ export default function Profile() {
       {/* ── Wallet section ── */}
       <ListSection>
         <ListRow
-          icon={<img src="/toncoin.jpg" alt="TON" className="w-5 h-5 rounded-full object-cover" />}
+          icon={<img src="/toncoin.jpg" alt="GRAM" className="w-5 h-5 rounded-full object-cover" />}
           label={t.profile.wallet}
-          sublabel={wallet ? toFriendlyAddress(wallet.account.address) : undefined}
-          onClick={() => tonConnectUI.openModal()}
-          right={
-            wallet ? (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); tonConnectUI.disconnect(); }}
-                className="text-xs text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full shrink-0 touch-manipulation"
-              >
-                {t.profile.walletDisconnect}
-              </button>
-            ) : undefined
-          }
+          sublabel={wallet ? shortWalletAddress(toFriendlyAddress(wallet.account.address)) : undefined}
+          onClick={handleWalletTap}
         />
       </ListSection>
 
@@ -309,6 +307,8 @@ export default function Profile() {
           </button>
         </div>
       </div>
+
+      <TonWalletSheet open={tonActionsOpen} onClose={() => setTonActionsOpen(false)} />
     </div>
   );
 }

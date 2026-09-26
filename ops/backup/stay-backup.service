@@ -1,0 +1,11 @@
+[Unit]
+Description=Stay database backup to the 3x-ui server
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/stay-backup.env
+ExecStart=/usr/local/bin/stay-backup.sh
+Nice=10
+IOSchedulingClass=idle

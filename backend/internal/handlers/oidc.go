@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,7 +45,7 @@ type OIDCHandler struct {
 	httpClient *http.Client
 
 	jwksMu     sync.RWMutex
-	jwksKeys   map[string]interface{}
+	jwksKeys   map[string]any
 	jwksExpiry time.Time
 }
 
@@ -54,7 +55,7 @@ func NewOIDCHandler(db *database.DB, jwtSvc *auth.JWTService, cfg *config.Config
 		jwtSvc:     jwtSvc,
 		cfg:        cfg,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
-		jwksKeys:   make(map[string]interface{}),
+		jwksKeys:   make(map[string]any),
 	}
 }
 
@@ -151,7 +152,7 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var stateClaims oidcStateClaims
-	token, err := jwt.ParseWithClaims(cookie.Value, &stateClaims, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(cookie.Value, &stateClaims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
@@ -184,8 +185,6 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("OIDC token exchange OK, id_token length=%d", len(tokenResp.IDToken))
-
 	idClaims, err := h.validateIDToken(tokenResp.IDToken)
 	if err != nil {
 		log.Printf("OIDC id_token validation error: %v", err)
@@ -199,31 +198,11 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := idClaims.PreferredUsername
-	if username == "" {
-		username = fmt.Sprintf("tg_%d", telegramID)
-	}
-
-	user, err := h.db.GetUserByTelegramID(telegramID)
+	user, err := findOrCreateTelegramUser(h.db, telegramID, idClaims.PreferredUsername, stateClaims.Ref)
 	if err != nil {
-		var referrerID *int64
-		if stateClaims.Ref != "" {
-			if id, refErr := h.db.GetUserIDByReferralCode(stateClaims.Ref); refErr == nil {
-				referrerID = &id
-			}
-		}
-
-		user, err = h.db.CreateUserByTelegram(telegramID, username, referrerID)
-		if err != nil {
-			if existingUser, lookupErr := h.db.GetUserByUsername(username); lookupErr == nil && existingUser.TelegramID == 0 {
-				username = fmt.Sprintf("tg_%d", telegramID)
-			}
-			user, err = h.db.CreateUserByTelegram(telegramID, username, referrerID)
-			if err != nil {
-				h.redirectWithError(w, r, "failed to create user")
-				return
-			}
-		}
+		log.Printf("OIDC create user tg=%d: %v", telegramID, err)
+		h.redirectWithError(w, r, "failed to create user")
+		return
 	}
 
 	jwtToken, err := h.jwtSvc.GenerateToken(user)
@@ -294,7 +273,7 @@ func (h *OIDCHandler) exchangeCode(code, codeVerifier, redirectURI string) (*oid
 type telegramIDClaims struct {
 	RawID             string `json:"id"`
 	Name              string `json:"name"`
-	PreferredUsername  string `json:"preferred_username"`
+	PreferredUsername string `json:"preferred_username"`
 	Picture           string `json:"picture"`
 	PhoneNumber       string `json:"phone_number"`
 	jwt.RegisteredClaims
@@ -306,32 +285,17 @@ func (c *telegramIDClaims) TelegramID() int64 {
 }
 
 func (h *OIDCHandler) validateIDToken(rawToken string) (*telegramIDClaims, error) {
-	// Log the token header for debugging
-	parts := strings.SplitN(rawToken, ".", 3)
-	if len(parts) == 3 {
-		if headerJSON, err := base64.RawURLEncoding.DecodeString(parts[0]); err == nil {
-			log.Printf("OIDC id_token header: %s", string(headerJSON))
-		}
-	}
-
 	keys, err := h.getJWKS()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
 	}
 
-	log.Printf("OIDC JWKS loaded: %d keys", len(keys))
-	for kid, key := range keys {
-		log.Printf("OIDC JWKS key kid=%s type=%T", kid, key)
-	}
-
 	var claims telegramIDClaims
-	token, err := jwt.ParseWithClaims(rawToken, &claims, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(rawToken, &claims, func(t *jwt.Token) (any, error) {
 		kid, ok := t.Header["kid"].(string)
 		if !ok {
 			return nil, fmt.Errorf("missing kid in token header")
 		}
-
-		log.Printf("OIDC token alg=%v kid=%s", t.Header["alg"], kid)
 
 		key, found := keys[kid]
 		if !found {
@@ -360,20 +324,11 @@ func (h *OIDCHandler) validateIDToken(rawToken string) (*telegramIDClaims, error
 	}
 
 	aud, _ := claims.GetAudience()
-	if !sliceContains(aud, h.cfg.TGClientID) {
+	if !slices.Contains(aud, h.cfg.TGClientID) {
 		return nil, fmt.Errorf("invalid audience: got %v, want %s", aud, h.cfg.TGClientID)
 	}
 
 	return &claims, nil
-}
-
-func sliceContains(s []string, v string) bool {
-	for _, item := range s {
-		if item == v {
-			return true
-		}
-	}
-	return false
 }
 
 // --- JWKS ---
@@ -394,7 +349,7 @@ type jwkKey struct {
 	Y   string `json:"y"`
 }
 
-func (h *OIDCHandler) getJWKS() (map[string]interface{}, error) {
+func (h *OIDCHandler) getJWKS() (map[string]any, error) {
 	h.jwksMu.RLock()
 	if time.Now().Before(h.jwksExpiry) && len(h.jwksKeys) > 0 {
 		keys := h.jwksKeys
@@ -421,16 +376,13 @@ func (h *OIDCHandler) getJWKS() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("JWKS read error: %w", err)
 	}
 
-	log.Printf("OIDC JWKS response (%d): %s", resp.StatusCode, string(body))
-
 	var jwks jwksResponse
 	if err := json.Unmarshal(body, &jwks); err != nil {
 		return nil, fmt.Errorf("JWKS parse error: %w", err)
 	}
 
-	keys := make(map[string]interface{})
+	keys := make(map[string]any)
 	for _, k := range jwks.Keys {
-		log.Printf("OIDC JWKS entry: kty=%s kid=%s alg=%s crv=%s", k.Kty, k.Kid, k.Alg, k.Crv)
 		switch k.Kty {
 		case "RSA":
 			pub, err := parseRSAJWK(k)

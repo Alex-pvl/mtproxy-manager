@@ -6,67 +6,70 @@ import (
 )
 
 type Config struct {
-	ServerPort          string
-	JWTSecret           string
-	DatabaseURL         string
-	PortMin             int
-	PortMax             int
-	Socks5PortMin       int
-	Socks5PortMax       int
-	DefaultMaxProxies   int
-	MTGImage            string
-	GostImage           string
-	ServerIP            string
-	CryptoBotToken      string
-	BaseURL             string
-	AdminUsername       string
-	AdminTelegramID     int64
+	ServerPort        string
+	JWTSecret         string
+	DatabaseURL       string
+	BaseURL           string
+	DefaultMaxProxies int
+	MetricsAddr       string // Prometheus /metrics listener; keep it off the public interface
+
+	AdminUsername   string
+	AdminPassword   string
+	AdminTelegramID int64
+
 	TelegramBotToken    string
 	TelegramBotUsername string
-	TGClientID          string
-	TGClientSecret      string
+	TelegramPayURL      string // Mini App link sent in bot messages, e.g. https://t.me/botname/pay
+	// TelegramWebhookSecret must match secret_token passed to setWebhook; empty = header not checked.
+	TelegramWebhookSecret string
+	TGClientID            string // Telegram OIDC (BotFather → Web Login)
+	TGClientSecret        string
 
-	// TON wallet address for direct TON payments
-	TonWalletAddress string
+	CryptoBotToken       string
+	DigitalPayAPIKey     string
+	DigitalPayBaseURL    string
+	DigitalPaySBPBackURL string
+	TonWalletAddress     string
 
-	// x-ui / 3x-ui panel integration for VLESS link generation
-	XUIEnabled    bool
+	// 3x-ui v3 panel. VPN is disabled when XUIURL is empty.
 	XUIURL        string
-	XUIPathPrefix string // custom panel base path (e.g. "vwtLfHqxkCntctQ"), empty = default
-	XUIUsername   string
-	XUIPassword   string
+	XUIPathPrefix string // panel base path, e.g. "lpQXPBx6hDzvwgafKO"
+	XUIAPIToken   string // Settings → Security → API Token
 	XUIInboundID  int
+	XUISubURL     string // subscription base, e.g. https://example.com:2096/sub/
 }
 
 func Load() *Config {
-	xuiURL := getEnv("XUI_URL", "")
 	return &Config{
-		ServerPort:          getEnv("SERVER_PORT", "3000"),
-		JWTSecret:           getEnv("JWT_SECRET", "change-me-in-production"),
-		DatabaseURL:         getEnv("DATABASE_URL", "postgres://mtproxy:mtproxy@localhost:5432/mtproxy?sslmode=disable"),
-		PortMin:             getEnvInt("PORT_MIN", 8000),
-		PortMax:             getEnvInt("PORT_MAX", 9000),
-		Socks5PortMin:       getEnvInt("SOCKS5_PORT_MIN", 10000),
-		Socks5PortMax:       getEnvInt("SOCKS5_PORT_MAX", 10999),
-		DefaultMaxProxies:   getEnvInt("DEFAULT_MAX_PROXIES", 5),
-		MTGImage:            getEnv("MTG_IMAGE", "nineseconds/mtg:2"),
-		GostImage:           getEnv("GOST_IMAGE", "ginuerzh/gost:2.12"),
-		ServerIP:            getEnv("SERVER_IP", ""),
-		CryptoBotToken:      getEnv("CRYPTOBOT_TOKEN", ""),
-		BaseURL:             getEnv("BASE_URL", ""),
-		AdminUsername:       getEnv("ADMIN_USERNAME", "admin"),
-		AdminTelegramID:     int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
-		TelegramBotToken:    getEnv("TG_BOT_TOKEN", ""),
-		TelegramBotUsername: getEnv("TG_BOT_USERNAME", ""),
-		TGClientID:          getEnv("TG_CLIENT_ID", ""),
-		TGClientSecret:      getEnv("TG_CLIENT_SECRET", ""),
-		TonWalletAddress:    getEnv("TON_WALLET_ADDRESS", ""),
-		XUIEnabled:          xuiURL != "",
-		XUIURL:              xuiURL,
-		XUIPathPrefix:       getEnv("XUI_PATH_PREFIX", ""),
-		XUIUsername:         getEnv("XUI_USERNAME", "admin"),
-		XUIPassword:         getEnv("XUI_PASSWORD", ""),
-		XUIInboundID:        getEnvInt("XUI_INBOUND_ID", 1),
+		ServerPort:        getEnv("SERVER_PORT", "3000"),
+		JWTSecret:         getEnv("JWT_SECRET", "change-me-in-production"),
+		DatabaseURL:       getEnv("DATABASE_URL", "postgres://mtproxy:mtproxy@localhost:5432/mtproxy?sslmode=disable"),
+		BaseURL:           getEnv("BASE_URL", ""),
+		DefaultMaxProxies: getEnvInt("DEFAULT_MAX_PROXIES", 5),
+		MetricsAddr:       getEnv("METRICS_ADDR", "127.0.0.1:9464"),
+
+		AdminUsername:   getEnv("ADMIN_USERNAME", "admin"),
+		AdminPassword:   getEnv("ADMIN_PASSWORD", ""),
+		AdminTelegramID: int64(getEnvInt("ADMIN_TELEGRAM_ID", 0)),
+
+		TelegramBotToken:      getEnv("TG_BOT_TOKEN", ""),
+		TelegramBotUsername:   getEnv("TG_BOT_USERNAME", ""),
+		TelegramPayURL:        getEnv("TG_PAY_URL", "https://t.me/staytg_bot/pay"),
+		TelegramWebhookSecret: getEnv("TG_WEBHOOK_SECRET", ""),
+		TGClientID:            getEnv("TG_CLIENT_ID", ""),
+		TGClientSecret:        getEnv("TG_CLIENT_SECRET", ""),
+
+		CryptoBotToken:       getEnv("CRYPTOBOT_TOKEN", ""),
+		DigitalPayAPIKey:     getEnv("DIGITALPAY_API_KEY", ""),
+		DigitalPayBaseURL:    getEnv("DIGITALPAY_BASE_URL", "https://digitalpay.cc"),
+		DigitalPaySBPBackURL: getEnv("DIGITALPAY_SBP_BACK_URL", ""),
+		TonWalletAddress:     getEnv("TON_WALLET_ADDRESS", ""),
+
+		XUIURL:        getEnv("XUI_URL", ""),
+		XUIPathPrefix: getEnv("XUI_PATH_PREFIX", ""),
+		XUIAPIToken:   getEnv("XUI_API_TOKEN", ""),
+		XUIInboundID:  getEnvInt("XUI_INBOUND_ID", 1),
+		XUISubURL:     getEnv("XUI_SUB_URL", ""),
 	}
 }
 
