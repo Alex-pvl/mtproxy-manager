@@ -19,6 +19,7 @@ type Client struct {
 	pathPrefix string
 	username   string
 	password   string
+	apiToken   string
 	subURL     string
 	inboundID  int
 	http       *http.Client
@@ -27,13 +28,27 @@ type Client struct {
 }
 
 type Inbound struct {
-	ID             int    `json:"id"`
-	Remark         string `json:"remark"`
-	Protocol       string `json:"protocol"`
-	Port           int    `json:"port"`
-	Enable         bool   `json:"enable"`
-	Settings       string `json:"settings"`       // JSON-encoded string
-	StreamSettings string `json:"streamSettings"` // JSON-encoded string
+	ID             int      `json:"id"`
+	Remark         string   `json:"remark"`
+	Protocol       string   `json:"protocol"`
+	Port           int      `json:"port"`
+	Enable         bool     `json:"enable"`
+	Settings       jsonText `json:"settings"`
+	StreamSettings jsonText `json:"streamSettings"`
+}
+
+// jsonText holds raw JSON that x-ui sends either as a JSON-encoded string
+// (3x-ui v2) or as a plain object (v3).
+type jsonText string
+
+func (t *jsonText) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*t = jsonText(s)
+		return nil
+	}
+	*t = jsonText(b)
+	return nil
 }
 
 type apiResponse struct {
@@ -90,11 +105,21 @@ type xuiClient struct {
 	TotalGB    int64  `json:"totalGB"`
 	ExpiryTime int64  `json:"expiryTime"`
 	Enable     bool   `json:"enable"`
-	TgID       string `json:"tgId"`
 	SubID      string `json:"subId"`
 }
 
-func NewClient(baseURL, pathPrefix, username, password, subURL string, inboundID int) (*Client, error) {
+// bearerTransport adds the panel API token to every request.
+type bearerTransport struct{ token string }
+
+func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	req.Header.Set("Authorization", "Bearer "+t.token)
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+// apiToken, when set, replaces username/password login (3x-ui v3 requires a
+// CSRF token for /login, Bearer requests skip it).
+func NewClient(baseURL, pathPrefix, username, password, apiToken, subURL string, inboundID int) (*Client, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("cookiejar: %w", err)
@@ -105,12 +130,16 @@ func NewClient(baseURL, pathPrefix, username, password, subURL string, inboundID
 		pathPrefix: strings.Trim(pathPrefix, "/"),
 		username:   username,
 		password:   password,
+		apiToken:   apiToken,
 		subURL:     subURL,
 		inboundID:  inboundID,
 		http: &http.Client{
 			Jar:     jar,
 			Timeout: 15 * time.Second,
 		},
+	}
+	if apiToken != "" {
+		c.http.Transport = bearerTransport{apiToken}
 	}
 
 	if err := c.login(); err != nil {
@@ -156,6 +185,9 @@ func (c *Client) apiURL(path string) string {
 }
 
 func (c *Client) login() error {
+	if c.apiToken != "" {
+		return nil // Bearer token is sent on every request
+	}
 	form := url.Values{
 		"username": {c.username},
 		"password": {c.password},
@@ -206,22 +238,23 @@ func (c *Client) refreshInbound() error {
 // AddClient registers a new VLESS client in the configured x-ui inbound.
 // Pass a non-zero expiryTime to set when the client access expires; zero = no expiry.
 func (c *Client) AddClient(uuid, email string, expiryTime time.Time) error {
-	entry := c.buildClientEntry(uuid, email, expiryTime)
-	return c.postClientSettings("panel/api/inbounds/addClient", entry)
+	payload, _ := json.Marshal(map[string]interface{}{
+		"client":     c.buildClientEntry(uuid, email, expiryTime),
+		"inboundIds": []int{c.inboundID},
+	})
+	return c.doPost("panel/api/clients/add", payload)
 }
 
 // UpdateClientExpiry updates the expiry time of an existing VLESS client in x-ui.
 // Pass a non-zero expiryTime to set a deadline; zero = remove expiry limit.
 func (c *Client) UpdateClientExpiry(uuid, email string, expiryTime time.Time) error {
-	entry := c.buildClientEntry(uuid, email, expiryTime)
-	path := fmt.Sprintf("panel/api/inbounds/updateClient/%s", uuid)
-	return c.postClientSettings(path, entry)
+	payload, _ := json.Marshal(c.buildClientEntry(uuid, email, expiryTime))
+	return c.doPost("panel/api/clients/update/"+url.PathEscape(email), payload)
 }
 
-// RemoveClient deletes a VLESS client from the inbound by UUID.
-func (c *Client) RemoveClient(uuid string) error {
-	path := fmt.Sprintf("panel/api/inbounds/%d/delClient/%s", c.inboundID, uuid)
-	if err := c.doPost(path, nil); err != nil {
+// RemoveClient deletes a client (from all inbounds) by email.
+func (c *Client) RemoveClient(email string) error {
+	if err := c.doPost("panel/api/clients/del/"+url.PathEscape(email), nil); err != nil {
 		return fmt.Errorf("delClient: %w", err)
 	}
 	return nil
@@ -239,22 +272,6 @@ func (c *Client) buildClientEntry(uuid, email string, expiryTime time.Time) xuiC
 		entry.ExpiryTime = expiryTime.UnixMilli()
 	}
 	return entry
-}
-
-func (c *Client) postClientSettings(path string, entry xuiClient) error {
-	settings := map[string]interface{}{
-		"clients": []xuiClient{entry},
-	}
-	settingsJSON, err := json.Marshal(settings)
-	if err != nil {
-		return fmt.Errorf("marshal settings: %w", err)
-	}
-	payload := map[string]interface{}{
-		"id":       c.inboundID,
-		"settings": string(settingsJSON),
-	}
-	payloadJSON, _ := json.Marshal(payload)
-	return c.doPost(path, payloadJSON)
 }
 
 // UserLink returns the client's subscription URL (time-limited by the client's

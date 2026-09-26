@@ -123,6 +123,7 @@ export interface Plan {
   discount_percent?: number;
   per_month: string;
   max_proxies: number;
+  stars_price?: number;
   ton_amount?: string;
 }
 
@@ -132,6 +133,8 @@ export const paymentApi = {
     api.post<{ payment_url: string }>('/payments/create', { plan_id: planId, source: source || undefined }),
   createSbpPayment: (planId: string, source?: 'web' | 'tg') =>
     api.post<{ payment_url: string }>('/payments/sbp/create', { plan_id: planId, source: source || undefined }),
+  createStarsPayment: (planId: string) =>
+    api.post<{ invoice_link: string }>('/payments/stars/create', { plan_id: planId }),
   createTonPayment: (planId: string) =>
     api.post<{ address: string; amount: string; comment: string }>('/payments/ton/create', { plan_id: planId }),
   checkPendingPayments: () =>
