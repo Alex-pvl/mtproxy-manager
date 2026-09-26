@@ -9,27 +9,19 @@
 `127.0.0.1:9464/metrics`, наружу не торчит). Ничего настраивать не нужно,
 достаточно обновить бэкенд.
 
-## 2. Prometheus + Alertmanager + Grafana
+## 2. Prometheus + Grafana
 
 Нужен Docker с compose-плагином.
 
 ```bash
 cd ops/monitoring
-mkdir -p secrets && chmod 700 secrets
-# пароль приложения iCloud: appleid.apple.com → Вход и безопасность → Пароли приложений
-printf '%s' 'xxxx-xxxx-xxxx-xxxx' > secrets/smtp_password && chmod 600 secrets/smtp_password
 echo "GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 18)" > .env && chmod 600 .env
 sudo mkdir -p /var/lib/node_exporter/textfile
 docker compose up -d
 ```
 
-Письма приходят на `s_pavlyuk1@icloud.com` (адрес и SMTP в `alertmanager.yml`).
-Проверить доставку тестовым алертом:
-
-```bash
-docker compose exec alertmanager amtool alert add TestAlert severity=warning \
-  --annotation=summary="проверка почты" --alertmanager.url=http://127.0.0.1:9093
-```
+Уведомления пока не отправляются: сработавшие алерты видно в Prometheus
+(`ssh -L 9090:127.0.0.1:9090 ...` → http://localhost:9090/alerts) и в Grafana.
 
 Grafana — через SSH-туннель, логин `admin`, пароль из `ops/monitoring/.env`:
 
@@ -87,7 +79,7 @@ sudo systemctl enable --now stay-backup.timer
 sudo systemctl start stay-backup.service && journalctl -u stay-backup -n 20   # первый бэкап сразу
 ```
 
-Первый запуск руками обязателен: иначе через час придёт алерт «бэкапа нет».
+Первый запуск руками — чтобы сразу убедиться, что всё работает (иначе через час загорится алерт «бэкапа нет»).
 
 **Восстановление:**
 

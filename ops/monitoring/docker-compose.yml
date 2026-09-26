@@ -15,20 +15,6 @@ services:
       - ./alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
 
-  alertmanager:
-    image: prom/alertmanager:v0.28.1
-    network_mode: host
-    restart: unless-stopped
-    command:
-      - --config.file=/etc/alertmanager/alertmanager.yml
-      - --storage.path=/alertmanager
-      - --web.listen-address=127.0.0.1:9093
-      - --cluster.listen-address=
-    volumes:
-      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - ./secrets/smtp_password:/etc/alertmanager/smtp_password:ro
-      - alertmanager-data:/alertmanager
-
   grafana:
     image: grafana/grafana-oss:12.1.1
     network_mode: host
@@ -69,5 +55,4 @@ services:
 
 volumes:
   prometheus-data:
-  alertmanager-data:
   grafana-data:

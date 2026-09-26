@@ -5,10 +5,7 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets: [127.0.0.1:9093]
+# Alerts are evaluated but not sent anywhere yet; see Status → Alerts in Prometheus.
 
 scrape_configs:
   - job_name: stay
