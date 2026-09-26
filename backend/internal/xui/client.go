@@ -19,7 +19,6 @@ type Client struct {
 	pathPrefix string
 	username   string
 	password   string
-	apiToken   string
 	inboundID  int
 	http       *http.Client
 	mu         sync.Mutex
@@ -94,18 +93,7 @@ type xuiClient struct {
 	SubID      string `json:"subId"`
 }
 
-// bearerTransport adds the panel API token to every request.
-type bearerTransport struct{ token string }
-
-func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = req.Clone(req.Context())
-	req.Header.Set("Authorization", "Bearer "+t.token)
-	return http.DefaultTransport.RoundTrip(req)
-}
-
-// apiToken, when set, replaces username/password login (3x-ui v3 requires a
-// CSRF token for /login, Bearer requests skip it).
-func NewClient(baseURL, pathPrefix, username, password, apiToken string, inboundID int) (*Client, error) {
+func NewClient(baseURL, pathPrefix, username, password string, inboundID int) (*Client, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("cookiejar: %w", err)
@@ -116,15 +104,11 @@ func NewClient(baseURL, pathPrefix, username, password, apiToken string, inbound
 		pathPrefix: strings.Trim(pathPrefix, "/"),
 		username:   username,
 		password:   password,
-		apiToken:   apiToken,
 		inboundID:  inboundID,
 		http: &http.Client{
 			Jar:     jar,
 			Timeout: 15 * time.Second,
 		},
-	}
-	if apiToken != "" {
-		c.http.Transport = bearerTransport{apiToken}
 	}
 
 	if err := c.login(); err != nil {
@@ -170,9 +154,6 @@ func (c *Client) apiURL(path string) string {
 }
 
 func (c *Client) login() error {
-	if c.apiToken != "" {
-		return nil // Bearer token is sent on every request
-	}
 	form := url.Values{
 		"username": {c.username},
 		"password": {c.password},
