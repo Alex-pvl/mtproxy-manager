@@ -27,27 +27,13 @@ type Client struct {
 }
 
 type Inbound struct {
-	ID             int      `json:"id"`
-	Remark         string   `json:"remark"`
-	Protocol       string   `json:"protocol"`
-	Port           int      `json:"port"`
-	Enable         bool     `json:"enable"`
-	Settings       jsonText `json:"settings"`
-	StreamSettings jsonText `json:"streamSettings"`
-}
-
-// jsonText holds raw JSON that x-ui sends either as a JSON-encoded string
-// (3x-ui v2) or as a plain object (v3).
-type jsonText string
-
-func (t *jsonText) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err == nil {
-		*t = jsonText(s)
-		return nil
-	}
-	*t = jsonText(b)
-	return nil
+	ID             int    `json:"id"`
+	Remark         string `json:"remark"`
+	Protocol       string `json:"protocol"`
+	Port           int    `json:"port"`
+	Enable         bool   `json:"enable"`
+	Settings       string `json:"settings"`       // JSON-encoded string
+	StreamSettings string `json:"streamSettings"` // JSON-encoded string
 }
 
 type apiResponse struct {
