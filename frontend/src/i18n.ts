@@ -88,6 +88,8 @@ const ru = {
   },
   footer: {
     feedback: 'Обратная связь и вопросы:',
+    privacy: 'Политика конфиденциальности',
+    terms: 'Пользовательское соглашение',
   },
   common: {
     loading: 'Загрузка...',
@@ -254,6 +256,8 @@ const en = {
   },
   footer: {
     feedback: 'Feedback and questions:',
+    privacy: 'Privacy policy',
+    terms: 'Terms of service',
   },
   common: {
     loading: 'Loading...',

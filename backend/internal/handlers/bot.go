@@ -82,11 +82,22 @@ func (b *Bot) openAppButton() map[string]any {
 }
 
 func (b *Bot) SendWelcome(chatID int64) error {
-	return b.send(chatID, `👋 Добро пожаловать в Stay!
+	kb := b.openAppButton()
+	kb["inline_keyboard"] = append(kb["inline_keyboard"].([][]map[string]any),
+		[]map[string]any{{"text": "💬 Поддержка", "url": "https://t.me/oddwallet"}},
+		[]map[string]any{{"text": "🔒 Политика конфиденциальности", "url": "https://telegra.ph/POLITIKA-KONFIDENCIALNOSTI-08-12-99"}},
+		[]map[string]any{{"text": "📄 Пользовательское соглашение", "url": "https://telegra.ph/PUBLICHNAYA-OFERTA-08-12-15"}},
+	)
+	return b.Call("sendMessage", map[string]any{
+		"chat_id":                  chatID,
+		"disable_web_page_preview": true,
+		"reply_markup":             kb,
+		"text": `👋 Добро пожаловать в Stay!
 
 🛡️ Быстрое и стабильное защищённое подключение прямо из Telegram.
 
-💪 Мгновенная настройка • Высокоскоростные серверы • Работает на всех устройствах`)
+💪 Мгновенная настройка • Высокоскоростные серверы • Работает на всех устройствах`,
+	}, nil)
 }
 
 func (b *Bot) NotifySubscriptionPaid(user *models.User, plan *models.Plan) {
