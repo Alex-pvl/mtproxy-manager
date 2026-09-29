@@ -10,7 +10,7 @@ const ru = {
     login: 'Войти',
   },
   showcase: {
-    title: 'Stay — быстро, надёжно, без KYC.',
+    title: 'Stay — быстро и надёжно.',
     subtitle: 'Быстро. Безопасно. Просто.',
     openCard: 'Перейти',
     back: '← На главную',
@@ -88,6 +88,8 @@ const ru = {
   },
   footer: {
     feedback: 'Обратная связь и вопросы:',
+    privacy: 'Политика конфиденциальности',
+    terms: 'Пользовательское соглашение',
   },
   common: {
     loading: 'Загрузка...',
@@ -176,7 +178,7 @@ const en = {
     login: 'Sign in',
   },
   showcase: {
-    title: 'Stay — fast, reliable, no KYC.',
+    title: 'Stay — fast and reliable.',
     subtitle: 'Fast. Secure. Simple.',
     openCard: 'Open',
     back: '← Back to home',
@@ -254,6 +256,8 @@ const en = {
   },
   footer: {
     feedback: 'Feedback and questions:',
+    privacy: 'Privacy policy',
+    terms: 'Terms of service',
   },
   common: {
     loading: 'Loading...',

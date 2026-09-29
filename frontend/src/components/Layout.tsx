@@ -9,6 +9,7 @@ import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
 import CredentialsAuthButton from './CredentialsAuthButton';
 import { TonWalletSheet } from './TonWalletSheet';
+import { PRIVACY_URL, SUPPORT_URL, TERMS_URL } from '../legal';
 
 // ─── Theme icons ──────────────────────────────────────────────────────────────
 
@@ -450,13 +451,21 @@ export default function Layout() {
         <div className="mx-auto max-w-6xl px-4 text-center text-xs text-gray-400 dark:text-gray-500">
           {t.footer.feedback}{' '}
           <a
-            href="https://t.me/oddwallet"
+            href={SUPPORT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
           >
             @oddwallet
           </a>
+          <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              {t.footer.privacy}
+            </a>
+            <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              {t.footer.terms}
+            </a>
+          </div>
         </div>
       </footer>
     </div>
