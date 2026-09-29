@@ -10,7 +10,7 @@ const ru = {
     login: 'Войти',
   },
   showcase: {
-    title: 'Stay — быстро, надёжно, без KYC.',
+    title: 'Stay — быстро и надёжно.',
     subtitle: 'Быстро. Безопасно. Просто.',
     openCard: 'Перейти',
     back: '← На главную',
@@ -178,7 +178,7 @@ const en = {
     login: 'Sign in',
   },
   showcase: {
-    title: 'Stay — fast, reliable, no KYC.',
+    title: 'Stay — fast and reliable.',
     subtitle: 'Fast. Secure. Simple.',
     openCard: 'Open',
     back: '← Back to home',
