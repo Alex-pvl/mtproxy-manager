@@ -448,24 +448,29 @@ export default function Layout() {
       <TonWalletSheet open={tonActionsOpen} onClose={() => setTonActionsOpen(false)} />
 
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4">
-        <div className="mx-auto max-w-6xl px-4 text-center text-xs text-gray-400 dark:text-gray-500">
-          {t.footer.feedback}{' '}
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
-          >
-            @oddwallet
-          </a>
-          <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+        <div className="mx-auto max-w-6xl px-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              {t.footer.feedback}{' '}
+              <a
+                href={SUPPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
+              >
+                @oddwallet
+              </a>
+            </span>
+            <span aria-hidden="true">|</span>
             <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
               {t.footer.privacy}
             </a>
+            <span aria-hidden="true">|</span>
             <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
               {t.footer.terms}
             </a>
           </div>
+          <span>© {t.common.appName} {new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>
