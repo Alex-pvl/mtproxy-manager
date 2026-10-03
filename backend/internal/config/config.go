@@ -25,11 +25,14 @@ type Config struct {
 	TGClientID            string // Telegram OIDC (BotFather → Web Login)
 	TGClientSecret        string
 
-	CryptoBotToken       string
-	DigitalPayAPIKey     string
-	DigitalPayBaseURL    string
-	DigitalPaySBPBackURL string
-	TonWalletAddress     string
+	CryptoBotToken   string
+	TonWalletAddress string
+
+	// RollyPay (SBP). Callback URL in the terminal settings: <BASE_URL>/api/payments/sbp/webhook.
+	RollyPayAPIKey        string
+	RollyPaySigningSecret string
+	RollyPayBaseURL       string
+	RollyPayTest          bool // create sandbox payments and accept sandbox callbacks
 
 	// 3x-ui v3 panel. VPN is disabled when XUIURL is empty.
 	XUIURL        string
@@ -59,11 +62,13 @@ func Load() *Config {
 		TGClientID:            getEnv("TG_CLIENT_ID", ""),
 		TGClientSecret:        getEnv("TG_CLIENT_SECRET", ""),
 
-		CryptoBotToken:       getEnv("CRYPTOBOT_TOKEN", ""),
-		DigitalPayAPIKey:     getEnv("DIGITALPAY_API_KEY", ""),
-		DigitalPayBaseURL:    getEnv("DIGITALPAY_BASE_URL", "https://digitalpay.cc"),
-		DigitalPaySBPBackURL: getEnv("DIGITALPAY_SBP_BACK_URL", ""),
-		TonWalletAddress:     getEnv("TON_WALLET_ADDRESS", ""),
+		CryptoBotToken:   getEnv("CRYPTOBOT_TOKEN", ""),
+		TonWalletAddress: getEnv("TON_WALLET_ADDRESS", ""),
+
+		RollyPayAPIKey:        getEnv("ROLLYPAY_API_KEY", ""),
+		RollyPaySigningSecret: getEnv("ROLLYPAY_SIGNING_SECRET", ""),
+		RollyPayBaseURL:       getEnv("ROLLYPAY_BASE_URL", "https://rollypay.io"),
+		RollyPayTest:          getEnv("ROLLYPAY_TEST", "") == "true",
 
 		XUIURL:        getEnv("XUI_URL", ""),
 		XUIPathPrefix: getEnv("XUI_PATH_PREFIX", ""),

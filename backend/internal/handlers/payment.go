@@ -12,7 +12,7 @@ import (
 	"mtproxy-manager/internal/models"
 )
 
-// PaymentHandler sells subscription plans through CryptoBot, SBP (DigitalPay),
+// PaymentHandler sells subscription plans through CryptoBot, SBP (RollyPay),
 // TON and Telegram Stars. Every provider ends in fulfill(), which activates the
 // plan exactly once per payment.
 type PaymentHandler struct {

@@ -1,22 +1,26 @@
 package handlers
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
 
-// DigitalPay payment ids are stored with this prefix.
+// RollyPay payment ids are stored with this prefix.
 const sbpPrefix = "sbp_"
 
-// CreateSBPPayment creates an SBP (NSPK QR) payment via DigitalPay.
+// CreateSBPPayment creates an SBP payment via RollyPay and returns its pay page.
 func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request) {
-	if h.cfg.DigitalPayAPIKey == "" {
+	if h.cfg.RollyPayAPIKey == "" {
 		writeError(w, http.StatusServiceUnavailable, "sbp payments not configured")
 		return
 	}
@@ -24,123 +28,149 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	rub, err := strconv.ParseFloat(req.Plan.Price, 64)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "invalid plan amount")
-		return
-	}
-	amount := strconv.Itoa(int(rub)) // DigitalPay wants whole rubles
-
-	backURL := h.returnURL(req.Source)
-	if req.Source != "tg" && h.cfg.DigitalPaySBPBackURL != "" {
-		backURL = h.cfg.DigitalPaySBPBackURL
-	}
-	q := url.Values{
-		"PartnerPaymentId": {fmt.Sprintf("sbp_%d_%d", req.UserID, time.Now().UnixMilli())},
-		"Amount":           {amount},
-		"Currency":         {"RUB"},
-		"PaymentType":      {"ACQ_SBP"},
-		"CallbackUrl":      {strings.TrimRight(h.cfg.BaseURL, "/") + "/api/payments/sbp/webhook"},
-		"BackUrl":          {backURL},
-		"PaymentLifeTime":  {"15"},
+	back := h.returnURL(req.Source)
+	body := map[string]any{
+		"amount":               req.Plan.Price, // already "200.00"
+		"payment_currency":     "RUB",
+		"payment_method":       "sbp",
+		"order_id":             fmt.Sprintf("sbp_%d_%d", req.UserID, time.Now().UnixMilli()),
+		"customer_id":          fmt.Sprint(req.UserID),
+		"description":          "Stay VPN: " + req.Plan.Name,
+		"success_redirect_url": back,
+		"fail_redirect_url":    back,
+		"test":                 h.cfg.RollyPayTest,
 	}
 	var data struct {
-		PaymentID string `json:"paymentId"`
-		Creds     struct {
-			PaymentURL string `json:"paymentUrl"`
-			CleanURL   string `json:"cleanUrl"` // direct NSPK link
-		} `json:"credentials"`
+		PaymentID string `json:"payment_id"`
+		PayURL    string `json:"pay_url"`
 	}
-	if err := h.digitalPay("create", q, &data); err != nil || data.PaymentID == "" {
-		log.Printf("digitalpay create: id=%q err=%v", data.PaymentID, err)
+	if err := h.rollyPay(http.MethodPost, "/api/v1/payments", body, &data); err != nil || data.PaymentID == "" || data.PayURL == "" {
+		log.Printf("rollypay create: id=%q err=%v", data.PaymentID, err)
 		writeError(w, http.StatusBadGateway, "payment service unavailable")
 		return
 	}
-	link := data.Creds.CleanURL
-	if link == "" {
-		link = data.Creds.PaymentURL
-	}
-	if !h.savePayment(w, req, sbpPrefix+data.PaymentID, amount) {
+	if !h.savePayment(w, req, sbpPrefix+data.PaymentID, req.Plan.Price) {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"payment_url": link})
+	writeJSON(w, http.StatusOK, map[string]string{"payment_url": data.PayURL})
 }
 
-// DigitalPayWebhook is unsigned, so it is only a hint: the status is always
-// re-read from the DigitalPay API before crediting anything.
-func (h *PaymentHandler) DigitalPayWebhook(w http.ResponseWriter, r *http.Request) {
-	var cb struct {
-		PaymentID string `json:"PaymentId"`
-	}
-	if err := readJSON(r, &cb); err != nil {
+// RollyPayWebhook handles signed status callbacks. The callback URL is set in
+// the RollyPay terminal settings: <BASE_URL>/api/payments/sbp/webhook.
+func (h *PaymentHandler) RollyPayWebhook(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	externalID := sbpPrefix + cb.PaymentID
-	if cb.PaymentID == "" {
-		w.WriteHeader(http.StatusOK)
+	if !rollyPaySigned(body, r.Header.Get("X-Timestamp"), r.Header.Get("X-Signature"), h.cfg.RollyPaySigningSecret) {
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
+	var cb struct {
+		PaymentID string `json:"payment_id"`
+		Status    string `json:"status"`
+		Test      bool   `json:"test"`
+	}
+	if err := json.Unmarshal(body, &cb); err != nil || cb.PaymentID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if cb.Test && !h.cfg.RollyPayTest {
+		w.WriteHeader(http.StatusOK) // sandbox event on a live setup: never credit it
+		return
+	}
+	externalID := sbpPrefix + cb.PaymentID
 	if _, err := h.db.GetPaymentByExternalID(externalID); err != nil {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	paid, err := h.sbpPaid(externalID)
-	if err != nil {
-		log.Printf("digitalpay webhook %s: %v", externalID, err)
-	} else if paid {
-		if err := h.fulfill(externalID); err != nil {
-			log.Printf("digitalpay webhook fulfill %s: %v", externalID, err)
-		}
+	if err := h.applySBPStatus(externalID, cb.Status); err != nil {
+		log.Printf("rollypay webhook %s %s: %v", externalID, cb.Status, err)
+		w.WriteHeader(http.StatusInternalServerError) // RollyPay retries
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-// sbpPaid reads the payment status from DigitalPay; canceled payments are marked as such.
+// applySBPStatus moves our payment to match RollyPay's status.
+// ponytail: chargeback/refunded are only logged; revoke the subscription if they start happening.
+func (h *PaymentHandler) applySBPStatus(externalID, status string) error {
+	switch status {
+	case "paid":
+		// A payment can be paid after it expired, so reopen it first.
+		if err := h.db.ReopenPayment(externalID); err != nil {
+			return err
+		}
+		return h.fulfill(externalID)
+	case "canceled", "expired":
+		return h.db.CancelPayment(externalID)
+	case "chargeback", "refunded":
+		log.Printf("rollypay: payment %s is %s, subscription NOT revoked", externalID, status)
+	}
+	return nil
+}
+
+// sbpPaid polls RollyPay for the payment status, for when a webhook was missed.
 func (h *PaymentHandler) sbpPaid(externalID string) (bool, error) {
-	if h.cfg.DigitalPayAPIKey == "" {
-		return false, nil
+	id := strings.TrimPrefix(externalID, sbpPrefix)
+	if h.cfg.RollyPayAPIKey == "" || !strings.HasPrefix(id, "pay_") {
+		return false, nil // legacy DigitalPay payment, nothing to ask
 	}
 	var data struct {
 		Status string `json:"status"`
 	}
-	q := url.Values{"PaymentId": {strings.TrimPrefix(externalID, sbpPrefix)}}
-	if err := h.digitalPay("get", q, &data); err != nil {
+	if err := h.rollyPay(http.MethodGet, "/api/v1/payments/"+id, nil, &data); err != nil {
 		return false, err
 	}
-	switch data.Status {
-	case "Completed", "CompletedOnDispute", "Payed":
+	if data.Status == "paid" {
 		return true, nil
-	case "Canceled":
-		return false, h.db.CancelPayment(externalID)
 	}
-	return false, nil
+	return false, h.applySBPStatus(externalID, data.Status)
 }
 
-// digitalPay calls /api/v3/fiat/payments/<action> and decodes "data" into out.
-func (h *PaymentHandler) digitalPay(action string, q url.Values, out any) error {
-	endpoint := strings.TrimRight(h.cfg.DigitalPayBaseURL, "/") + "/api/v3/fiat/payments/" + action + "?" + q.Encode()
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+// rollyPay calls the RollyPay API with the terminal's API key.
+func (h *PaymentHandler) rollyPay(method, path string, in, out any) error {
+	var reqBody io.Reader
+	if in != nil {
+		b, err := json.Marshal(in)
+		if err != nil {
+			return err
+		}
+		reqBody = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, strings.TrimRight(h.cfg.RollyPayBaseURL, "/")+path, reqBody)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("apikey", h.cfg.DigitalPayAPIKey)
+	nonce := make([]byte, 16)
+	_, _ = rand.Read(nonce)
+	req.Header.Set("X-API-Key", h.cfg.RollyPayAPIKey)
+	req.Header.Set("X-Nonce", hex.EncodeToString(nonce))
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	var envelope struct {
-		OK      bool            `json:"ok"`
-		Message string          `json:"message"`
-		Data    json.RawMessage `json:"data"`
+	if resp.StatusCode/100 != 2 {
+		var e struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(resp.Body).Decode(&e)
+		return fmt.Errorf("rollypay %s %s: HTTP %d: %s", method, path, resp.StatusCode, e.Error)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		return fmt.Errorf("digitalpay %s: HTTP %d: %w", action, resp.StatusCode, err)
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// rollyPaySigned checks X-Signature = hex(HMAC-SHA256(secret, timestamp + "." + body)).
+func rollyPaySigned(body []byte, timestamp, signature, secret string) bool {
+	if secret == "" || timestamp == "" || signature == "" {
+		return false
 	}
-	if !envelope.OK {
-		return fmt.Errorf("digitalpay %s: %s", action, envelope.Message)
-	}
-	return json.Unmarshal(envelope.Data, out)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(timestamp + "."))
+	mac.Write(body)
+	return hmac.Equal([]byte(hex.EncodeToString(mac.Sum(nil))), []byte(strings.ToLower(signature)))
 }
