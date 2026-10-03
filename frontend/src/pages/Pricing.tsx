@@ -157,20 +157,8 @@ export default function Pricing() {
           setShowSuccess(true);
         }
 
+        // ponytail: no modal if the webhook credited first; refreshUser still shows the new subscription.
         await refreshUser();
-
-        // Fallback for race conditions: webhook may activate subscription
-        // a little later than checkPendingPayments returns.
-        if (!res.data?.updated) {
-          try {
-            const subRes = await paymentApi.getSubscription();
-            if (subRes.data?.active) {
-              setShowSuccess(true);
-            }
-          } catch {
-            // ignore subscription polling errors
-          }
-        }
       })
       .catch(() => refreshUser())
       .finally(() => {
