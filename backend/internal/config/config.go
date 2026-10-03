@@ -31,8 +31,11 @@ type Config struct {
 	// RollyPay (SBP). Callback URL in the terminal settings: <BASE_URL>/api/payments/sbp/webhook.
 	RollyPayAPIKey        string
 	RollyPaySigningSecret string
-	RollyPayBaseURL       string
-	RollyPayTest          bool // create sandbox payments and accept sandbox callbacks
+	// Optional separate terminal for Mini App payments; empty = use the site terminal.
+	RollyPayTGAPIKey        string
+	RollyPayTGSigningSecret string
+	RollyPayBaseURL         string
+	RollyPayTest            bool // create sandbox payments and accept sandbox callbacks
 
 	// 3x-ui v3 panel. VPN is disabled when XUIURL is empty.
 	XUIURL        string
@@ -65,10 +68,12 @@ func Load() *Config {
 		CryptoBotToken:   getEnv("CRYPTOBOT_TOKEN", ""),
 		TonWalletAddress: getEnv("TON_WALLET_ADDRESS", ""),
 
-		RollyPayAPIKey:        getEnv("ROLLYPAY_API_KEY", ""),
-		RollyPaySigningSecret: getEnv("ROLLYPAY_SIGNING_SECRET", ""),
-		RollyPayBaseURL:       getEnv("ROLLYPAY_BASE_URL", "https://rollypay.io"),
-		RollyPayTest:          getEnv("ROLLYPAY_TEST", "") == "true",
+		RollyPayAPIKey:          getEnv("ROLLYPAY_API_KEY", ""),
+		RollyPaySigningSecret:   getEnv("ROLLYPAY_SIGNING_SECRET", ""),
+		RollyPayTGAPIKey:        getEnv("ROLLYPAY_TG_API_KEY", ""),
+		RollyPayTGSigningSecret: getEnv("ROLLYPAY_TG_SIGNING_SECRET", ""),
+		RollyPayBaseURL:         getEnv("ROLLYPAY_BASE_URL", "https://rollypay.io"),
+		RollyPayTest:            getEnv("ROLLYPAY_TEST", "") == "true",
 
 		XUIURL:        getEnv("XUI_URL", ""),
 		XUIPathPrefix: getEnv("XUI_PATH_PREFIX", ""),
