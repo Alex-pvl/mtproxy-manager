@@ -74,6 +74,8 @@ CRYPTOBOT_TOKEN=
 # СБП через RollyPay; Callback URL в настройках кассы: https://<домен>/api/payments/sbp/webhook
 ROLLYPAY_API_KEY=
 ROLLYPAY_SIGNING_SECRET=
+ROLLYPAY_TG_API_KEY=       # отдельная касса для бота (Mini App); пусто = касса сайта
+ROLLYPAY_TG_SIGNING_SECRET=
 ROLLYPAY_TEST=             # true = тестовые (sandbox) платежи
 TON_WALLET_ADDRESS=
 

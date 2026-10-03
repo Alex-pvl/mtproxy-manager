@@ -15,8 +15,34 @@ import (
 	"time"
 )
 
-// RollyPay payment ids are stored with this prefix.
-const sbpPrefix = "sbp_"
+// RollyPay payment ids are stored with these prefixes; sbpTGPrefix marks the bot terminal.
+const (
+	sbpPrefix   = "sbp_"
+	sbpTGPrefix = "sbp_tg_"
+)
+
+// rollyPayTerminal is one RollyPay cash desk (site or bot).
+type rollyPayTerminal struct {
+	prefix, apiKey, secret string
+}
+
+// sbpTerminals lists configured terminals, bot first so its longer prefix matches first.
+func (h *PaymentHandler) sbpTerminals() []rollyPayTerminal {
+	site := rollyPayTerminal{sbpPrefix, h.cfg.RollyPayAPIKey, h.cfg.RollyPaySigningSecret}
+	if h.cfg.RollyPayTGAPIKey == "" {
+		return []rollyPayTerminal{site}
+	}
+	return []rollyPayTerminal{{sbpTGPrefix, h.cfg.RollyPayTGAPIKey, h.cfg.RollyPayTGSigningSecret}, site}
+}
+
+// sbpTerminalFor picks the terminal for a new payment: the bot one for Mini App payments.
+func (h *PaymentHandler) sbpTerminalFor(source string) rollyPayTerminal {
+	ts := h.sbpTerminals()
+	if source == "tg" {
+		return ts[0]
+	}
+	return ts[len(ts)-1]
+}
 
 // CreateSBPPayment creates an SBP payment via RollyPay and returns its pay page.
 func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request) {
@@ -28,6 +54,7 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
+	term := h.sbpTerminalFor(req.Source)
 	back := h.returnURL(req.Source)
 	body := map[string]any{
 		"amount":               req.Plan.Price, // already "200.00"
@@ -44,26 +71,34 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 		PaymentID string `json:"payment_id"`
 		PayURL    string `json:"pay_url"`
 	}
-	if err := h.rollyPay(http.MethodPost, "/api/v1/payments", body, &data); err != nil || data.PaymentID == "" || data.PayURL == "" {
+	if err := h.rollyPay(term.apiKey, http.MethodPost, "/api/v1/payments", body, &data); err != nil || data.PaymentID == "" || data.PayURL == "" {
 		log.Printf("rollypay create: id=%q err=%v", data.PaymentID, err)
 		writeError(w, http.StatusBadGateway, "payment service unavailable")
 		return
 	}
-	if !h.savePayment(w, req, sbpPrefix+data.PaymentID, req.Plan.Price) {
+	if !h.savePayment(w, req, term.prefix+data.PaymentID, req.Plan.Price) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"payment_url": data.PayURL})
 }
 
 // RollyPayWebhook handles signed status callbacks. The callback URL is set in
-// the RollyPay terminal settings: <BASE_URL>/api/payments/sbp/webhook.
+// each RollyPay terminal's settings: <BASE_URL>/api/payments/sbp/webhook.
+// The terminal is told apart by whose secret signed the callback.
 func (h *PaymentHandler) RollyPayWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if !rollyPaySigned(body, r.Header.Get("X-Timestamp"), r.Header.Get("X-Signature"), h.cfg.RollyPaySigningSecret) {
+	var term *rollyPayTerminal
+	for _, t := range h.sbpTerminals() {
+		if rollyPaySigned(body, r.Header.Get("X-Timestamp"), r.Header.Get("X-Signature"), t.secret) {
+			term = &t
+			break
+		}
+	}
+	if term == nil {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -80,7 +115,7 @@ func (h *PaymentHandler) RollyPayWebhook(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusOK) // sandbox event on a live setup: never credit it
 		return
 	}
-	externalID := sbpPrefix + cb.PaymentID
+	externalID := term.prefix + cb.PaymentID
 	if _, err := h.db.GetPaymentByExternalID(externalID); err != nil {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -113,14 +148,20 @@ func (h *PaymentHandler) applySBPStatus(externalID, status string) error {
 
 // sbpPaid polls RollyPay for the payment status, for when a webhook was missed.
 func (h *PaymentHandler) sbpPaid(externalID string) (bool, error) {
-	id := strings.TrimPrefix(externalID, sbpPrefix)
-	if h.cfg.RollyPayAPIKey == "" || !strings.HasPrefix(id, "pay_") {
-		return false, nil // legacy DigitalPay payment, nothing to ask
+	var term rollyPayTerminal
+	for _, term = range h.sbpTerminals() {
+		if strings.HasPrefix(externalID, term.prefix) {
+			break
+		}
+	}
+	id := strings.TrimPrefix(externalID, term.prefix)
+	if term.apiKey == "" || !strings.HasPrefix(id, "pay_") {
+		return false, nil // legacy DigitalPay payment or bot terminal no longer configured
 	}
 	var data struct {
 		Status string `json:"status"`
 	}
-	if err := h.rollyPay(http.MethodGet, "/api/v1/payments/"+id, nil, &data); err != nil {
+	if err := h.rollyPay(term.apiKey, http.MethodGet, "/api/v1/payments/"+id, nil, &data); err != nil {
 		return false, err
 	}
 	if data.Status == "paid" {
@@ -129,8 +170,8 @@ func (h *PaymentHandler) sbpPaid(externalID string) (bool, error) {
 	return false, h.applySBPStatus(externalID, data.Status)
 }
 
-// rollyPay calls the RollyPay API with the terminal's API key.
-func (h *PaymentHandler) rollyPay(method, path string, in, out any) error {
+// rollyPay calls the RollyPay API with a terminal's API key.
+func (h *PaymentHandler) rollyPay(apiKey, method, path string, in, out any) error {
 	var reqBody io.Reader
 	if in != nil {
 		b, err := json.Marshal(in)
@@ -145,7 +186,7 @@ func (h *PaymentHandler) rollyPay(method, path string, in, out any) error {
 	}
 	nonce := make([]byte, 16)
 	_, _ = rand.Read(nonce)
-	req.Header.Set("X-API-Key", h.cfg.RollyPayAPIKey)
+	req.Header.Set("X-API-Key", apiKey)
 	req.Header.Set("X-Nonce", hex.EncodeToString(nonce))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
