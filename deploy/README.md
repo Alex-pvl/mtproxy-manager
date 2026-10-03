@@ -71,9 +71,10 @@ TG_WEBHOOK_SECRET=
 
 # Оплата
 CRYPTOBOT_TOKEN=
-DIGITALPAY_API_KEY=
-DIGITALPAY_BASE_URL=https://digitalpay.cc
-DIGITALPAY_SBP_BACK_URL=
+# СБП через RollyPay; Callback URL в настройках кассы: https://<домен>/api/payments/sbp/webhook
+ROLLYPAY_API_KEY=
+ROLLYPAY_SIGNING_SECRET=
+ROLLYPAY_TEST=             # true = тестовые (sandbox) платежи
 TON_WALLET_ADDRESS=
 
 # Панель 3x-ui v3

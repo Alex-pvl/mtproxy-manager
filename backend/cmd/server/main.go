@@ -83,7 +83,7 @@ func main() {
 
 		// Provider webhooks (each verifies its own authenticity)
 		r.Post("/payments/webhook", paymentHandler.Webhook)
-		r.Post("/payments/sbp/webhook", paymentHandler.DigitalPayWebhook)
+		r.Post("/payments/sbp/webhook", paymentHandler.RollyPayWebhook)
 		r.Post("/webhook/bot", paymentHandler.BotWebhook)
 
 		r.Group(func(r chi.Router) {

@@ -388,6 +388,12 @@ func (db *DB) CancelPayment(externalID string) error {
 	return err
 }
 
+// ReopenPayment returns a canceled payment to pending, for providers that report late payments.
+func (db *DB) ReopenPayment(externalID string) error {
+	_, err := db.conn.Exec("UPDATE payments SET status = 'pending' WHERE external_id = $1 AND status = 'canceled'", externalID)
+	return err
+}
+
 func (db *DB) GetPendingPaymentsByUser(userID int64) ([]models.Payment, error) {
 	rows, err := db.conn.Query(
 		`SELECT id, user_id, plan_id, external_id, amount, status, created_at

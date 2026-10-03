@@ -84,7 +84,7 @@ export default function Pricing() {
   const isMiniApp = !!(window.Telegram?.WebApp?.initData);
 
   const methods: PaymentMethod[] = [
-    { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)', badge: t.payment.sbpUnavailable },
+    { id: 'sbp', icon: '/sbp.jpg', label: t.payment.sbpLabel ?? 'RUB (СБП)' },
     { id: 'ton', icon: '/toncoin.jpg', label: t.payment.tonLabel ?? 'GRAM' },
     { id: 'cryptobot', icon: '/cryptobot.jpg', label: t.payment.cryptobotOther ?? 'Другая криптовалюта' },
     {
@@ -191,8 +191,8 @@ export default function Pricing() {
 
     try {
       if (selectedMethod === 'sbp') {
-        // SBP temporarily disabled — route RUB buyers to manual checkout via @oddwallet.
-        openPaymentLink('https://t.me/oddwallet');
+        const res = await paymentApi.createSbpPayment(plan.id, paymentSource);
+        openPaymentLink(res.data.payment_url);
         return;
       }
 
@@ -302,17 +302,14 @@ export default function Pricing() {
           placeholder={t.payment.selectMethod}
         />
         {selectedMethod === 'sbp' && (
-          <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-center">
-            <p className="text-sm text-amber-700 dark:text-amber-400">{t.payment.sbpUnavailableNotice}</p>
-            <a
-              href="https://t.me/oddwallet"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+          <p className="mt-3 text-center">
+            <Link
+              to="/legal/sbp"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
             >
-              {t.payment.sbpContact} →
-            </a>
-          </div>
+              {t.payment.sbpAgreementShort}
+            </Link>
+          </p>
         )}
       </div>
 
