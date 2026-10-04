@@ -10,14 +10,13 @@ const ru = {
     login: 'Войти',
   },
   showcase: {
-    title: 'Stay — быстро и надёжно.',
-    subtitle: 'Быстро. Безопасно. Просто.',
-    openCard: 'Перейти',
-    back: '← На главную',
-    service: {
-      title: 'Stay',
-      desc: 'Защищённое подключение для ваших устройств',
-    },
+    title: 'Stay. Оставайтесь онлайн.',
+    cta: 'Выбрать тариф',
+    ctaActive: 'Мои подключения',
+    priceFrom: (rub: number) => `от ${rub} ₽/мес`,
+    activeUntil: (date: string) => `Подписка активна до ${date}`,
+    stepsTitle: 'Как начать',
+    steps: ['Выберите тариф и оплатите', 'Получите ссылку в «Мои сервисы»', 'Добавьте её в приложение — готово'],
   },
   proxies: {
     title: 'Мои сервисы',
@@ -178,14 +177,13 @@ const en = {
     login: 'Sign in',
   },
   showcase: {
-    title: 'Stay — fast and reliable.',
-    subtitle: 'Fast. Secure. Simple.',
-    openCard: 'Open',
-    back: '← Back to home',
-    service: {
-      title: 'Stay',
-      desc: 'A secure connection for your devices',
-    },
+    title: 'Stay. Stay online.',
+    cta: 'Choose a plan',
+    ctaActive: 'My connections',
+    priceFrom: (rub: number) => `from ${rub} ₽/mo`,
+    activeUntil: (date: string) => `Subscription active until ${date}`,
+    stepsTitle: 'How to start',
+    steps: ['Choose a plan and pay', 'Get your link in “My services”', 'Add it to your app — done'],
   },
   proxies: {
     title: 'My services',

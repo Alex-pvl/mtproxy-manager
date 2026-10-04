@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
+import PromoBanner from '../components/PromoBanner';
 import Sticker from '../components/Sticker';
 import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMethodPicker';
 
@@ -36,7 +37,7 @@ const tenMinutesFromNow = () => Math.floor(Date.now() / 1000) + 600;
 
 export default function Pricing() {
   const { user, refreshUser } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -47,7 +48,6 @@ export default function Pricing() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const sub = user?.subscription;
-  const promo = plans.find((p) => p.sbp_promo_until);
   const isMiniApp = !!(window.Telegram?.WebApp?.initData);
 
   const methods: PaymentMethod[] = [
@@ -262,18 +262,7 @@ export default function Pricing() {
         </div>
       )}
 
-      {promo && (
-        <button
-          type="button"
-          onClick={() => setSelectedMethod('sbp')}
-          className="w-full max-w-xl mx-auto block bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-sm font-medium rounded-lg px-4 py-3 mb-6 text-center touch-manipulation"
-        >
-          {t.pricing.promoBanner(
-            promo.discount_percent ?? 0,
-            new Date(promo.sbp_promo_until!).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }),
-          )}
-        </button>
-      )}
+      <PromoBanner plans={plans} onClick={() => setSelectedMethod('sbp')} />
 
       <div className="max-w-xl mx-auto mb-6">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
