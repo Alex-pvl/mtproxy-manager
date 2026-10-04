@@ -243,12 +243,12 @@ export default function Pricing() {
         </div>
       )}
 
-      <div className="text-center mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.pricing.title}</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
+      <div className="text-center mb-5 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight">{t.pricing.title}</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2 mt-0.5">{t.pricing.subtitle}</p>
       </div>
 
-      {sub?.active && (
+      {sub?.active && !user?.hide_sub_banner && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
           <p className="text-emerald-600 dark:text-emerald-400 text-sm">
             {t.pricing.activeSubscription}{' '}
@@ -266,7 +266,7 @@ export default function Pricing() {
         <button
           type="button"
           onClick={() => setSelectedMethod('sbp')}
-          className="w-full max-w-xl mx-auto block bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-sm font-medium rounded-lg px-4 py-3 mb-6 text-center touch-manipulation"
+          className="w-full max-w-xl mx-auto block bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-sm font-medium rounded-lg px-4 py-3 mb-6 text-center touch-manipulation"
         >
           {t.pricing.promoBanner(
             promo.discount_percent ?? 0,

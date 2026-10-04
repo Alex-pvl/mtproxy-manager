@@ -135,7 +135,7 @@ func (h *PaymentHandler) activate(externalID string) (bool, error) {
 	log.Printf("subscription activated: user=%d plan=%s expires=%s", payment.UserID, plan.ID, sub.ExpiresAt.Format(time.RFC3339))
 
 	if user, err := h.db.GetUserByID(payment.UserID); err == nil {
-		_ = h.db.UpdateUser(user.ID, user.Role, plan.MaxProxies)
+		_ = h.db.UpdateUser(user.ID, user.Role, plan.MaxProxies, user.HideSubBanner)
 		go h.bot.NotifySubscriptionPaid(user, plan)
 	}
 	h.vpn.SyncExpiry(payment.UserID, sub.ExpiresAt)

@@ -53,6 +53,7 @@ func (db *DB) migrate() error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 		"ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT DEFAULT 0",
+		"ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_sub_banner BOOLEAN NOT NULL DEFAULT FALSE",
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id) WHERE telegram_id > 0",
 
 		`CREATE TABLE IF NOT EXISTS proxies (
@@ -174,9 +175,9 @@ func (db *DB) ensureAdmin() error {
 func (db *DB) GetUserByTelegramID(telegramID int64) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), created_at FROM users WHERE telegram_id = $1",
+		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), hide_sub_banner, created_at FROM users WHERE telegram_id = $1",
 		telegramID,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.HideSubBanner, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -232,9 +233,9 @@ func (db *DB) CreateUser(username, passwordHash string) (*models.User, error) {
 func (db *DB) GetUserByUsername(username string) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), created_at FROM users WHERE username = $1",
+		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), hide_sub_banner, created_at FROM users WHERE username = $1",
 		username,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.HideSubBanner, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -244,9 +245,9 @@ func (db *DB) GetUserByUsername(username string) (*models.User, error) {
 func (db *DB) GetUserByID(id int64) (*models.User, error) {
 	u := &models.User{}
 	err := db.conn.QueryRow(
-		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), created_at FROM users WHERE id = $1",
+		"SELECT id, username, password_hash, role, max_proxies, COALESCE(telegram_id, 0), hide_sub_banner, created_at FROM users WHERE id = $1",
 		id,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.MaxProxies, &u.TelegramID, &u.HideSubBanner, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +255,7 @@ func (db *DB) GetUserByID(id int64) (*models.User, error) {
 }
 
 func (db *DB) ListUsers() ([]models.User, error) {
-	rows, err := db.conn.Query("SELECT id, username, role, max_proxies, created_at FROM users ORDER BY id")
+	rows, err := db.conn.Query("SELECT id, username, role, max_proxies, hide_sub_banner, created_at FROM users ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +264,7 @@ func (db *DB) ListUsers() ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &u.MaxProxies, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &u.MaxProxies, &u.HideSubBanner, &u.CreatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -271,8 +272,8 @@ func (db *DB) ListUsers() ([]models.User, error) {
 	return users, nil
 }
 
-func (db *DB) UpdateUser(id int64, role models.Role, maxProxies int) error {
-	_, err := db.conn.Exec("UPDATE users SET role = $1, max_proxies = $2 WHERE id = $3", role, maxProxies, id)
+func (db *DB) UpdateUser(id int64, role models.Role, maxProxies int, hideSubBanner bool) error {
+	_, err := db.conn.Exec("UPDATE users SET role = $1, max_proxies = $2, hide_sub_banner = $3 WHERE id = $4", role, maxProxies, hideSubBanner, id)
 	return err
 }
 

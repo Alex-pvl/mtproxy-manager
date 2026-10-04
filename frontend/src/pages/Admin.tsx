@@ -47,6 +47,15 @@ export default function Admin() {
     }
   };
 
+  const handleToggleSubBanner = async (user: UserWithCount) => {
+    try {
+      await adminApi.updateUser(user.id, { hide_sub_banner: !user.hide_sub_banner });
+      fetchData();
+    } catch (err) {
+      setError(apiError(err, 'Failed to update user'));
+    }
+  };
+
   const handleDeleteUser = async (id: number) => {
     if (!confirm('Delete this user and all their connections?')) return;
     try {
@@ -115,6 +124,7 @@ export default function Admin() {
                 <th className="text-left px-4 py-3 font-medium">Role</th>
                 <th className="text-left px-4 py-3 font-medium">Connections</th>
                 <th className="text-left px-4 py-3 font-medium">Limit</th>
+                <th className="text-left px-4 py-3 font-medium">Sub banner</th>
                 <th className="text-left px-4 py-3 font-medium">Created</th>
                 <th className="text-right px-4 py-3 font-medium">Actions</th>
               </tr>
@@ -157,6 +167,19 @@ export default function Admin() {
                     ) : (
                       <span className="text-gray-700 dark:text-gray-300">{user.max_proxies}</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleToggleSubBanner(user)}
+                      title="Show the active subscription banner on the pricing page"
+                      className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                        user.hide_sub_banner
+                          ? 'bg-gray-100 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400'
+                          : 'bg-emerald-100 dark:bg-emerald-600/20 text-emerald-700 dark:text-emerald-300'
+                      }`}
+                    >
+                      {user.hide_sub_banner ? 'hidden' : 'shown'}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">
                     {new Date(user.created_at).toLocaleDateString()}
