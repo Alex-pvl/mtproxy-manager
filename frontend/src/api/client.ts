@@ -116,6 +116,8 @@ export interface Plan {
   max_proxies: number;
   stars_price?: number;
   ton_amount?: string;
+  sbp_price_label?: string;
+  sbp_per_month?: string;
 }
 
 export const paymentApi = {

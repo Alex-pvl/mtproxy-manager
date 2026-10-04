@@ -27,7 +27,7 @@ func NewPaymentHandler(db *database.DB, cfg *config.Config, vpn *VPN, bot *Bot) 
 }
 
 func (h *PaymentHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, models.Plans)
+	writeJSON(w, http.StatusOK, models.ActivePlans(time.Now()))
 }
 
 func (h *PaymentHandler) GetSubscription(w http.ResponseWriter, r *http.Request) {

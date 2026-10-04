@@ -116,7 +116,9 @@ export default function Pricing() {
         return plan.ton_amount ? { main: formatTon(plan.ton_amount) } : { main: plan.price_label };
       case 'sbp':
       default:
-        return { main: plan.price_label, secondary: plan.price_usd_label };
+        return plan.sbp_price_label
+          ? { main: plan.sbp_price_label }
+          : { main: plan.price_label, secondary: plan.price_usd_label };
     }
   };
 
@@ -373,7 +375,7 @@ export default function Pricing() {
                 {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
                   <div className="mb-1.5 flex items-center gap-2">
                     <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
-                      Скидка {plan.discount_percent}%
+                      {t.pricing.discount} {plan.discount_percent}%
                     </span>
                     {plan.original_price_label && (
                       <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
@@ -397,7 +399,7 @@ export default function Pricing() {
 
               {selectedMethod === 'sbp' && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {plan.per_month}{t.pricing.perMonth}
+                  {plan.sbp_per_month ?? plan.per_month}{t.pricing.perMonth}
                 </p>
               )}
 
