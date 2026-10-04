@@ -39,6 +39,7 @@ export interface User {
   username: string;
   role: 'user' | 'admin';
   max_proxies: number;
+  hide_sub_banner?: boolean;
   created_at: string;
   subscription?: Subscription;
 }
@@ -96,7 +97,7 @@ export const proxyApi = {
 
 export const adminApi = {
   listUsers: () => api.get<UserWithCount[]>('/admin/users'),
-  updateUser: (id: number, data: { role?: string; max_proxies?: number }) =>
+  updateUser: (id: number, data: { role?: string; max_proxies?: number; hide_sub_banner?: boolean }) =>
     api.put<User>(`/admin/users/${id}`, data),
   deleteUser: (id: number) => api.delete(`/admin/users/${id}`),
   listProxies: () => api.get<Proxy[]>('/admin/proxies'),

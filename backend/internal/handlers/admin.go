@@ -46,8 +46,9 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Role       string `json:"role"`
-		MaxProxies *int   `json:"max_proxies"`
+		Role          string `json:"role"`
+		MaxProxies    *int   `json:"max_proxies"`
+		HideSubBanner *bool  `json:"hide_sub_banner"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -68,7 +69,10 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		user.MaxProxies = *req.MaxProxies
 	}
-	if err := h.db.UpdateUser(id, user.Role, user.MaxProxies); err != nil {
+	if req.HideSubBanner != nil {
+		user.HideSubBanner = *req.HideSubBanner
+	}
+	if err := h.db.UpdateUser(id, user.Role, user.MaxProxies, user.HideSubBanner); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update user")
 		return
 	}

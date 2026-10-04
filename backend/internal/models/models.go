@@ -10,13 +10,15 @@ const (
 )
 
 type User struct {
-	ID           int64     `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
-	Role         Role      `json:"role"`
-	MaxProxies   int       `json:"max_proxies"`
-	TelegramID   int64     `json:"telegram_id,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           int64  `json:"id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"-"`
+	Role         Role   `json:"role"`
+	MaxProxies   int    `json:"max_proxies"`
+	TelegramID   int64  `json:"telegram_id,omitempty"`
+	// HideSubBanner hides the "active subscription" banner on the pricing page (for screenshots).
+	HideSubBanner bool      `json:"hide_sub_banner"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // Proxy is a user's VPN config: one 3x-ui client. The name is historical.

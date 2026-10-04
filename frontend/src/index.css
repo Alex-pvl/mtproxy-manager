@@ -89,8 +89,8 @@
   color: #fff;
   border: 0;
   border-radius: 9999px;
-  padding: 16px 24px;
-  font-size: 17px;
+  padding: 10px 20px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, opacity 0.15s ease;
