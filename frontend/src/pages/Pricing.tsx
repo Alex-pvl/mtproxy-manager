@@ -311,46 +311,44 @@ export default function Pricing() {
                 </span>
               )}
 
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
+              {/* Phones: name and details on the left, price on the right. Wider screens stack them. */}
+              <div className="flex justify-between gap-3 mb-4 flex-1 sm:flex-col sm:justify-start sm:gap-0">
+                <div className="min-w-0 sm:order-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:hidden">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
+                  {selectedMethod === 'sbp' && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 sm:mb-4">
+                      {plan.sbp_per_month ?? plan.per_month}{t.pricing.perMonth}
+                    </p>
+                  )}
+                  <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                    <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
+                    {t.pricing.proxy(plan.max_proxies)}
+                  </p>
+                </div>
 
-              <div className="mb-4">
-                {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2.5 py-1">
-                      {t.pricing.discount} {plan.discount_percent}%
-                    </span>
-                    {plan.original_price_label && (
-                      <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
-                    )}
-                  </div>
-                )}
-
-                {(() => {
-                  const { main, secondary } = getDisplayPrice(plan);
-                  return (
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{main}</span>
-                      {secondary && (
-                        <span className="text-base text-gray-400 dark:text-gray-500">({secondary})</span>
+                <div className="text-right shrink-0 sm:text-left sm:mb-4">
+                  <h3 className="hidden sm:block text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
+                  {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
+                    <div className="mb-1 flex items-center justify-end sm:justify-start gap-2">
+                      <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2 py-0.5">
+                        &minus;{plan.discount_percent}%
+                      </span>
+                      {plan.original_price_label && (
+                        <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
                       )}
                     </div>
-                  );
-                })()}
-
+                  )}
+                  {(() => {
+                    const { main, secondary } = getDisplayPrice(plan);
+                    return (
+                      <>
+                        <div className="text-3xl font-extrabold text-gray-900 dark:text-white whitespace-nowrap">{main}</div>
+                        {secondary && <div className="text-sm text-gray-400 dark:text-gray-500">{secondary}</div>}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
-
-              {selectedMethod === 'sbp' && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {plan.sbp_per_month ?? plan.per_month}{t.pricing.perMonth}
-                </p>
-              )}
-
-              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2 mb-4 flex-1">
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
-                  {t.pricing.proxy(plan.max_proxies)}
-                </li>
-              </ul>
 
               <button
                 onClick={() => user ? handleBuyPlan(plan) : undefined}
