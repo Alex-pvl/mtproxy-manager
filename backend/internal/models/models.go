@@ -47,9 +47,10 @@ type Plan struct {
 	// TON amount in nanoTON (1 TON = 1_000_000_000); empty = not available via TON
 	TonAmount string `json:"ton_amount,omitempty"`
 	// SBP promo prices, sent to clients only while the promo runs (see ActivePlans).
-	SBPPrice      string `json:"-"`
-	SBPPriceLabel string `json:"sbp_price_label,omitempty"`
-	SBPPerMonth   string `json:"sbp_per_month,omitempty"`
+	SBPPrice      string     `json:"-"`
+	SBPPriceLabel string     `json:"sbp_price_label,omitempty"`
+	SBPPerMonth   string     `json:"sbp_per_month,omitempty"`
+	PromoUntil    *time.Time `json:"sbp_promo_until,omitempty"`
 }
 
 // SBP promo: -20% on SBP payments until this moment, then prices revert by themselves.
@@ -62,7 +63,7 @@ func ActivePlans(now time.Time) []Plan {
 	out := make([]Plan, len(Plans))
 	for i, p := range Plans {
 		if now.Before(SBPPromoUntil) && p.SBPPrice != "" {
-			p.OriginalPriceLabel, p.DiscountPercent = p.PriceLabel, SBPPromoPercent
+			p.OriginalPriceLabel, p.DiscountPercent, p.PromoUntil = p.PriceLabel, SBPPromoPercent, &SBPPromoUntil
 		} else {
 			p.SBPPrice, p.SBPPriceLabel, p.SBPPerMonth = "", "", ""
 		}

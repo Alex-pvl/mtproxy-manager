@@ -11,40 +11,6 @@ import PaymentMethodPicker, { type PaymentMethod } from '../components/PaymentMe
 
 const POPULAR_PLAN = 'year_1';
 
-// ─── Payment method icons ─────────────────────────────────────────────────────
-
-function CryptoBotIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/cryptobot.jpg" alt="CryptoBot" className={`${className} rounded-xl object-cover`} />;
-}
-
-function StarsPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/stars.jpg" alt="Telegram Stars" className={`${className} rounded-xl object-cover`} />;
-}
-
-function TonPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/toncoin.jpg" alt="GRAM" className={`${className} rounded-xl object-cover`} />;
-}
-
-function SbpPayIcon({ className = 'w-6 h-6' }: { className?: string }) {
-  return <img src="/sbp.jpg" alt="SBP" className={`${className} rounded-xl object-cover`} />;
-}
-
-function PaymentIconFrame({
-  children,
-  outlined = false,
-}: {
-  children: React.ReactNode;
-  outlined?: boolean;
-}) {
-  return (
-    <span
-      className={`shrink-0 rounded-xl ${outlined ? 'ring-1 ring-gray-200 dark:ring-gray-700' : ''}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 function CheckCircleIcon() {
   return (
     <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -70,7 +36,7 @@ const tenMinutesFromNow = () => Math.floor(Date.now() / 1000) + 600;
 
 export default function Pricing() {
   const { user, refreshUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -81,6 +47,7 @@ export default function Pricing() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const sub = user?.subscription;
+  const promo = plans.find((p) => p.sbp_promo_until);
   const isMiniApp = !!(window.Telegram?.WebApp?.initData);
 
   const methods: PaymentMethod[] = [
@@ -281,6 +248,33 @@ export default function Pricing() {
         <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2">{t.pricing.subtitle}</p>
       </div>
 
+      {sub?.active && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
+          <p className="text-emerald-600 dark:text-emerald-400 text-sm">
+            {t.pricing.activeSubscription}{' '}
+            <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
+            {sub.expires_at && (
+              <span className="text-emerald-500 ml-2">
+                {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString('ru-RU')}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {promo && (
+        <button
+          type="button"
+          onClick={() => setSelectedMethod('sbp')}
+          className="w-full max-w-xl mx-auto block bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-sm font-medium rounded-lg px-4 py-3 mb-6 text-center touch-manipulation"
+        >
+          {t.pricing.promoBanner(
+            promo.discount_percent ?? 0,
+            new Date(promo.sbp_promo_until!).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }),
+          )}
+        </button>
+      )}
+
       <div className="max-w-xl mx-auto mb-6">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
           {t.payment.selectMethod}
@@ -303,47 +297,6 @@ export default function Pricing() {
         )}
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{t.pricing.whyTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
-            <Sticker name="no_logs" className="w-10 h-10 shrink-0" />
-            <div>
-              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureNoLogs}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureNoLogsDesc}</p>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
-            <Sticker name="cipher" className="w-10 h-10 shrink-0" />
-            <div>
-              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureCipher}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureCipherDesc}</p>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
-            <Sticker name="speed" className="w-10 h-10 shrink-0" />
-            <div>
-              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureSpeed}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureSpeedDesc}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {sub?.active && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
-          <p className="text-emerald-600 dark:text-emerald-400 text-sm">
-            {t.pricing.activeSubscription}{' '}
-            <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
-            {sub.expires_at && (
-              <span className="text-emerald-500 ml-2">
-                {t.pricing.until} {new Date(sub.expires_at).toLocaleDateString('ru-RU')}
-              </span>
-            )}
-          </p>
-        </div>
-      )}
-
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded px-3 py-2 mb-6 text-center">
           {error}
@@ -359,7 +312,7 @@ export default function Pricing() {
               key={plan.id}
               className={`relative bg-white dark:bg-gray-900 border rounded-lg p-5 flex flex-col ${
                 isPopular
-                  ? 'border-indigo-500 ring-1 ring-indigo-500/50'
+                  ? 'order-first sm:order-none border-indigo-500 ring-1 ring-indigo-500/50'
                   : 'border-gray-200 dark:border-gray-800'
               }`}
             >
@@ -410,22 +363,6 @@ export default function Pricing() {
                 </li>
               </ul>
 
-              {/* Payment methods hint */}
-              <div className="flex items-center gap-1.5 mb-3">
-                <PaymentIconFrame outlined>
-                  <SbpPayIcon className="w-5 h-5" />
-                </PaymentIconFrame>
-                <PaymentIconFrame outlined>
-                  <StarsPayIcon className="w-5 h-5" />
-                </PaymentIconFrame>
-                <PaymentIconFrame>
-                  <CryptoBotIcon className="w-5 h-5" />
-                </PaymentIconFrame>
-                <PaymentIconFrame>
-                  <TonPayIcon className="w-5 h-5" />
-                </PaymentIconFrame>
-              </div>
-
               <button
                 onClick={() => user ? handleBuyPlan(plan) : undefined}
                 disabled={!user || processingPlanId === plan.id}
@@ -436,6 +373,33 @@ export default function Pricing() {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{t.pricing.whyTitle}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
+            <Sticker name="no_logs" className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureNoLogs}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureNoLogsDesc}</p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
+            <Sticker name="cipher" className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureCipher}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureCipherDesc}</p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
+            <Sticker name="speed" className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureSpeed}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureSpeedDesc}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-8 text-center">

@@ -118,6 +118,7 @@ export interface Plan {
   ton_amount?: string;
   sbp_price_label?: string;
   sbp_per_month?: string;
+  sbp_promo_until?: string;
 }
 
 export const paymentApi = {
