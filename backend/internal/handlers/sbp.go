@@ -55,9 +55,10 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 		return
 	}
 	term := h.sbpTerminalFor(req.Source)
+	amount := req.Plan.SBPAmount(time.Now())
 	back := h.returnURL(req.Source)
 	body := map[string]any{
-		"amount":               req.Plan.Price, // already "200.00"
+		"amount":               amount, // already "200.00"
 		"payment_currency":     "RUB",
 		"payment_method":       "sbp",
 		"order_id":             fmt.Sprintf("sbp_%d_%d", req.UserID, time.Now().UnixMilli()),
@@ -76,7 +77,7 @@ func (h *PaymentHandler) CreateSBPPayment(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadGateway, "payment service unavailable")
 		return
 	}
-	if !h.savePayment(w, req, term.prefix+data.PaymentID, req.Plan.Price) {
+	if !h.savePayment(w, req, term.prefix+data.PaymentID, amount) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"payment_url": data.PayURL})
