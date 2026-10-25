@@ -497,6 +497,7 @@ func (db *DB) ListSubscriptionsExpiryCalendarDays(daysLeft int, reminder7d bool)
 		) latest ON latest.user_id = s.user_id AND latest.max_exp = s.expires_at
 		INNER JOIN users u ON u.id = s.user_id AND COALESCE(u.telegram_id, 0) > 0
 		WHERE NOT s.%s
+		  AND s.plan_id <> 'trial'
 		  AND (s.expires_at AT TIME ZONE 'UTC')::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date = $1`,
 		sentCol)
 	rows, err := db.conn.Query(q, daysLeft)
@@ -511,6 +512,37 @@ func (db *DB) ListSubscriptionsExpiryCalendarDays(daysLeft int, reminder7d bool)
 			return nil, err
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// EndedTrial is a finished trial whose end notice is not sent yet.
+type EndedTrial struct {
+	ID         int64
+	TelegramID int64
+	Subscribed bool // already has another active subscription: mark, don't notify
+}
+
+// ListEndedTrials uses expiry_reminder_1d_sent as the "end notice sent" flag;
+// trials are excluded from the calendar-day reminders.
+func (db *DB) ListEndedTrials() ([]EndedTrial, error) {
+	rows, err := db.conn.Query(`
+		SELECT s.id, COALESCE(u.telegram_id, 0),
+			EXISTS (SELECT 1 FROM subscriptions a WHERE a.user_id = s.user_id AND a.expires_at > NOW())
+		FROM subscriptions s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.plan_id = 'trial' AND s.expires_at <= NOW() AND NOT s.expiry_reminder_1d_sent`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []EndedTrial
+	for rows.Next() {
+		var t EndedTrial
+		if err := rows.Scan(&t.ID, &t.TelegramID, &t.Subscribed); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
 	}
 	return out, rows.Err()
 }

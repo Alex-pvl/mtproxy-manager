@@ -62,7 +62,7 @@ export default function Home() {
             >
               🎁 {trialBusy ? t.proxies.creating : t.showcase.trial}
             </button>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{trialError || t.showcase.trialHint}</p>
+            {trialError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{trialError}</p>}
             <Link
               to="/pricing"
               className="mt-4 block w-full max-w-xs rounded-full border border-gray-300 dark:border-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-900 dark:text-white hover:border-indigo-500 transition-colors touch-manipulation"

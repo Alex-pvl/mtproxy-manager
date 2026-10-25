@@ -153,6 +153,29 @@ var moscow = func() *time.Location {
 	return time.FixedZone("MSK", 3*60*60)
 }()
 
+// RunTrialEndNotices DMs users whose free trial just ended.
+func (b *Bot) RunTrialEndNotices() {
+	if !b.Enabled() {
+		return
+	}
+	trials, err := b.db.ListEndedTrials()
+	if err != nil {
+		log.Printf("trial end notices: %v", err)
+		return
+	}
+	for _, t := range trials {
+		if !t.Subscribed && t.TelegramID > 0 {
+			if err := b.send(t.TelegramID, "⌛️ Пробный период Stay закончился.\n\nЧтобы продолжить пользоваться VPN, выберите тариф в приложении. Ваше подключение заработает сразу после оплаты."); err != nil {
+				log.Printf("trial end notice sub=%d: %v", t.ID, err)
+				continue
+			}
+		}
+		if err := b.db.MarkSubscriptionExpiryReminder1dSent(t.ID); err != nil {
+			log.Printf("trial end notice mark sub=%d: %v", t.ID, err)
+		}
+	}
+}
+
 func moscowTime(t time.Time) string {
 	return t.In(moscow).Format("02.01.2006 15:04") + " (МСК)"
 }
