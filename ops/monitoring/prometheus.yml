@@ -39,7 +39,7 @@ scrape_configs:
   # Subscription endpoint of the 3x-ui server that users' apps poll.
   - job_name: xui_server
     metrics_path: /probe
-    params: { module: [tcp_connect] }
+    params: { module: [tls_connect] }
     static_configs:
-      - targets: [tagwaiter.ru:2096]
+      - targets: [www.tagwaiter.ru:2096]
     relabel_configs: *blackbox

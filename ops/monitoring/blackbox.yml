@@ -9,3 +9,11 @@ modules:
     timeout: 10s
     tcp:
       preferred_ip_protocol: ip4
+  tls_connect:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      preferred_ip_protocol: ip4
+      tls: true
+      tls_config:
+        server_name: www.tagwaiter.ru
