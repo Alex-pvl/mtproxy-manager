@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { paymentApi, type Plan } from '../api/client';
+import { apiError, paymentApi, proxyApi, type Plan } from '../api/client';
 import PromoBanner from '../components/PromoBanner';
 import Sticker from '../components/Sticker';
 import { useAuth } from '../context/AuthContext';
@@ -10,9 +10,11 @@ const rubles = (label: string) => parseInt(label.replace(/\D/g, ''), 10);
 
 export default function Home() {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [trialBusy, setTrialBusy] = useState(false);
+  const [trialError, setTrialError] = useState('');
 
   useEffect(() => {
     paymentApi.listPlans().then((res) => setPlans(res.data)).catch(() => {});
@@ -22,6 +24,20 @@ export default function Home() {
   const minPerMonth = plans.length
     ? Math.min(...plans.map((p) => rubles(p.sbp_per_month ?? p.per_month)))
     : null;
+
+  const startTrial = async () => {
+    setTrialBusy(true);
+    setTrialError('');
+    try {
+      await proxyApi.startTrial();
+      await refreshUser();
+      navigate('/proxies');
+    } catch (err) {
+      setTrialError(apiError(err, t.showcase.trialFailed));
+    } finally {
+      setTrialBusy(false);
+    }
+  };
 
   const features = [
     { sticker: 'no_logs', title: t.pricing.featureNoLogs, desc: t.pricing.featureNoLogsDesc },
@@ -36,17 +52,42 @@ export default function Home() {
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
           {t.showcase.title}
         </h1>
-        <Link
-          to={sub?.active ? '/proxies' : '/pricing'}
-          className="spend-cta block max-w-xs text-center touch-manipulation"
-        >
-          {sub?.active ? t.showcase.ctaActive : t.showcase.cta}
-        </Link>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 h-4">
-          {sub?.active && sub.expires_at
-            ? t.showcase.activeUntil(new Date(sub.expires_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'))
-            : minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
-        </p>
+        {sub?.trial_available ? (
+          <>
+            <button
+              type="button"
+              onClick={startTrial}
+              disabled={trialBusy}
+              className="spend-cta block max-w-xs touch-manipulation"
+            >
+              🎁 {trialBusy ? t.proxies.creating : t.showcase.trial}
+            </button>
+            {trialError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{trialError}</p>}
+            <Link
+              to="/pricing"
+              className="mt-4 block w-full max-w-xs rounded-full border border-gray-300 dark:border-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-900 dark:text-white hover:border-indigo-500 transition-colors touch-manipulation"
+            >
+              {t.showcase.cta}
+            </Link>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 h-4">
+              {minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
+            </p>
+          </>
+        ) : (
+          <>
+            <Link
+              to={sub?.active ? '/proxies' : '/pricing'}
+              className="spend-cta block max-w-xs text-center touch-manipulation"
+            >
+              {sub?.active ? t.showcase.ctaActive : t.showcase.cta}
+            </Link>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 h-4">
+              {sub?.active && sub.expires_at
+                ? t.showcase.activeUntil(new Date(sub.expires_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'))
+                : minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
+            </p>
+          </>
+        )}
       </div>
 
       <PromoBanner plans={plans} onClick={() => navigate('/pricing')} />

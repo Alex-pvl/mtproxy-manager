@@ -153,6 +153,69 @@ var moscow = func() *time.Location {
 	return time.FixedZone("MSK", 3*60*60)
 }()
 
+// RunTrialEndNotices DMs users whose free trial just ended.
+func (b *Bot) RunTrialEndNotices() {
+	if !b.Enabled() {
+		return
+	}
+	trials, err := b.db.ListEndedTrials()
+	if err != nil {
+		log.Printf("trial end notices: %v", err)
+		return
+	}
+	for _, t := range trials {
+		if !t.Subscribed && t.TelegramID > 0 {
+			if err := b.send(t.TelegramID, "⌛️ Пробный период Stay закончился.\n\nЧтобы продолжить пользоваться VPN, выберите тариф в приложении. Ваше подключение заработает сразу после оплаты."); err != nil {
+				log.Printf("trial end notice sub=%d: %v", t.ID, err)
+				continue
+			}
+		}
+		if err := b.db.MarkSubscriptionExpiryReminder1dSent(t.ID); err != nil {
+			log.Printf("trial end notice mark sub=%d: %v", t.ID, err)
+		}
+	}
+}
+
+// RunTrialTrafficNotices DMs trial users once their connection used up its traffic.
+func (b *Bot) RunTrialTrafficNotices(vpn *VPN) {
+	if !b.Enabled() {
+		return
+	}
+	trials, err := b.db.ListRunningTrials()
+	if err != nil || len(trials) == 0 {
+		if err != nil {
+			log.Printf("trial traffic notices: %v", err)
+		}
+		return
+	}
+	used, err := vpn.TrafficUsed()
+	if err != nil {
+		log.Printf("trial traffic notices: %v", err)
+		return
+	}
+	for _, t := range trials {
+		proxies, err := b.db.ListProxiesByUser(t.UserID)
+		if err != nil {
+			log.Printf("trial traffic user=%d: %v", t.UserID, err)
+			continue
+		}
+		var total int64
+		for _, p := range proxies {
+			total += used[p.VlessEmail]
+		}
+		if total < models.TrialTrafficByte {
+			continue
+		}
+		if err := b.send(t.TelegramID, "📶 Трафик пробного периода Stay закончился.\n\nЧтобы продолжить пользоваться VPN без ограничений, выберите тариф в приложении. Ваше подключение заработает сразу после оплаты."); err != nil {
+			log.Printf("trial traffic notice sub=%d: %v", t.ID, err)
+			continue
+		}
+		if err := b.db.MarkSubscriptionExpiryReminder7dSent(t.ID); err != nil {
+			log.Printf("trial traffic notice mark sub=%d: %v", t.ID, err)
+		}
+	}
+}
+
 func moscowTime(t time.Time) string {
 	return t.In(moscow).Format("02.01.2006 15:04") + " (МСК)"
 }

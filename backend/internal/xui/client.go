@@ -84,18 +84,45 @@ func (c *Client) SubscriptionURL(uuid string) string {
 }
 
 // AddClient creates a VLESS client; the uuid doubles as its subscription id.
-func (c *Client) AddClient(uuid, email string, expiry time.Time) error {
+// totalBytes caps its traffic; 0 = unlimited.
+func (c *Client) AddClient(uuid, email string, expiry time.Time, totalBytes int64) error {
+	cl := newClient(uuid, email, expiry)
+	cl.TotalGB = totalBytes // 3x-ui counts this field in bytes despite the name
 	_, err := c.call(http.MethodPost, "panel/api/clients/add", map[string]any{
-		"client":     newClient(uuid, email, expiry),
+		"client":     cl,
 		"inboundIds": []int{c.inboundID},
 	})
 	return err
 }
 
 // UpdateClientExpiry moves the client's expiry; zero time = no expiry.
+// It also lifts any traffic cap, so a paid plan ends the trial limit.
 func (c *Client) UpdateClientExpiry(uuid, email string, expiry time.Time) error {
 	_, err := c.call(http.MethodPost, "panel/api/clients/update/"+url.PathEscape(email), newClient(uuid, email, expiry))
 	return err
+}
+
+// TrafficUsed returns up+down bytes per client email, from the inbound's clientStats.
+func (c *Client) TrafficUsed() (map[string]int64, error) {
+	obj, err := c.call(http.MethodGet, fmt.Sprintf("panel/api/inbounds/get/%d", c.inboundID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var inbound struct {
+		ClientStats []struct {
+			Email string `json:"email"`
+			Up    int64  `json:"up"`
+			Down  int64  `json:"down"`
+		} `json:"clientStats"`
+	}
+	if err := json.Unmarshal(obj, &inbound); err != nil {
+		return nil, fmt.Errorf("parse inbound %d: %w", c.inboundID, err)
+	}
+	used := make(map[string]int64, len(inbound.ClientStats))
+	for _, s := range inbound.ClientStats {
+		used[s.Email] = s.Up + s.Down
+	}
+	return used, nil
 }
 
 func (c *Client) RemoveClient(email string) error {

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -100,6 +101,7 @@ func (db *DB) migrate() error {
 		)`,
 		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_7d_sent BOOLEAN NOT NULL DEFAULT FALSE",
 		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_1d_sent BOOLEAN NOT NULL DEFAULT FALSE",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_one_trial ON subscriptions(user_id) WHERE plan_id = 'trial'",
 
 		`CREATE TABLE IF NOT EXISTS referral_codes (
 			user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -426,6 +428,34 @@ func (db *DB) CreateSubscription(s *models.Subscription) error {
 	return err
 }
 
+// TrialAvailable is true for Telegram users who never had any subscription.
+func (db *DB) TrialAvailable(user *models.User) (bool, error) {
+	if user.TelegramID <= 0 {
+		return false, nil
+	}
+	var had bool
+	err := db.conn.QueryRow(`SELECT EXISTS (SELECT 1 FROM subscriptions WHERE user_id = $1)`, user.ID).Scan(&had)
+	return !had, err
+}
+
+// StartTrial inserts the trial subscription; false if the user already had one
+// (the unique index makes this safe against double clicks).
+func (db *DB) StartTrial(userID int64, now time.Time) (*models.Subscription, bool, error) {
+	s := &models.Subscription{UserID: userID, PlanID: models.TrialPlanID, StartsAt: now, ExpiresAt: now.Add(models.TrialDuration)}
+	err := db.conn.QueryRow(
+		`INSERT INTO subscriptions (user_id, plan_id, payment_id, starts_at, expires_at) VALUES ($1, $2, 0, $3, $4)
+		 ON CONFLICT (user_id) WHERE plan_id = 'trial' DO NOTHING RETURNING id, created_at`,
+		s.UserID, s.PlanID, s.StartsAt, s.ExpiresAt,
+	).Scan(&s.ID, &s.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return s, true, nil
+}
+
 func (db *DB) GetActiveSubscription(userID int64) (*models.Subscription, error) {
 	s := &models.Subscription{}
 	err := db.conn.QueryRow(
@@ -467,6 +497,7 @@ func (db *DB) ListSubscriptionsExpiryCalendarDays(daysLeft int, reminder7d bool)
 		) latest ON latest.user_id = s.user_id AND latest.max_exp = s.expires_at
 		INNER JOIN users u ON u.id = s.user_id AND COALESCE(u.telegram_id, 0) > 0
 		WHERE NOT s.%s
+		  AND s.plan_id <> 'trial'
 		  AND (s.expires_at AT TIME ZONE 'UTC')::date - (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date = $1`,
 		sentCol)
 	rows, err := db.conn.Query(q, daysLeft)
@@ -481,6 +512,68 @@ func (db *DB) ListSubscriptionsExpiryCalendarDays(daysLeft int, reminder7d bool)
 			return nil, err
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// EndedTrial is a finished trial whose end notice is not sent yet.
+type EndedTrial struct {
+	ID         int64
+	TelegramID int64
+	Subscribed bool // already has another active subscription: mark, don't notify
+}
+
+// ListEndedTrials uses expiry_reminder_1d_sent as the "end notice sent" flag;
+// trials are excluded from the calendar-day reminders.
+func (db *DB) ListEndedTrials() ([]EndedTrial, error) {
+	rows, err := db.conn.Query(`
+		SELECT s.id, COALESCE(u.telegram_id, 0),
+			EXISTS (SELECT 1 FROM subscriptions a WHERE a.user_id = s.user_id AND a.expires_at > NOW())
+		FROM subscriptions s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.plan_id = 'trial' AND s.expires_at <= NOW() AND NOT s.expiry_reminder_1d_sent
+		  AND NOT s.expiry_reminder_7d_sent -- already told their traffic ran out`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []EndedTrial
+	for rows.Next() {
+		var t EndedTrial
+		if err := rows.Scan(&t.ID, &t.TelegramID, &t.Subscribed); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// TrialOutOfTraffic is a running trial whose "traffic used up" notice is not sent yet.
+type TrialOutOfTraffic struct {
+	ID         int64
+	UserID     int64
+	TelegramID int64
+}
+
+// ListRunningTrials uses expiry_reminder_7d_sent as the "traffic notice sent"
+// flag; trials never get the 7-day reminder.
+func (db *DB) ListRunningTrials() ([]TrialOutOfTraffic, error) {
+	rows, err := db.conn.Query(`
+		SELECT s.id, s.user_id, u.telegram_id
+		FROM subscriptions s
+		JOIN users u ON u.id = s.user_id AND COALESCE(u.telegram_id, 0) > 0
+		WHERE s.plan_id = 'trial' AND s.expires_at > NOW() AND NOT s.expiry_reminder_7d_sent`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TrialOutOfTraffic
+	for rows.Next() {
+		var t TrialOutOfTraffic
+		if err := rows.Scan(&t.ID, &t.UserID, &t.TelegramID); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
 	}
 	return out, rows.Err()
 }

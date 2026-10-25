@@ -112,6 +112,13 @@ var Plans = []Plan{
 	},
 }
 
+// Free trial: one per Telegram account, a single connection with capped traffic.
+const (
+	TrialPlanID      = "trial"
+	TrialDuration    = 24 * time.Hour
+	TrialTrafficByte = 2 << 30 // 2 GiB
+)
+
 func GetPlan(id string) *Plan {
 	for i := range Plans {
 		if Plans[i].ID == id {

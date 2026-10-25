@@ -94,6 +94,7 @@ func main() {
 
 			r.Get("/proxies", proxyHandler.List)
 			r.Post("/proxies", proxyHandler.Create)
+			r.Post("/trial", proxyHandler.StartTrial)
 			r.Delete("/proxies/{id}", proxyHandler.Delete)
 
 			r.Post("/payments/create", paymentHandler.CreatePayment)
@@ -133,6 +134,8 @@ func main() {
 		}
 	}()
 	go every(6*time.Hour, 2*time.Minute, bot.RunExpiryReminders)
+	go every(10*time.Minute, 3*time.Minute, bot.RunTrialEndNotices)
+	go every(5*time.Minute, 4*time.Minute, func() { bot.RunTrialTrafficNotices(vpn) })
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
