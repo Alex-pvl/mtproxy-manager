@@ -55,12 +55,17 @@ func (v *VPN) Create(user *models.User) (*models.Proxy, error) {
 }
 
 // Delete removes the x-ui client first so a failure leaves nothing orphaned.
+// A client the panel refuses to remove (e.g. gone after a panel migration)
+// does not block deleting the record.
 func (v *VPN) Delete(p *models.Proxy) error {
 	if v.xui == nil {
 		return errVPNUnavailable
 	}
 	if err := v.xui.RemoveClient(p.VlessEmail); err != nil {
-		return fmt.Errorf("x-ui remove client %s: %w", p.VlessEmail, err)
+		if !errors.Is(err, xui.ErrRejected) {
+			return fmt.Errorf("x-ui remove client %s: %w", p.VlessEmail, err)
+		}
+		log.Printf("vpn: x-ui refused to remove %s, deleting record anyway: %v", p.VlessEmail, err)
 	}
 	return v.db.DeleteProxy(p.ID)
 }

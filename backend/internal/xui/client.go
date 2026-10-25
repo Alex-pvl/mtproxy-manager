@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +22,10 @@ var requests = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Help:    "3x-ui API calls by operation and result (ok|error).",
 	Buckets: prometheus.DefBuckets,
 }, []string{"op", "result"})
+
+// ErrRejected means the panel answered but refused the call (success=false),
+// e.g. removing a client it does not have.
+var ErrRejected = errors.New("rejected by panel")
 
 type Client struct {
 	baseURL   string // panel URL including base path, no trailing slash
@@ -158,7 +163,7 @@ func (c *Client) do(method, path string, body any) (json.RawMessage, error) {
 			method, path, resp.StatusCode, truncate(respBody, 200))
 	}
 	if !result.Success {
-		return nil, fmt.Errorf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, result.Msg)
+		return nil, fmt.Errorf("%s %s: HTTP %d: %s: %w", method, path, resp.StatusCode, result.Msg, ErrRejected)
 	}
 	return result.Obj, nil
 }
