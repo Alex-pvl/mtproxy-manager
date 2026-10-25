@@ -1,6 +1,7 @@
 package xui
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,10 @@ func TestClientV3Calls(t *testing.T) {
 		}
 		b, _ := io.ReadAll(r.Body)
 		got = append(got, r.Method+" "+r.URL.Path+" "+string(b))
+		if strings.HasSuffix(r.URL.Path, "/del/missing") {
+			w.Write([]byte(`{"success":false,"msg":"client not found"}`))
+			return
+		}
 		w.Write([]byte(`{"success":true,"obj":{}}`))
 	}))
 	defer srv.Close()
@@ -44,7 +49,11 @@ func TestClientV3Calls(t *testing.T) {
 		t.Fatalf("SubscriptionURL = %q", s)
 	}
 
-	if _, err := NewClient(srv.URL, "p", "wrong", "x", 1); err == nil || !strings.Contains(err.Error(), "XUI_API_TOKEN") {
+	if err := c.RemoveClient("missing"); !errors.Is(err, ErrRejected) {
+		t.Fatalf("missing client should be ErrRejected, got %v", err)
+	}
+
+	if _, err := NewClient(srv.URL, "p", "wrong", "x", 1); err == nil || !strings.Contains(err.Error(), "XUI_API_TOKEN") || errors.Is(err, ErrRejected) {
 		t.Fatalf("bad token should fail with a hint, got %v", err)
 	}
 }
