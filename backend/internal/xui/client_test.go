@@ -39,7 +39,7 @@ func TestClientV3Calls(t *testing.T) {
 	}
 	want := []string{
 		"GET /p/panel/api/inbounds/get/1 ",
-		`POST /p/panel/api/clients/add {"client":{"id":"u1","email":"a@b","limitIp":1,"totalGB":0,"expiryTime":1000,"enable":true,"subId":"u1"},"inboundIds":[1]}`,
+		`POST /p/panel/api/clients/add {"client":{"id":"u1","flow":"xtls-rprx-vision","email":"a@b","limitIp":1,"totalGB":0,"expiryTime":1000,"enable":true,"subId":"u1"},"inboundIds":[1]}`,
 		"POST /p/panel/api/clients/del/a@b ",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {

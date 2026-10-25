@@ -43,6 +43,7 @@ type apiResponse struct {
 
 type client struct {
 	ID         string `json:"id"`
+	Flow       string `json:"flow"`
 	Email      string `json:"email"`
 	LimitIP    int    `json:"limitIp"`
 	TotalGB    int64  `json:"totalGB"`
@@ -103,7 +104,7 @@ func (c *Client) RemoveClient(email string) error {
 }
 
 func newClient(uuid, email string, expiry time.Time) client {
-	cl := client{ID: uuid, Email: email, LimitIP: 1, Enable: true, SubID: uuid}
+	cl := client{ID: uuid, Flow: "xtls-rprx-vision", Email: email, LimitIP: 1, Enable: true, SubID: uuid}
 	if !expiry.IsZero() {
 		cl.ExpiryTime = expiry.UnixMilli()
 	}
