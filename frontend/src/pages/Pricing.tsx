@@ -45,6 +45,7 @@ export default function Pricing() {
   const [error, setError] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PayMethod>('sbp');
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState(POPULAR_PLAN);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const sub = user?.subscription;
@@ -223,33 +224,39 @@ export default function Pricing() {
     return <div className="text-gray-500 dark:text-gray-400">{t.pricing.loading}</div>;
   }
 
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? plans.find((p) => p.id === POPULAR_PLAN) ?? plans[0];
+  const features = [
+    { sticker: 'no_logs', title: t.pricing.featureNoLogs, desc: t.pricing.featureNoLogsDesc },
+    { sticker: 'cipher', title: t.pricing.featureCipher, desc: t.pricing.featureCipherDesc },
+    { sticker: 'speed', title: t.pricing.featureSpeed, desc: t.pricing.featureSpeedDesc },
+  ];
+
   return (
-    <div>
+    <div className="max-w-xl mx-auto">
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuccess(false)} />
-          <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm p-8 flex flex-col items-center text-center shadow-xl">
+          <div className="card relative w-full max-w-sm p-8 flex flex-col items-center text-center shadow-xl">
             <CheckCircleIcon />
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-3 mb-2">{t.payment.successTitle}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{t.payment.successDesc}</p>
-            <button
-              type="button"
-              onClick={() => setShowSuccess(false)}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl px-4 py-3 transition-colors touch-manipulation"
-            >
+            <button type="button" onClick={() => setShowSuccess(false)} className="spend-cta touch-manipulation">
               {t.payment.ok}
             </button>
           </div>
         </div>
       )}
 
-      <div className="text-center mb-5 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight">{t.pricing.title}</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base px-2 mt-0.5">{t.pricing.subtitle}</p>
+      <div className="card flex items-center gap-4 p-5 mb-6">
+        <Sticker name="tariffs" className="w-16 h-16 shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{t.pricing.title}</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-[15px] mt-1">{t.pricing.subtitle}</p>
+        </div>
       </div>
 
       {sub?.active && !user?.hide_sub_banner && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6 text-center">
+        <div className="card px-4 py-3 mb-6 text-center">
           <p className="text-emerald-600 dark:text-emerald-400 text-sm">
             {t.pricing.activeSubscription}{' '}
             <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
@@ -264,10 +271,57 @@ export default function Pricing() {
 
       <PromoBanner plans={plans} onClick={() => setSelectedMethod('sbp')} />
 
-      <div className="max-w-xl mx-auto mb-6">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
-          {t.payment.selectMethod}
-        </p>
+      {error && (
+        <div className="bg-red-500/10 text-red-500 dark:text-red-400 text-sm rounded-2xl px-4 py-3 mb-6 text-center">
+          {error}
+          <button onClick={() => setError('')} className="ml-2 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white">&times;</button>
+        </div>
+      )}
+
+      <p className="section-title">{t.pricing.planTitle}</p>
+      <div role="radiogroup" aria-label={t.pricing.planTitle} className="card overflow-hidden mb-6">
+        {plans.map((plan) => {
+          const { main, secondary } = getDisplayPrice(plan);
+          const discount = selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0;
+          const on = plan.id === selectedPlan?.id;
+          return (
+            <button
+              key={plan.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setSelectedPlanId(plan.id)}
+              className="choice-row touch-manipulation"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[17px] font-semibold text-gray-900 dark:text-white">{t.pricing.planNames[plan.id] ?? plan.name}</span>
+                  {discount && <span className="badge">&minus;{plan.discount_percent}%</span>}
+                  {!discount && plan.id === POPULAR_PLAN && (
+                    <span className="badge !bg-indigo-500/10 !text-indigo-600 dark:!text-indigo-400">{t.pricing.popular}</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  {selectedMethod === 'sbp' && <>{plan.sbp_per_month ?? plan.per_month}{t.pricing.perMonth} · </>}
+                  {t.pricing.proxy(plan.max_proxies)}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-[17px] font-bold text-gray-900 dark:text-white whitespace-nowrap">{main}</div>
+                {discount && plan.original_price_label ? (
+                  <div className="text-sm text-gray-400 dark:text-gray-500 line-through whitespace-nowrap">{plan.original_price_label}</div>
+                ) : (
+                  secondary && <div className="text-sm text-gray-400 dark:text-gray-500 whitespace-nowrap">{secondary}</div>
+                )}
+              </div>
+              <span className={`radio ${on ? 'radio--on' : ''}`} aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="section-title">{t.payment.selectMethod}</p>
+      <div className="mb-6">
         <PaymentMethodPicker
           methods={methods}
           value={selectedMethod}
@@ -276,124 +330,45 @@ export default function Pricing() {
         />
         {selectedMethod === 'sbp' && (
           <p className="mt-3 text-center">
-            <Link
-              to="/legal/sbp"
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
+            <Link to="/legal/sbp" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
               {t.payment.sbpAgreementShort}
             </Link>
           </p>
         )}
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded px-3 py-2 mb-6 text-center">
-          {error}
-          <button onClick={() => setError('')} className="ml-2 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white">&times;</button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {plans.map((plan) => {
-          const isPopular = plan.id === POPULAR_PLAN;
-          return (
-            <div
-              key={plan.id}
-              className={`relative bg-white dark:bg-gray-900 border rounded-lg p-5 flex flex-col ${
-                isPopular
-                  ? 'order-first sm:order-none border-indigo-500 ring-1 ring-indigo-500/50'
-                  : 'border-gray-200 dark:border-gray-800'
-              }`}
-            >
-              {isPopular && (
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-medium px-3 py-0.5 rounded-full">
-                  {t.pricing.popular}
-                </span>
-              )}
-
-              {/* Phones: name and details on the left, price on the right. Wider screens stack them. */}
-              <div className="flex justify-between gap-3 mb-4 flex-1 sm:flex-col sm:justify-start sm:gap-0">
-                <div className="min-w-0 sm:order-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:hidden">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
-                  {selectedMethod === 'sbp' && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 sm:mb-4">
-                      {plan.sbp_per_month ?? plan.per_month}{t.pricing.perMonth}
-                    </p>
-                  )}
-                  <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                    <span className="text-emerald-500 dark:text-emerald-400">&#10003;</span>
-                    {t.pricing.proxy(plan.max_proxies)}
-                  </p>
-                </div>
-
-                <div className="text-right shrink-0 sm:text-left sm:mb-4">
-                  <h3 className="hidden sm:block text-lg font-semibold text-gray-900 dark:text-white mb-1">{t.pricing.planNames[plan.id] ?? plan.name}</h3>
-                  {selectedMethod === 'sbp' && plan.discount_percent != null && plan.discount_percent > 0 && (
-                    <div className="mb-1 flex items-center justify-end sm:justify-start gap-2">
-                      <span className="inline-flex items-center rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-semibold px-2 py-0.5">
-                        &minus;{plan.discount_percent}%
-                      </span>
-                      {plan.original_price_label && (
-                        <span className="text-sm text-gray-400 dark:text-gray-500 line-through">{plan.original_price_label}</span>
-                      )}
-                    </div>
-                  )}
-                  {(() => {
-                    const { main, secondary } = getDisplayPrice(plan);
-                    return (
-                      <>
-                        <div className="text-3xl font-extrabold text-gray-900 dark:text-white whitespace-nowrap">{main}</div>
-                        {secondary && <div className="text-sm text-gray-400 dark:text-gray-500">{secondary}</div>}
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              <button
-                onClick={() => user ? handleBuyPlan(plan) : undefined}
-                disabled={!user || processingPlanId === plan.id}
-                className="spend-cta touch-manipulation"
-              >
-                {processingPlanId === plan.id ? t.payment.processing : (sub?.active ? t.pricing.renew : t.pricing.buy)}
-              </button>
+      <p className="section-title">{t.pricing.whyTitle}</p>
+      <div className="card overflow-hidden">
+        {features.map((f) => (
+          <div key={f.sticker} className="choice-row cursor-default">
+            <Sticker name={f.sticker} className="w-10 h-10 shrink-0" />
+            <div>
+              <h3 className="font-semibold text-[15px] text-gray-900 dark:text-white">{f.title}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{f.desc}</p>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
-      <div className="mt-10">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{t.pricing.whyTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
-            <Sticker name="no_logs" className="w-10 h-10 shrink-0" />
-            <div>
-              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureNoLogs}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureNoLogsDesc}</p>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
-            <Sticker name="cipher" className="w-10 h-10 shrink-0" />
-            <div>
-              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureCipher}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureCipherDesc}</p>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-3">
-            <Sticker name="speed" className="w-10 h-10 shrink-0" />
-            <div>
-              <h3 className="text-indigo-500 dark:text-indigo-400 font-semibold text-sm mb-0.5">{t.pricing.featureSpeed}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-xs">{t.pricing.featureSpeedDesc}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 text-center">
-        <Link to="/proxies" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+      <div className="mt-6 mb-2 text-center">
+        <Link to="/proxies" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
           {t.pricing.back}
         </Link>
       </div>
+
+      {selectedPlan && (
+        <div className="main-button">
+          <button
+            onClick={() => user ? handleBuyPlan(selectedPlan) : undefined}
+            disabled={!user || processingPlanId !== null}
+            className="spend-cta touch-manipulation"
+          >
+            {processingPlanId
+              ? t.payment.processing
+              : `${sub?.active ? t.pricing.renew : t.pricing.buy} — ${getDisplayPrice(selectedPlan).main}`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

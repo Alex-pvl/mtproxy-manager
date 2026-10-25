@@ -72,11 +72,11 @@ export default function Proxies() {
 
   if (!user) {
     return (
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-12 text-center">
+      <div className="card max-w-xl mx-auto p-10 text-center">
         <p className="text-gray-500 dark:text-gray-400 mb-4">{t.proxies.loginToView}</p>
         <TelegramLoginButton
           label={t.proxies.loginToCreate}
-          className="inline-flex items-center gap-2 bg-[#54a9eb] hover:bg-[#4a96d2] text-white text-sm font-medium rounded px-5 py-2.5 transition-colors touch-manipulation"
+          className="inline-flex items-center gap-2 bg-[#54a9eb] hover:bg-[#4a96d2] text-white text-sm font-semibold rounded-full px-5 py-2.5 transition-colors touch-manipulation"
         />
       </div>
     );
@@ -87,9 +87,9 @@ export default function Proxies() {
   const canCreate = isAdmin || sub?.active;
 
   return (
-    <div>
+    <div className="max-w-xl mx-auto">
       {!isAdmin && !sub?.active && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 mb-6">
+        <div className="bg-amber-500/10 rounded-2xl px-4 py-3 mb-6">
           <p className="text-amber-600 dark:text-amber-400 text-sm text-center">
             {t.proxies.needSubscription}{' '}
             <Link to="/pricing" className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 font-medium underline">
@@ -100,7 +100,7 @@ export default function Proxies() {
       )}
 
       {!isAdmin && sub?.active && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-6">
+        <div className="card px-4 py-3 mb-6">
           <p className="text-emerald-600 dark:text-emerald-400 text-sm text-center">
             {t.proxies.subscription}{' '}
             <span className="font-semibold">{(sub.plan_id && t.pricing.planNames[sub.plan_id]) || sub.plan_name}</span>
@@ -114,9 +114,9 @@ export default function Proxies() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.proxies.title}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t.proxies.title}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {t.proxies.count(proxies.length, user.max_proxies ?? 0)}
           </p>
@@ -124,56 +124,56 @@ export default function Proxies() {
         <button
           onClick={handleCreate}
           disabled={!canCreate || createLoading}
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded px-4 py-2.5 transition-colors touch-manipulation"
+          className="spend-cta sm:!w-auto touch-manipulation"
         >
           {createLoading ? t.proxies.creating : t.proxies.createProxy}
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm rounded px-3 py-2 mb-4">
+        <div className="bg-red-500/10 text-red-500 dark:text-red-400 text-sm rounded-2xl px-4 py-3 mb-4">
           {error}
           <button onClick={() => setError('')} className="ml-2 text-red-400 dark:text-red-300 hover:text-red-600 dark:hover:text-white">&times;</button>
         </div>
       )}
 
       {proxies.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-12 text-center">
-          <p className="text-gray-500 dark:text-gray-400 mb-4">{t.proxies.noProxies}</p>
+        <div className="card p-10 text-center">
+          <p className="text-gray-500 dark:text-gray-400">{t.proxies.noProxies}</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {proxies.map((proxy) => (
             <div
               key={proxy.id}
-              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4 overflow-hidden min-w-0"
+              className="card p-4 overflow-hidden min-w-0"
             >
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{proxy.name}</span>
+                <span className="text-[17px] font-semibold text-gray-900 dark:text-white truncate">{proxy.name}</span>
                 <button
                   onClick={() => handleDelete(proxy.id)}
                   disabled={actionLoading === proxy.id}
-                  className="text-xs bg-red-600/10 hover:bg-red-600/20 text-red-500 dark:text-red-400 rounded px-3 py-2 transition-colors disabled:opacity-50 touch-manipulation"
+                  className="text-sm font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 rounded-full px-4 py-1.5 transition-colors disabled:opacity-50 touch-manipulation"
                 >
                   {t.proxies.delete}
                 </button>
               </div>
 
               {proxy.link_sub && (
-                <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+                <div className="mt-2 rounded-2xl bg-gray-50 dark:bg-gray-800 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <ShieldIcon className="w-4 h-4 text-violet-500 dark:text-violet-400 shrink-0" />
-                      <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{t.proxies.linkLabel}</span>
+                      <ShieldIcon className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t.proxies.linkLabel}</span>
                     </div>
                     <button
                       onClick={() => copy(proxy.link_sub!, proxy.id)}
-                      className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap transition-colors py-1 touch-manipulation shrink-0"
+                      className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap transition-colors py-1 touch-manipulation shrink-0"
                     >
                       {copied === proxy.id ? t.proxies.copied : t.proxies.copy}
                     </button>
                   </div>
-                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 rounded px-2 py-1.5 block break-all">
+                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 rounded-xl px-3 py-2 block break-all">
                     <SubscriptionLink url={proxy.link_sub} />
                   </code>
                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">{t.proxies.linkHint}</p>

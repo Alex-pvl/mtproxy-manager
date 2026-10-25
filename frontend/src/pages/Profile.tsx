@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { referralApi } from '../api/client';
 import { toFriendlyAddress } from '../utils/tonAddress';
 import { TonWalletSheet } from '../components/TonWalletSheet';
+import { ThemeToggle, LangToggle } from '../components/Toggles';
 import { useCopy } from '../hooks/useCopy';
 import { PRIVACY_URL, SUPPORT_URL, TERMS_URL } from '../legal';
 
@@ -69,30 +69,6 @@ function ShieldIcon() {
   );
 }
 
-function SunIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
-
 // ─── Row components ───────────────────────────────────────────────────────────
 
 function ListRow({
@@ -141,7 +117,7 @@ function ListRow({
 
 function ListSection({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+    <div className="card overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
       {children}
     </div>
   );
@@ -153,8 +129,7 @@ export default function Profile() {
   const { user, telegramPhotoUrl, isMiniApp } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { theme, toggleTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const { copied, copy } = useCopy<'link'>(2000);
@@ -189,23 +164,24 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4 pb-4">
+    <div className="max-w-xl mx-auto space-y-4 pb-4">
       {/* ── Avatar + name ── */}
-      <div className="flex flex-col items-center pt-6 pb-2">
+      <div className="card flex items-center gap-4 p-4">
         {telegramPhotoUrl ? (
           <img
             src={telegramPhotoUrl}
             alt={user.username}
-            className="w-24 h-24 rounded-full object-cover shadow-lg mb-3"
+            className="w-16 h-16 rounded-full object-cover shrink-0"
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-4xl font-bold select-none shadow-lg mb-3">
+          <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white text-2xl font-bold select-none shrink-0">
             {user.username.charAt(0).toUpperCase()}
           </div>
         )}
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{user.username}</h1>
+        <div className="min-w-0">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">{user.username}</h1>
         {user.subscription?.active && user.subscription.expires_at && (
-          <p className="text-sm text-emerald-500 dark:text-emerald-400 mt-1">
+          <p className="text-sm text-emerald-500 dark:text-emerald-400 mt-0.5">
             {t.proxies.subscriptionUntil}{' '}
             {new Date(user.subscription.expires_at).toLocaleDateString(
               language === 'ru' ? 'ru-RU' : 'en-US',
@@ -214,10 +190,11 @@ export default function Profile() {
           </p>
         )}
         {user.role === 'admin' && (
-          <span className="mt-2 text-xs bg-indigo-600/30 text-indigo-400 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+          <span className="mt-1 inline-block text-xs bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
             admin
           </span>
         )}
+        </div>
       </div>
 
       {/* ── Referral section ── */}
@@ -288,38 +265,14 @@ export default function Profile() {
       )}
 
       {/* ── App settings row: logo + toggles ── */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
+      <div className="card px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <img src="/logo.png" alt="Stay" className="w-8 h-8 rounded-xl object-cover shrink-0" />
           <span className="font-semibold text-sm text-gray-900 dark:text-white">Stay</span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation"
-          >
-            <span className={`absolute inset-0 flex items-center transition-all duration-200 ${theme === 'dark' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-              <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-gray-600 dark:text-gray-700">
-                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-              </span>
-            </span>
-          </button>
-          {/* Language toggle */}
-          <button
-            type="button"
-            onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
-            aria-label="Toggle language"
-            className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation"
-          >
-            <span className={`absolute inset-0 flex items-center transition-all duration-200 ${language === 'en' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-              <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-[10px] font-bold text-gray-700">
-                {language === 'ru' ? 'RU' : 'EN'}
-              </span>
-            </span>
-          </button>
+          <ThemeToggle />
+          <LangToggle />
         </div>
       </div>
 

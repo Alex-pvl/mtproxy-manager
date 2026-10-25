@@ -47,8 +47,8 @@ export default function Home() {
 
   return (
     <div className="max-w-xl mx-auto">
-      <div className="flex flex-col items-center text-center pt-2 pb-8">
-        <Sticker name="tariffs" className="w-32 h-32 sm:w-40 sm:h-40 mb-4" />
+      <div className="card flex flex-col items-center text-center px-5 pt-6 pb-5 mb-6">
+        <Sticker name="tariffs" className="w-28 h-28 sm:w-36 sm:h-36 mb-4" />
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
           {t.showcase.title}
         </h1>
@@ -58,14 +58,14 @@ export default function Home() {
               type="button"
               onClick={startTrial}
               disabled={trialBusy}
-              className="spend-cta block max-w-xs touch-manipulation"
+              className="spend-cta block touch-manipulation"
             >
               🎁 {trialBusy ? t.proxies.creating : t.showcase.trial}
             </button>
             {trialError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{trialError}</p>}
             <Link
               to="/pricing"
-              className="mt-4 block w-full max-w-xs rounded-full border border-gray-300 dark:border-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-900 dark:text-white hover:border-indigo-500 transition-colors touch-manipulation"
+              className="mt-2.5 block w-full rounded-full bg-indigo-500/10 px-5 py-3 text-base font-semibold text-indigo-600 dark:text-indigo-400 touch-manipulation"
             >
               {t.showcase.cta}
             </Link>
@@ -77,7 +77,7 @@ export default function Home() {
           <>
             <Link
               to={sub?.active ? '/proxies' : '/pricing'}
-              className="spend-cta block max-w-xs text-center touch-manipulation"
+              className="spend-cta block text-center touch-manipulation"
             >
               {sub?.active ? t.showcase.ctaActive : t.showcase.cta}
             </Link>
@@ -92,11 +92,11 @@ export default function Home() {
 
       <PromoBanner plans={plans} onClick={() => navigate('/pricing')} />
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-8">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
         {features.map((f) => (
           <div
             key={f.sticker}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3 flex flex-col items-center text-center"
+            className="card p-3 flex flex-col items-center text-center !rounded-[20px]"
           >
             <Sticker name={f.sticker} className="w-10 h-10 mb-2" />
             <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mb-0.5">{f.title}</h3>
@@ -105,24 +105,24 @@ export default function Home() {
         ))}
       </div>
 
-      <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{t.showcase.stepsTitle}</h2>
-      <ol className="space-y-2 mb-8">
+      <h2 className="section-title">{t.showcase.stepsTitle}</h2>
+      <ol className="card overflow-hidden mb-6">
         {t.showcase.steps.map((step, i) => (
           <li
             key={step}
-            className="flex items-center gap-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3"
+            className="choice-row cursor-default"
           >
-            <span className="w-7 h-7 shrink-0 rounded-full bg-indigo-600 text-white text-sm font-bold flex items-center justify-center">
+            <span className="w-7 h-7 shrink-0 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-sm font-bold flex items-center justify-center">
               {i + 1}
             </span>
-            <span className="text-sm text-gray-700 dark:text-gray-300">{step}</span>
+            <span className="text-[15px] text-gray-900 dark:text-gray-100">{step}</span>
           </li>
         ))}
       </ol>
 
       <Link
         to="/referral"
-        className="group flex items-center gap-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-500 rounded-2xl p-4 transition-colors touch-manipulation"
+        className="group flex items-center gap-3 card p-4 transition-colors touch-manipulation"
       >
         <Sticker name="referals" className="w-12 h-12" />
         <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white">{t.referral.title}</span>

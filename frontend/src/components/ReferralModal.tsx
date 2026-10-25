@@ -41,7 +41,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+      <div className="relative card shadow-xl max-w-md w-full p-6">
         <button
           type="button"
           onClick={onClose}

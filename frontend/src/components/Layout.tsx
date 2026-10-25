@@ -2,40 +2,14 @@ import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTonBalance } from '../hooks/useTonBalance';
 import ReferralModal from './ReferralModal';
 import TelegramLoginButton from './TelegramLoginButton';
 import CredentialsAuthButton from './CredentialsAuthButton';
 import { TonWalletSheet } from './TonWalletSheet';
+import { ThemeToggle, LangToggle } from './Toggles';
 import { PRIVACY_URL, SUPPORT_URL, TERMS_URL } from '../legal';
-
-// ─── Theme icons ──────────────────────────────────────────────────────────────
-
-function SunIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
 
 // ─── Bottom-bar navigation icons ──────────────────────────────────────────────
 
@@ -112,8 +86,7 @@ export default function Layout() {
   const { user, logout, isMiniApp, telegramPhotoUrl } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, t } = useLanguage();
   const [referralOpen, setReferralOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tonActionsOpen, setTonActionsOpen] = useState(false);
@@ -134,36 +107,6 @@ export default function Layout() {
     }
     setTonActionsOpen(true);
   };
-
-  const themeToggle = (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      aria-label="Toggle theme"
-      className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation shrink-0"
-    >
-      <span className={`absolute inset-0 flex items-center transition-all duration-200 ${theme === 'dark' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-        <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-gray-600 dark:text-gray-700">
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </span>
-      </span>
-    </button>
-  );
-
-  const langToggle = (
-    <button
-      type="button"
-      onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}
-      aria-label="Toggle language"
-      className="relative inline-flex items-center w-14 h-7 rounded-full transition-colors focus:outline-none bg-gray-200 dark:bg-gray-700 touch-manipulation shrink-0"
-    >
-      <span className={`absolute inset-0 flex items-center transition-all duration-200 ${language === 'en' ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
-        <span className="w-5 h-5 rounded-full bg-white shadow flex items-center justify-center text-[10px] font-bold text-gray-700">
-          {language === 'ru' ? 'RU' : 'EN'}
-        </span>
-      </span>
-    </button>
-  );
 
   // ── Mini App layout ────────────────────────────────────────────────────────
   if (isMiniApp) {
@@ -187,9 +130,12 @@ export default function Layout() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
+      <div
+        className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col"
+        style={{ '--cta-bottom': 'calc(4rem + env(safe-area-inset-bottom))' } as React.CSSProperties}
+      >
         {/* ── Mini App header ── */}
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 sticky top-0 z-40">
+        <header className="card mx-3 mt-3 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
 
             {/* Avatar + name + subscription — tapping navigates to /profile */}
@@ -204,16 +150,16 @@ export default function Layout() {
                     <img
                       src={telegramPhotoUrl}
                       alt={user.username}
-                      className="w-10 h-10 rounded-full object-cover shrink-0"
+                      className="w-11 h-11 rounded-full object-cover shrink-0"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-semibold text-base shrink-0 select-none">
+                    <div className="w-11 h-11 rounded-full bg-indigo-500 flex items-center justify-center text-white font-semibold text-base shrink-0 select-none">
                       {user.username.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                      <span className="font-semibold text-base text-gray-900 dark:text-white truncate">
                         {user.username}
                       </span>
                       {user.role === 'admin' && (
@@ -222,7 +168,7 @@ export default function Layout() {
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                       {subText}
                     </div>
                   </div>
@@ -239,9 +185,9 @@ export default function Layout() {
               type="button"
               onClick={openTonWalletActions}
               aria-label="GRAM wallet"
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-semibold transition-colors touch-manipulation shrink-0 ${
                 wallet
-                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
               }`}
             >
@@ -257,7 +203,7 @@ export default function Layout() {
 
         {/* ── Page content ── */}
         <main
-          className="w-full flex-1 px-3 py-4"
+          className="w-full flex-1 px-3 pt-5"
           style={{ paddingBottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
         >
           <Outlet />
@@ -267,7 +213,7 @@ export default function Layout() {
 
         {/* ── Bottom navigation bar ── */}
         <nav
-          className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
+          className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t border-gray-100 dark:border-gray-800"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-center justify-around h-16">
@@ -283,7 +229,7 @@ export default function Layout() {
                   aria-label={item.ariaLabel}
                   className={`flex items-center justify-center w-full h-full transition-colors touch-manipulation ${
                     isActive
-                      ? 'text-indigo-600 dark:text-indigo-400'
+                      ? 'text-indigo-500 dark:text-indigo-400'
                       : 'text-gray-400 dark:text-gray-500 active:text-gray-600 dark:active:text-gray-300'
                   }`}
                 >
@@ -325,10 +271,13 @@ export default function Layout() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
+    <div
+      className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col"
+      style={{ '--cta-safe': 'env(safe-area-inset-bottom)' } as React.CSSProperties}
+    >
       <ReferralModal isOpen={referralOpen} onClose={() => setReferralOpen(false)} />
-      <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+      <nav className="card sticky top-3 z-40 mx-3 mt-3 sm:mx-auto sm:w-[calc(100%-2rem)] max-w-6xl">
+        <div className="px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 sm:gap-6 min-w-0">
             <Link to="/" className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight whitespace-nowrap">
               {t.common.appName}
@@ -345,7 +294,7 @@ export default function Layout() {
               aria-label="GRAM wallet"
               className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation shrink-0 ${
                 wallet
-                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 hover:bg-sky-500/25 dark:hover:bg-sky-500/25'
+                  ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 dark:hover:bg-indigo-500/20'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
@@ -357,15 +306,15 @@ export default function Layout() {
               </span>
             </button>
 
-            {themeToggle}
-            {langToggle}
+            <ThemeToggle />
+            <LangToggle />
             <button
               type="button"
               onClick={openTonWalletActions}
               aria-label="GRAM wallet"
               className={`md:hidden flex items-center justify-center w-9 h-9 rounded-full transition-colors touch-manipulation shrink-0 ${
                 wallet
-                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                  ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
               }`}
             >
@@ -393,9 +342,9 @@ export default function Layout() {
               <div className="hidden md:flex items-center gap-2">
                 <TelegramLoginButton
                   label={t.nav.login}
-                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
+                  className="flex items-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-semibold rounded-full px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap"
                 />
-                <CredentialsAuthButton className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap" />
+                <CredentialsAuthButton className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-full px-3 py-1.5 transition-colors touch-manipulation whitespace-nowrap" />
               </div>
             )}
             <button
@@ -415,9 +364,9 @@ export default function Layout() {
           </div>
         </div>
         {menuOpen && (
-          <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 flex flex-col gap-3">
+          <div className="md:hidden border-t border-gray-100 dark:border-gray-800 px-4 py-3 flex flex-col gap-3">
             {navLinks}
-            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
               {user ? (
                 <>
                   <span className="text-sm text-gray-500 dark:text-gray-400">{user.username}</span>
@@ -429,10 +378,10 @@ export default function Layout() {
                 <div className="w-full flex flex-col gap-2">
                   <TelegramLoginButton
                     label={t.nav.login}
-                    className="flex items-center justify-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-medium rounded-md px-3 py-2 transition-colors touch-manipulation"
+                    className="flex items-center justify-center gap-1.5 bg-[#54a9eb] hover:bg-[#4a96d2] disabled:opacity-50 text-white text-sm font-semibold rounded-full px-3 py-2 transition-colors touch-manipulation"
                   />
                   <CredentialsAuthButton
-                    className="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-md px-3 py-2 transition-colors touch-manipulation"
+                    className="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-full px-3 py-2 transition-colors touch-manipulation"
                     onSuccess={() => setMenuOpen(false)}
                   />
                 </div>
@@ -441,13 +390,13 @@ export default function Layout() {
           </div>
         )}
       </nav>
-      <main className="mx-auto max-w-6xl w-full px-3 sm:px-4 py-4 sm:py-8 flex-1">
+      <main className="mx-auto max-w-6xl w-full px-3 sm:px-4 pt-5 pb-4 sm:pt-8 flex-1">
         <Outlet />
       </main>
 
       <TonWalletSheet open={tonActionsOpen} onClose={() => setTonActionsOpen(false)} />
 
-      <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-4">
+      <footer className="py-6">
         <div className="mx-auto max-w-6xl px-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs text-gray-400 dark:text-gray-500">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>

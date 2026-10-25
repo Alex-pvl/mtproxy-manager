@@ -49,6 +49,7 @@ const ru = {
   pricing: {
     title: 'Тарифы',
     subtitle: 'Выберите подходящий план',
+    planTitle: 'Тариф',
     perMonth: '/мес',
     activeSubscription: 'Активная подписка:',
     until: 'до',
@@ -217,6 +218,7 @@ const en = {
   pricing: {
     title: 'Pricing',
     subtitle: 'Choose the right plan for internet access',
+    planTitle: 'Plan',
     perMonth: '/mo',
     activeSubscription: 'Active subscription:',
     until: 'until',

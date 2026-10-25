@@ -2,15 +2,35 @@
 
 @variant dark (&:where(.dark, .dark *));
 
-/* spend.tg-inspired theme tokens for product checkout pages */
+/*
+ * Minimal Telegram-style palette. The stock gray/indigo scales are remapped so
+ * every page picks up the blue-gray backgrounds and the #0a84ff accent without
+ * touching each class: gray-50 is the light page, gray-950 the dark page,
+ * gray-900 the dark card, indigo is the accent.
+ */
 @theme {
-  --color-spend-bg: #12172c;
-  --color-spend-card: #1e2337;
-  --color-spend-card-hover: #252a44;
-  --color-spend-muted: #8b93b3;
-  --color-spend-accent: #3aa8fc;
-  --color-spend-accent-soft: #07acff1a;
-  --color-spend-border: #ffffff14;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+
+  --color-gray-50: #eef1f6;
+  --color-gray-100: #e9edf3;
+  --color-gray-200: #dfe4ec;
+  --color-gray-300: #c4cbd6;
+  --color-gray-400: #8e98a8;
+  --color-gray-500: #727d8e;
+  --color-gray-600: #535d6d;
+  --color-gray-700: #2d3747;
+  --color-gray-800: #263142;
+  --color-gray-900: #1b2534;
+  --color-gray-950: #111a26;
+
+  --color-indigo-300: #6cb5ff;
+  --color-indigo-400: #3d9cff;
+  --color-indigo-500: #0a84ff;
+  --color-indigo-600: #0a84ff;
+  --color-indigo-700: #0070e0;
+
+  --color-spend-accent: #0a84ff;
+  --color-spend-accent-soft: #0a84ff1a;
 }
 
 @layer utilities {
@@ -19,120 +39,146 @@
   }
 }
 
-/* Dedicated dark surface for spend-* checkout UI (Pricing). */
-.spend-surface {
-  background: #12172c;
-  color: #fff;
-  font-family: Inter, -apple-system, system-ui, sans-serif;
-  min-height: 100%;
+@layer components {
+  /* Borderless rounded surface; the building block of every page. */
+  .card {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 1px 2px rgb(16 24 40 / 0.04);
+  }
+  .dark .card {
+    background: var(--color-gray-900);
+    box-shadow: none;
+  }
+
+  /* Small caps heading above a group of cards. */
+  .section-title {
+    display: block;
+    margin: 0 0 8px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gray-500);
+  }
+  .dark .section-title { color: var(--color-gray-400); }
+
+  /* Selectable row inside a card: title + subtitle left, value + radio right. */
+  .choice-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .choice-row + .choice-row { border-top: 1px solid var(--color-gray-100); }
+  .dark .choice-row + .choice-row { border-top-color: var(--color-gray-800); }
+
+  .radio {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    border: 2px solid var(--color-gray-300);
+    transition: border 0.15s ease;
+  }
+  .dark .radio { border-color: var(--color-gray-600); }
+  .radio--on,
+  .dark .radio--on { border: 7px solid var(--color-indigo-500); background: #fff; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    background: var(--color-indigo-500);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+  }
 }
-.spend-surface input::placeholder {
-  color: #8b93b3;
-}
+
 .spend-pill {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  background: #f3f4f6;
-  border: 1px solid transparent;
-  border-radius: 9999px;
-  padding: 14px 20px;
-  color: #111827;
+  background: #fff;
+  border: 0;
+  border-radius: 24px;
+  padding: 14px 16px;
+  color: var(--color-gray-900);
   font-size: 16px;
   line-height: 22px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.spend-pill:hover { background: #e5e7eb; }
-.spend-pill:focus-within { border-color: #3aa8fc; }
-.spend-pill--error,
-.spend-pill--error:focus-within { border-color: #fb7185; }
 .spend-pill__icon {
   width: 22px;
   height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--color-gray-500);
   flex-shrink: 0;
 }
-.spend-pill__label { flex: 1; min-width: 0; }
-.spend-pill__placeholder { color: #6b7280; }
-.spend-pill__value-right { color: #6b7280; font-size: 14px; }
-.spend-pill__chevron { color: #6b7280; flex-shrink: 0; transition: transform 0.2s ease; }
-.spend-pill[aria-expanded="true"] .spend-pill__chevron { transform: rotate(180deg); }
-.spend-pill input {
-  flex: 1;
-  background: transparent;
-  border: 0;
-  outline: 0;
-  color: #111827;
-  font-size: 16px;
-  font-family: inherit;
-  min-width: 0;
-}
-.spend-pill input::placeholder { color: #6b7280; }
+.spend-pill__label { flex: 1; min-width: 0; font-weight: 600; }
+.spend-pill__placeholder { color: var(--color-gray-500); font-weight: 400; }
+.spend-pill__chevron { color: var(--color-gray-500); flex-shrink: 0; transition: transform 0.2s ease; }
 
-.dark .spend-pill { background: #1e2337; color: #fff; }
-.dark .spend-pill:hover { background: #252a44; }
+.dark .spend-pill { background: var(--color-gray-900); color: #fff; }
 .dark .spend-pill__icon,
 .dark .spend-pill__placeholder,
-.dark .spend-pill__value-right,
-.dark .spend-pill__chevron { color: #8b93b3; }
-.dark .spend-pill input { color: #fff; }
-.dark .spend-pill input::placeholder { color: #8b93b3; }
+.dark .spend-pill__chevron { color: var(--color-gray-400); }
+
+/* Pill-shaped primary button. */
 .spend-cta {
   width: 100%;
-  background: #3aa8fc;
+  background: var(--color-indigo-500);
   color: #fff;
   border: 0;
   border-radius: 9999px;
-  padding: 10px 20px;
-  font-size: 15px;
+  padding: 12px 20px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition: filter 0.15s ease, opacity 0.15s ease;
 }
-.spend-cta:hover { background: #4fb3fd; }
+.spend-cta:hover { filter: brightness(1.08); }
 .spend-cta:disabled { opacity: 0.5; cursor: not-allowed; }
-.spend-tabs {
-  display: inline-flex;
-  background: #e5e7eb;
-  border-radius: 9999px;
-  padding: 6px;
+
+/*
+ * Main action pinned to the bottom of the screen, like Telegram's MainButton.
+ * --cta-bottom is set by the layout (above the mini app tab bar, or 0 on web).
+ */
+.main-button {
+  position: sticky;
+  bottom: var(--cta-bottom, 0px);
+  z-index: 30;
+  padding: 12px 0 calc(12px + var(--cta-safe, 0px));
+  background: linear-gradient(to top, var(--color-gray-50) 70%, transparent);
 }
-.spend-tab {
-  padding: 8px 22px;
-  border-radius: 9999px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #374151;
-  text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.spend-tab--active { background: #fff; color: #12172c; font-weight: 600; }
-.dark .spend-tabs { background: #1e2337; }
-.dark .spend-tab { color: #fff; }
-.dark .spend-tab--active { background: #fff; color: #12172c; }
+.dark .main-button { background: linear-gradient(to top, var(--color-gray-950) 70%, transparent); }
+.main-button .spend-cta { padding: 15px 20px; }
 
 .spend-sheet {
   background: #fff;
-  border: 1px solid #e5e7eb;
   border-radius: 24px;
-  padding: 12px;
+  padding: 6px;
   margin-top: 8px;
   display: grid;
-  gap: 6px;
+  gap: 2px;
 }
 .spend-sheet__item {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 16px;
-  color: #111827;
+  border-radius: 18px;
+  color: var(--color-gray-900);
   font-size: 15px;
   background: transparent;
   border: 0;
@@ -141,13 +187,12 @@
   width: 100%;
   transition: background 0.15s ease;
 }
-.spend-sheet__item:hover { background: #f3f4f6; }
-.spend-sheet__item--active { background: #07acff1a; color: #3aa8fc; }
-.spend-sheet__item-desc { color: #6b7280; font-size: 12px; line-height: 16px; }
-.dark .spend-sheet { background: #1e2337; border-color: transparent; }
+.spend-sheet__item:hover { background: var(--color-gray-100); }
+.spend-sheet__item--active { background: var(--color-spend-accent-soft); color: var(--color-indigo-500); }
+.dark .spend-sheet { background: var(--color-gray-900); }
 .dark .spend-sheet__item { color: #fff; }
-.dark .spend-sheet__item:hover { background: #252a44; }
-.dark .spend-sheet__item-desc { color: #8b93b3; }
+.dark .spend-sheet__item:hover { background: var(--color-gray-800); }
+.dark .spend-sheet__item--active { color: var(--color-indigo-400); }
 
 html,
 body {

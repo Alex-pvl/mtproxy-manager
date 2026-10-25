@@ -15,7 +15,7 @@ export default function PromoBanner({ plans, onClick }: { plans: Plan[]; onClick
     <button
       type="button"
       onClick={onClick}
-      className="w-full max-w-xl mx-auto block bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-sm font-medium rounded-lg px-4 py-3 mb-6 text-center touch-manipulation"
+      className="w-full max-w-xl mx-auto block bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 text-sm font-semibold rounded-2xl px-4 py-3 mb-6 text-center touch-manipulation"
     >
       {t.pricing.promoBanner(promo.discount_percent ?? 0, until)}
     </button>

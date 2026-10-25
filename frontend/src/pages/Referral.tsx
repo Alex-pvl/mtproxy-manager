@@ -99,9 +99,9 @@ export default function Referral() {
   }
 
   return (
-    <div className="max-w-lg mx-auto pb-4">
+    <div className="max-w-xl mx-auto pb-4">
       {/* ── Illustration + title ── */}
-      <div className="flex flex-col items-center text-center pt-4 pb-6 px-4">
+      <div className="card flex flex-col items-center text-center p-5 mb-4">
         <Sticker name="referals" className="w-28 h-28" />
         <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-4 mb-2">
           {t.referral.title}
@@ -112,21 +112,21 @@ export default function Referral() {
       </div>
 
       {/* ── Stats row ── */}
-      <div className="grid grid-cols-2 gap-3 px-4 mb-4">
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{invitedCount}</p>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="card p-4 text-center">
+          <p className="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{invitedCount}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.referral.invitedLabel}</p>
         </div>
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 text-center">
+        <div className="card p-4 text-center">
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{bonusDays}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.referral.bonusDaysLabel}</p>
         </div>
       </div>
 
       {/* ── Referral link ── */}
-      <div className="mx-4 mb-4">
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 px-0.5">{t.referral.link}</p>
-        <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+      <div className="mb-4">
+        <p className="section-title">{t.referral.link}</p>
+        <div className="flex items-center gap-2 card pl-4 pr-2 py-2">
           <p className="flex-1 text-sm text-gray-600 dark:text-gray-300 truncate font-mono">
             {loading ? t.referral.loading : (link || '—')}
           </p>
@@ -134,7 +134,7 @@ export default function Referral() {
             type="button"
             onClick={handleCopy}
             disabled={loading || !link}
-            className={`shrink-0 p-2 rounded-xl transition-colors touch-manipulation disabled:opacity-40 ${
+            className={`shrink-0 p-2.5 rounded-full transition-colors touch-manipulation disabled:opacity-40 ${
               copied
                 ? 'text-emerald-500 bg-emerald-500/10'
                 : 'text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20'
@@ -147,12 +147,12 @@ export default function Referral() {
       </div>
 
       {/* ── Copy button ── */}
-      <div className="mx-4 mb-5 space-y-2.5">
+      <div className="mb-5 space-y-2.5">
         <button
           type="button"
           onClick={handleCopy}
           disabled={loading || !link}
-          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-2xl px-4 py-3.5 transition-colors touch-manipulation"
+          className="spend-cta !py-3.5 touch-manipulation"
         >
           {copied ? t.referral.copied : t.referral.copy}
         </button>
@@ -160,7 +160,7 @@ export default function Referral() {
           type="button"
           onClick={handleShare}
           disabled={loading || !link}
-          className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-2xl px-4 py-3.5 transition-colors touch-manipulation"
+          className="w-full flex items-center justify-center gap-2 bg-indigo-500/10 disabled:opacity-50 text-indigo-600 dark:text-indigo-400 text-base font-semibold rounded-full px-4 py-3.5 transition-colors touch-manipulation"
         >
           <ShareIcon />
           {shared ? t.referral.shared : t.referral.share}
@@ -168,10 +168,10 @@ export default function Referral() {
       </div>
 
       {/* ── How it works ── */}
-      <div className="mx-4 space-y-3">
+      <div className="space-y-3">
         {invitedCount > 0 && (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex gap-3">
-            <span className="text-violet-500 dark:text-violet-400 mt-0.5">
+          <div className="card p-4 flex gap-3">
+            <span className="text-indigo-500 dark:text-indigo-400 mt-0.5">
               <UserPlusIcon />
             </span>
             <div>

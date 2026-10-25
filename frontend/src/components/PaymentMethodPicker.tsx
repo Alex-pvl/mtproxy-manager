@@ -52,7 +52,7 @@ export default function PaymentMethodPicker({ methods, value, onChange, placehol
       >
         {selected ? (
           <>
-            <img src={selected.icon} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+            <img src={selected.icon} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
             <span className="spend-pill__label">{selected.label}</span>
           </>
         ) : (
@@ -82,7 +82,7 @@ export default function PaymentMethodPicker({ methods, value, onChange, placehol
               <img src={m.icon} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
               <span className="flex-1">{m.label}</span>
               {m.badge && (
-                <span className="text-[10px] uppercase tracking-wider bg-[#07acff1a] text-[#3aa8fc] px-2 py-0.5 rounded-full">
+                <span className="text-[10px] uppercase tracking-wider bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-full">
                   {m.badge}
                 </span>
               )}
