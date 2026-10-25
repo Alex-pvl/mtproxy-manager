@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"mtproxy-manager/internal/database"
 	"mtproxy-manager/internal/models"
@@ -53,6 +54,41 @@ func (h *ProxyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, proxy)
 }
 
+// StartTrial gives a Telegram user who never subscribed one day and one
+// connection capped at 2 GiB.
+func (h *ProxyHandler) StartTrial(w http.ResponseWriter, r *http.Request) {
+	user, err := h.db.GetUserByID(getClaims(r).UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get user")
+		return
+	}
+	if ok, err := h.db.TrialAvailable(user); err != nil || !ok {
+		writeError(w, http.StatusForbidden, "free trial is not available")
+		return
+	}
+	if h.vpn.xui == nil {
+		writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable, please try again later")
+		return
+	}
+	sub, started, err := h.db.StartTrial(user.ID, time.Now())
+	if err != nil || !started {
+		writeError(w, http.StatusForbidden, "free trial is not available")
+		return
+	}
+	if err := h.db.UpdateUser(user.ID, user.Role, 1, user.HideSubBanner); err != nil {
+		log.Printf("trial user=%d: set max proxies: %v", user.ID, err)
+	}
+	proxy, err := h.vpn.Create(user)
+	if err != nil {
+		// The trial stays used; the user can still create the connection from "My services".
+		log.Printf("trial user=%d: create vpn: %v", user.ID, err)
+		writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable, please try again later")
+		return
+	}
+	log.Printf("trial started: user=%d expires=%s", user.ID, sub.ExpiresAt.Format(time.RFC3339))
+	writeJSON(w, http.StatusCreated, proxy)
+}
+
 func (h *ProxyHandler) List(w http.ResponseWriter, r *http.Request) {
 	proxies, err := h.vpn.List(getClaims(r).UserID)
 	if err != nil {
@@ -74,6 +110,11 @@ func (h *ProxyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get connection")
+		return
+	}
+	// ponytail: recreating a trial connection would reset its 2 GiB counter.
+	if sub, _ := h.db.GetActiveSubscription(proxy.UserID); sub != nil && sub.PlanID == models.TrialPlanID {
+		writeError(w, http.StatusForbidden, "connections cannot be deleted during the free trial")
 		return
 	}
 	if err := h.vpn.Delete(proxy); err != nil {

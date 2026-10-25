@@ -38,6 +38,8 @@ type subscriptionInfo struct {
 	PlanID    string     `json:"plan_id,omitempty"`
 	PlanName  string     `json:"plan_name,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// TrialAvailable: no subscription yet and the free trial is still unused.
+	TrialAvailable bool `json:"trial_available,omitempty"`
 }
 
 type meResponse struct {
@@ -173,11 +175,17 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 func loadSubscriptionInfo(db *database.DB, userID int64) *subscriptionInfo {
 	sub, _ := db.GetActiveSubscription(userID)
 	if sub == nil {
-		return &subscriptionInfo{Active: false}
+		info := &subscriptionInfo{Active: false}
+		if user, err := db.GetUserByID(userID); err == nil {
+			info.TrialAvailable, _ = db.TrialAvailable(user)
+		}
+		return info
 	}
 	info := &subscriptionInfo{Active: true, PlanID: sub.PlanID, PlanName: sub.PlanID, ExpiresAt: &sub.ExpiresAt}
 	if plan := models.GetPlan(sub.PlanID); plan != nil {
 		info.PlanName = plan.Name
+	} else if sub.PlanID == models.TrialPlanID {
+		info.PlanName = "Пробный период"
 	}
 	return info
 }

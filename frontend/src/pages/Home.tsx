@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { paymentApi, type Plan } from '../api/client';
+import { apiError, paymentApi, proxyApi, type Plan } from '../api/client';
 import PromoBanner from '../components/PromoBanner';
 import Sticker from '../components/Sticker';
 import { useAuth } from '../context/AuthContext';
@@ -10,9 +10,11 @@ const rubles = (label: string) => parseInt(label.replace(/\D/g, ''), 10);
 
 export default function Home() {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [trialBusy, setTrialBusy] = useState(false);
+  const [trialError, setTrialError] = useState('');
 
   useEffect(() => {
     paymentApi.listPlans().then((res) => setPlans(res.data)).catch(() => {});
@@ -22,6 +24,20 @@ export default function Home() {
   const minPerMonth = plans.length
     ? Math.min(...plans.map((p) => rubles(p.sbp_per_month ?? p.per_month)))
     : null;
+
+  const startTrial = async () => {
+    setTrialBusy(true);
+    setTrialError('');
+    try {
+      await proxyApi.startTrial();
+      await refreshUser();
+      navigate('/proxies');
+    } catch (err) {
+      setTrialError(apiError(err, t.showcase.trialFailed));
+    } finally {
+      setTrialBusy(false);
+    }
+  };
 
   const features = [
     { sticker: 'no_logs', title: t.pricing.featureNoLogs, desc: t.pricing.featureNoLogsDesc },
@@ -47,6 +63,19 @@ export default function Home() {
             ? t.showcase.activeUntil(new Date(sub.expires_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'))
             : minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
         </p>
+        {sub?.trial_available && (
+          <>
+            <button
+              type="button"
+              onClick={startTrial}
+              disabled={trialBusy}
+              className="mt-4 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50 touch-manipulation"
+            >
+              {trialBusy ? t.proxies.creating : t.showcase.trial}
+            </button>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{trialError || t.showcase.trialHint}</p>
+          </>
+        )}
       </div>
 
       <PromoBanner plans={plans} onClick={() => navigate('/pricing')} />

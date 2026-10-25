@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -100,6 +101,7 @@ func (db *DB) migrate() error {
 		)`,
 		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_7d_sent BOOLEAN NOT NULL DEFAULT FALSE",
 		"ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_1d_sent BOOLEAN NOT NULL DEFAULT FALSE",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_one_trial ON subscriptions(user_id) WHERE plan_id = 'trial'",
 
 		`CREATE TABLE IF NOT EXISTS referral_codes (
 			user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -424,6 +426,34 @@ func (db *DB) CreateSubscription(s *models.Subscription) error {
 		s.UserID, s.PlanID, s.PaymentID, s.StartsAt, s.ExpiresAt,
 	).Scan(&s.ID, &s.CreatedAt)
 	return err
+}
+
+// TrialAvailable is true for Telegram users who never had any subscription.
+func (db *DB) TrialAvailable(user *models.User) (bool, error) {
+	if user.TelegramID <= 0 {
+		return false, nil
+	}
+	var had bool
+	err := db.conn.QueryRow(`SELECT EXISTS (SELECT 1 FROM subscriptions WHERE user_id = $1)`, user.ID).Scan(&had)
+	return !had, err
+}
+
+// StartTrial inserts the trial subscription; false if the user already had one
+// (the unique index makes this safe against double clicks).
+func (db *DB) StartTrial(userID int64, now time.Time) (*models.Subscription, bool, error) {
+	s := &models.Subscription{UserID: userID, PlanID: models.TrialPlanID, StartsAt: now, ExpiresAt: now.Add(models.TrialDuration)}
+	err := db.conn.QueryRow(
+		`INSERT INTO subscriptions (user_id, plan_id, payment_id, starts_at, expires_at) VALUES ($1, $2, 0, $3, $4)
+		 ON CONFLICT (user_id) WHERE plan_id = 'trial' DO NOTHING RETURNING id, created_at`,
+		s.UserID, s.PlanID, s.StartsAt, s.ExpiresAt,
+	).Scan(&s.ID, &s.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return s, true, nil
 }
 
 func (db *DB) GetActiveSubscription(userID int64) (*models.Subscription, error) {

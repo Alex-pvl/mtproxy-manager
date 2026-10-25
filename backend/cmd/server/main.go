@@ -94,6 +94,7 @@ func main() {
 
 			r.Get("/proxies", proxyHandler.List)
 			r.Post("/proxies", proxyHandler.Create)
+			r.Post("/trial", proxyHandler.StartTrial)
 			r.Delete("/proxies/{id}", proxyHandler.Delete)
 
 			r.Post("/payments/create", paymentHandler.CreatePayment)

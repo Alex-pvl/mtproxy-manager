@@ -32,6 +32,7 @@ export interface Subscription {
   plan_id?: string;
   plan_name?: string;
   expires_at?: string;
+  trial_available?: boolean;
 }
 
 export interface User {
@@ -92,6 +93,7 @@ export const referralApi = {
 export const proxyApi = {
   list: () => api.get<Proxy[]>('/proxies'),
   create: () => api.post<Proxy>('/proxies', {}),
+  startTrial: () => api.post<Proxy>('/trial', {}),
   delete: (id: number) => api.delete(`/proxies/${id}`),
 };
 

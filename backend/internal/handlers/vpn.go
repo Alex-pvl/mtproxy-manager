@@ -37,11 +37,15 @@ func (v *VPN) Create(user *models.User) (*models.Proxy, error) {
 		return nil, err
 	}
 	var expiry time.Time
+	var traffic int64
 	if sub, _ := v.db.GetActiveSubscription(user.ID); sub != nil {
 		expiry = sub.ExpiresAt
+		if sub.PlanID == models.TrialPlanID {
+			traffic = models.TrialTrafficByte
+		}
 	}
 	p := &models.Proxy{UserID: user.ID, VlessUUID: uuid, VlessEmail: nextClientName(user.Username, existing)}
-	if err := v.xui.AddClient(uuid, p.VlessEmail, expiry); err != nil {
+	if err := v.xui.AddClient(uuid, p.VlessEmail, expiry, traffic); err != nil {
 		return nil, fmt.Errorf("x-ui add client %s: %w", p.VlessEmail, err)
 	}
 	if err := v.db.CreateProxy(p); err != nil {
