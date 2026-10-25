@@ -105,6 +105,14 @@ func (v *VPN) SyncExpiry(userID int64, expiresAt time.Time) {
 	}
 }
 
+// TrafficUsed is up+down bytes per client email; nil when the panel is off.
+func (v *VPN) TrafficUsed() (map[string]int64, error) {
+	if v.xui == nil {
+		return nil, errVPNUnavailable
+	}
+	return v.xui.TrafficUsed()
+}
+
 func (v *VPN) List(userID int64) ([]models.Proxy, error) {
 	proxies, err := v.db.ListProxiesByUser(userID)
 	for i := range proxies {

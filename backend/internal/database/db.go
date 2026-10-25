@@ -531,7 +531,8 @@ func (db *DB) ListEndedTrials() ([]EndedTrial, error) {
 			EXISTS (SELECT 1 FROM subscriptions a WHERE a.user_id = s.user_id AND a.expires_at > NOW())
 		FROM subscriptions s
 		JOIN users u ON u.id = s.user_id
-		WHERE s.plan_id = 'trial' AND s.expires_at <= NOW() AND NOT s.expiry_reminder_1d_sent`)
+		WHERE s.plan_id = 'trial' AND s.expires_at <= NOW() AND NOT s.expiry_reminder_1d_sent
+		  AND NOT s.expiry_reminder_7d_sent -- already told their traffic ran out`)
 	if err != nil {
 		return nil, err
 	}
@@ -540,6 +541,36 @@ func (db *DB) ListEndedTrials() ([]EndedTrial, error) {
 	for rows.Next() {
 		var t EndedTrial
 		if err := rows.Scan(&t.ID, &t.TelegramID, &t.Subscribed); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// TrialOutOfTraffic is a running trial whose "traffic used up" notice is not sent yet.
+type TrialOutOfTraffic struct {
+	ID         int64
+	UserID     int64
+	TelegramID int64
+}
+
+// ListRunningTrials uses expiry_reminder_7d_sent as the "traffic notice sent"
+// flag; trials never get the 7-day reminder.
+func (db *DB) ListRunningTrials() ([]TrialOutOfTraffic, error) {
+	rows, err := db.conn.Query(`
+		SELECT s.id, s.user_id, u.telegram_id
+		FROM subscriptions s
+		JOIN users u ON u.id = s.user_id AND COALESCE(u.telegram_id, 0) > 0
+		WHERE s.plan_id = 'trial' AND s.expires_at > NOW() AND NOT s.expiry_reminder_7d_sent`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TrialOutOfTraffic
+	for rows.Next() {
+		var t TrialOutOfTraffic
+		if err := rows.Scan(&t.ID, &t.UserID, &t.TelegramID); err != nil {
 			return nil, err
 		}
 		out = append(out, t)

@@ -102,6 +102,29 @@ func (c *Client) UpdateClientExpiry(uuid, email string, expiry time.Time) error 
 	return err
 }
 
+// TrafficUsed returns up+down bytes per client email, from the inbound's clientStats.
+func (c *Client) TrafficUsed() (map[string]int64, error) {
+	obj, err := c.call(http.MethodGet, fmt.Sprintf("panel/api/inbounds/get/%d", c.inboundID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var inbound struct {
+		ClientStats []struct {
+			Email string `json:"email"`
+			Up    int64  `json:"up"`
+			Down  int64  `json:"down"`
+		} `json:"clientStats"`
+	}
+	if err := json.Unmarshal(obj, &inbound); err != nil {
+		return nil, fmt.Errorf("parse inbound %d: %w", c.inboundID, err)
+	}
+	used := make(map[string]int64, len(inbound.ClientStats))
+	for _, s := range inbound.ClientStats {
+		used[s.Email] = s.Up + s.Down
+	}
+	return used, nil
+}
+
 func (c *Client) RemoveClient(email string) error {
 	_, err := c.call(http.MethodPost, "panel/api/clients/del/"+url.PathEscape(email), nil)
 	return err
