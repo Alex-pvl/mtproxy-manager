@@ -54,7 +54,8 @@
   /* Small caps heading above a group of cards. */
   .section-title {
     display: block;
-    margin: 0 0 8px;
+    /* Sits after an mb-6 block: pull up so the gap above matches the gap below. */
+    margin: -12px 0 12px;
     padding: 0 16px;
     font-size: 13px;
     font-weight: 600;

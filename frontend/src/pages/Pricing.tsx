@@ -248,7 +248,7 @@ export default function Pricing() {
       )}
 
       <div className="card flex items-center gap-4 p-5 mb-6">
-        <Sticker name="tariffs" className="w-16 h-16 shrink-0" />
+        <Sticker name="tariffs-list" className="w-16 h-16 shrink-0" />
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{t.pricing.title}</h1>
           <p className="text-gray-500 dark:text-gray-400 text-[15px] mt-1">{t.pricing.subtitle}</p>
