@@ -52,28 +52,40 @@ export default function Home() {
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
           {t.showcase.title}
         </h1>
-        <Link
-          to={sub?.active ? '/proxies' : '/pricing'}
-          className="spend-cta block max-w-xs text-center touch-manipulation"
-        >
-          {sub?.active ? t.showcase.ctaActive : t.showcase.cta}
-        </Link>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 h-4">
-          {sub?.active && sub.expires_at
-            ? t.showcase.activeUntil(new Date(sub.expires_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'))
-            : minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
-        </p>
-        {sub?.trial_available && (
+        {sub?.trial_available ? (
           <>
             <button
               type="button"
               onClick={startTrial}
               disabled={trialBusy}
-              className="mt-4 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50 touch-manipulation"
+              className="spend-cta block max-w-xs touch-manipulation"
             >
-              {trialBusy ? t.proxies.creating : t.showcase.trial}
+              🎁 {trialBusy ? t.proxies.creating : t.showcase.trial}
             </button>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{trialError || t.showcase.trialHint}</p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{trialError || t.showcase.trialHint}</p>
+            <Link
+              to="/pricing"
+              className="mt-4 block w-full max-w-xs rounded-full border border-gray-300 dark:border-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-900 dark:text-white hover:border-indigo-500 transition-colors touch-manipulation"
+            >
+              {t.showcase.cta}
+            </Link>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 h-4">
+              {minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
+            </p>
+          </>
+        ) : (
+          <>
+            <Link
+              to={sub?.active ? '/proxies' : '/pricing'}
+              className="spend-cta block max-w-xs text-center touch-manipulation"
+            >
+              {sub?.active ? t.showcase.ctaActive : t.showcase.cta}
+            </Link>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 h-4">
+              {sub?.active && sub.expires_at
+                ? t.showcase.activeUntil(new Date(sub.expires_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US'))
+                : minPerMonth != null && t.showcase.priceFrom(minPerMonth)}
+            </p>
           </>
         )}
       </div>
